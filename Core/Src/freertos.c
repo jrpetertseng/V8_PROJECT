@@ -71,7 +71,7 @@ typedef StaticTask_t osStaticThreadDef_t;
 #define VOLUME              4
 #define I2C_BUS             (&hi2c1)
 #define SPK_TICK            9000
-#define PROXIMITY_THRESHOLD 500
+#define PROXIMITY_THRESHOLD 300
 #define BRIGHTNESS_CHANGE_THRESHOLD  10
 #define ADJUSTMENT_INTERVAL          pdMS_TO_TICKS(1000)
 /* USER CODE END PD */
@@ -809,55 +809,58 @@ void adjustBrightness(void)
 
 void adjustInversion(uint8_t inversion)
 {
-
     ECX343EN_Inversion(inversion, PANEL_LEFT);
     ECX343EN_Inversion(inversion, PANEL_RIGHT);
 }
 
-//void ALSensorTask(void * argument)
-//{
-////    static int previous_brightness = 0;
-////    static TickType_t last_adjustment_time = 0;
-//    const TickType_t xMaxExpectedBlockTime = pdMS_TO_TICKS(500);
-//
-//    for(;;)
-//    {
-////        int current_lux = light;
-////        int new_brightness = map_lux_to_internal_brightness(current_lux);
-////        TickType_t current_time = xTaskGetTickCount();
-////
-////        if ((abs(new_brightness - previous_brightness) >= BRIGHTNESS_CHANGE_THRESHOLD) &&
-////            (current_time - last_adjustment_time >= ADJUSTMENT_INTERVAL)) {
-////
-////        	smoothly_change_brightness(new_brightness, PANEL_RIGHT);
-////            smoothly_change_brightness(new_brightness, PANEL_LEFT);
-////            previous_brightness = new_brightness;
-////            last_adjustment_time = current_time;
-////        }
-//
-//        uint32_t thread_flag = osThreadFlagsWait(0x01, osFlagsWaitAny, xMaxExpectedBlockTime);
-//
-//        if ((thread_flag & 0x01) != 0) {
-//            ALS_SendReport_FS();
-//        }
-//    }
-//}
-
 void ALSensorTask(void * argument)
 {
-  
+    static int previous_brightness = 0;
+    static TickType_t last_adjustment_time = 0;
+    const TickType_t xMaxExpectedBlockTime = pdMS_TO_TICKS(500);
+
     for(;;)
     {
-        osThreadFlagsWait(0x01, osFlagsWaitAny, osWaitForever);
-        ALS_SendReport_FS();
+    	AL3010_ReadData();
+
+//        int current_lux = light;
+//        int new_brightness = map_lux_to_internal_brightness(current_lux);
+//        TickType_t current_time = xTaskGetTickCount();
+//
+//        if ((abs(new_brightness - previous_brightness) >= BRIGHTNESS_CHANGE_THRESHOLD) &&
+//            (current_time - last_adjustment_time >= ADJUSTMENT_INTERVAL)) {
+//
+//        	smoothly_change_brightness(new_brightness, PANEL_RIGHT);
+//            smoothly_change_brightness(new_brightness, PANEL_LEFT);
+//            previous_brightness = new_brightness;
+//            last_adjustment_time = current_time;
+//        }
+
+        uint32_t thread_flag = osThreadFlagsWait(0x01, osFlagsWaitAny, xMaxExpectedBlockTime);
+
+        if (thread_flag == osOK) {
+        	usbDebug("thread_flag %d\r\n", thread_flag);
+            ALS_SendReport_FS();
+        }
     }
 }
+
+//void ALSensorTask(void * argument)
+//{
+//    for(;;)
+//    {
+//
+//        AL3010_ReadData();
+//        osThreadFlagsWait(0x01, osFlagsWaitAny, osWaitForever);
+//        ALS_SendReport_FS();
+//    }
+//}
 
 void MainTask(void * argument)
 {
     HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
     osDelay(1000);
 
     AL3010_Init();

@@ -59,7 +59,7 @@ static CircularBuffer leftTemperatureBuffer, rightTemperatureBuffer;
 static bool isBufferInitialized = false;
 
 static uint8_t invL_masks[] = {0x80, 0x84, 0x8C, 0x88};
-static uint8_t invR_masks[] = {0x8C, 0x88, 0x80, 0x84};
+static uint8_t invR_masks[] = {0x80, 0x84, 0x8C, 0x88};
 
 extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
@@ -98,7 +98,7 @@ static bool is_ecx343RW_buf_valid(ECX343_DATA *buf);
 
 void ECX343EN_Init(void)
 {
-    panel_reg_rw_init(&hspi2, &hspi4);
+    panel_reg_rw_init(&hspi4, &hspi2);
 
 }
 
@@ -669,8 +669,8 @@ void write_panel_registers(ECX343_DATA *data) {
     panel_reg_write(PANEL_MAP_0, ORBIT_HORIZONTAL, LcdHorbit(data->uLCD_HORBR), 0);
     panel_reg_write(PANEL_MAP_0, ORBIT_VERTICAL, LcdVorbit(data->uLCD_VORBR), 0);
 
-//    current_brightness[0] = data->uLCD_LUXR & 0xFF | (data->uLCD_LUXR & 0x100) >> 8;
-//    current_brightness[1] = data->uLCD_LUXL & 0xFF | (data->uLCD_LUXL & 0x100) >> 8;
+    current_brightness[0] = data->uLCD_LUXR;
+    current_brightness[1] = data->uLCD_LUXL;
 }
 
 void ECX343EN_SetLuminance(uint16_t internalBrightness, uint8_t pnl_select)
@@ -679,8 +679,8 @@ void ECX343EN_SetLuminance(uint16_t internalBrightness, uint8_t pnl_select)
         return;
     }
 
-    uint8_t highByte = (internalBrightness >> 8) & 0xFF;
-    uint8_t lowByte = internalBrightness & 0xFF;
+    uint8_t highByte = (internalBrightness & 0x0100) >> 8;
+    uint8_t lowByte = internalBrightness & 0x00FF;
 
     ECX343EN_ArbitraryLuminanceH(highByte, pnl_select);
     ECX343EN_ArbitraryLuminanceL(lowByte, pnl_select);

@@ -45,35 +45,28 @@ void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, TOF_RST_Pin|IMU_NRST_Pin|IMU_WAKE_Pin|IMU_BOOTN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, PNL_3V3_EN_Pin|PNL_1V8_EN_Pin|VBUS_5V_PNL_EN_Pin|PNL_6V6_N_EN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, IMU_RST_Pin|PNL_L_XCLR_Pin|PNL_R_XCLR_Pin|CAM_RST_Pin
-                          |PNL_L_NSS_Pin|LT7911_RSTN_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, IMU_RST_Pin|PNL_R_XCLR_Pin|PNL_L_XCLR_Pin|CAM_RST_Pin
+                          |PNL_R_NSS_Pin|LT7911_RSTN_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, PNL_R_NSS_Pin|TOF_LPN_Pin|TOF_EN_Pin|SPI_I2C_N_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, IMU_NRST_Pin|IMU_WAKE_Pin|IMU_BOOTN_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, PNL_L_NSS_Pin|TOF_LPN_Pin|TOF_EN_Pin|SPI_I2C_N_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, IMU_NSS_Pin|SW_BRG_2D3D_Pin|ALS_RST_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pins : PCPin PCPin PCPin PCPin */
-  GPIO_InitStruct.Pin = TOF_RST_Pin|IMU_NRST_Pin|IMU_WAKE_Pin|IMU_BOOTN_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PDPin PDPin PDPin PDPin */
   GPIO_InitStruct.Pin = PNL_3V3_EN_Pin|PNL_1V8_EN_Pin|VBUS_5V_PNL_EN_Pin|PNL_6V6_N_EN_Pin;
@@ -108,8 +101,8 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : PBPin PBPin PBPin PBPin
                            PBPin PBPin */
-  GPIO_InitStruct.Pin = IMU_RST_Pin|PNL_L_XCLR_Pin|PNL_R_XCLR_Pin|CAM_RST_Pin
-                          |PNL_L_NSS_Pin|LT7911_RSTN_Pin;
+  GPIO_InitStruct.Pin = IMU_RST_Pin|PNL_R_XCLR_Pin|PNL_L_XCLR_Pin|CAM_RST_Pin
+                          |PNL_R_NSS_Pin|LT7911_RSTN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -121,8 +114,15 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : PCPin PCPin PCPin */
+  GPIO_InitStruct.Pin = IMU_NRST_Pin|IMU_WAKE_Pin|IMU_BOOTN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
   /*Configure GPIO pins : PEPin PEPin PEPin PEPin */
-  GPIO_InitStruct.Pin = PNL_R_NSS_Pin|TOF_LPN_Pin|TOF_EN_Pin|SPI_I2C_N_Pin;
+  GPIO_InitStruct.Pin = PNL_L_NSS_Pin|TOF_LPN_Pin|TOF_EN_Pin|SPI_I2C_N_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

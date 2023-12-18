@@ -135,13 +135,6 @@ HAL_StatusTypeDef AL3010_ReadData_ISR(void)
 
 void ALS_SendReport_FS(void)
 {
-    HAL_StatusTypeDef status;
-
-    status = AL3010_ReadData();
-    if (status != HAL_OK){
-        return;
-    }
-
     imuReport.type               = USB_HID_IMU_INPUT_REPORT;
     imuReport.data.imuReport.len = ALS_REPORT_LENGTH;
 
@@ -149,7 +142,6 @@ void ALS_SendReport_FS(void)
     memcpy( imuReport.data.imuReport.report, seiko_als_STREAM_1,
     		imuReport.data.imuReport.len);
     usbSendMessage( &imuReport);
-
 }
 
 static HAL_StatusTypeDef AL3010_WriteRegister(uint16_t reg, uint8_t *data)

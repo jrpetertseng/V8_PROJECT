@@ -81,8 +81,6 @@ PUTCHAR_PROTOTYPE;
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define TOF_RST_Pin GPIO_PIN_10
-#define TOF_RST_GPIO_Port GPIOC
 #define PNL_3V3_EN_Pin GPIO_PIN_1
 #define PNL_3V3_EN_GPIO_Port GPIOD
 #define VBUS_5V_PNL_FLG_Pin GPIO_PIN_5
@@ -106,8 +104,8 @@ PUTCHAR_PROTOTYPE;
 #define TOF_INT_Pin GPIO_PIN_1
 #define TOF_INT_GPIO_Port GPIOE
 #define TOF_INT_EXTI_IRQn EXTI1_IRQn
-#define PNL_R_MOSI_Pin GPIO_PIN_6
-#define PNL_R_MOSI_GPIO_Port GPIOE
+#define PNL_L_MOSI_Pin GPIO_PIN_6
+#define PNL_L_MOSI_GPIO_Port GPIOE
 #define OTG_FS_DM_Pin GPIO_PIN_11
 #define OTG_FS_DM_GPIO_Port GPIOA
 #define OTG_FS_VBUS_Pin GPIO_PIN_9
@@ -118,8 +116,8 @@ PUTCHAR_PROTOTYPE;
 #define MIC_SD_GPIO_Port GPIOB
 #define IMU_RST_Pin GPIO_PIN_8
 #define IMU_RST_GPIO_Port GPIOB
-#define PNL_R_SCK_Pin GPIO_PIN_2
-#define PNL_R_SCK_GPIO_Port GPIOE
+#define PNL_L_SCK_Pin GPIO_PIN_2
+#define PNL_L_SCK_GPIO_Port GPIOE
 #define LT7911_CFG_SDA_Pin GPIO_PIN_9
 #define LT7911_CFG_SDA_GPIO_Port GPIOC
 #define ALS_INT_Pin GPIO_PIN_8
@@ -131,8 +129,8 @@ PUTCHAR_PROTOTYPE;
 #define IMU_NRST_GPIO_Port GPIOC
 #define PS_ALS_SCL_Pin GPIO_PIN_6
 #define PS_ALS_SCL_GPIO_Port GPIOB
-#define PNL_R_NSS_Pin GPIO_PIN_4
-#define PNL_R_NSS_GPIO_Port GPIOE
+#define PNL_L_NSS_Pin GPIO_PIN_4
+#define PNL_L_NSS_GPIO_Port GPIOE
 #define IMU_WAKE_Pin GPIO_PIN_6
 #define IMU_WAKE_GPIO_Port GPIOC
 #define MAX98360A_GPIO_Pin GPIO_PIN_15
@@ -141,33 +139,33 @@ PUTCHAR_PROTOTYPE;
 #define PNL_6V6_N_EN_GPIO_Port GPIOD
 #define AUDIO_DET_Pin GPIO_PIN_0
 #define AUDIO_DET_GPIO_Port GPIOE
-#define PNL_R_MISO_Pin GPIO_PIN_5
-#define PNL_R_MISO_GPIO_Port GPIOE
+#define PNL_L_MISO_Pin GPIO_PIN_5
+#define PNL_L_MISO_GPIO_Port GPIOE
 #define SW_KEY_2D3D_Pin GPIO_PIN_14
 #define SW_KEY_2D3D_GPIO_Port GPIOD
 #define PNL_VOL_MINUS_Pin GPIO_PIN_12
 #define PNL_VOL_MINUS_GPIO_Port GPIOD
 #define PNL_VOL_PLUS_Pin GPIO_PIN_11
 #define PNL_VOL_PLUS_GPIO_Port GPIOD
-#define PNL_L_XCLR_Pin GPIO_PIN_0
-#define PNL_L_XCLR_GPIO_Port GPIOB
+#define PNL_R_XCLR_Pin GPIO_PIN_0
+#define PNL_R_XCLR_GPIO_Port GPIOB
 #define IMU_SCK_Pin GPIO_PIN_5
 #define IMU_SCK_GPIO_Port GPIOA
-#define PNL_L_MOSI_Pin GPIO_PIN_3
-#define PNL_L_MOSI_GPIO_Port GPIOC
+#define PNL_R_MOSI_Pin GPIO_PIN_3
+#define PNL_R_MOSI_GPIO_Port GPIOC
 #define PS_INT_Pin GPIO_PIN_0
 #define PS_INT_GPIO_Port GPIOC
 #define PS_INT_EXTI_IRQn EXTI0_IRQn
-#define PNL_R_XCLR_Pin GPIO_PIN_1
-#define PNL_R_XCLR_GPIO_Port GPIOB
+#define PNL_L_XCLR_Pin GPIO_PIN_1
+#define PNL_L_XCLR_GPIO_Port GPIOB
 #define IMU_MISO_Pin GPIO_PIN_6
 #define IMU_MISO_GPIO_Port GPIOA
 #define IMU_NSS_Pin GPIO_PIN_4
 #define IMU_NSS_GPIO_Port GPIOA
-#define PNL_L_TEMP_Pin GPIO_PIN_0
-#define PNL_L_TEMP_GPIO_Port GPIOA
-#define PNL_L_SCK_Pin GPIO_PIN_13
-#define PNL_L_SCK_GPIO_Port GPIOB
+#define PNL_R_TEMP_Pin GPIO_PIN_0
+#define PNL_R_TEMP_GPIO_Port GPIOA
+#define PNL_R_SCK_Pin GPIO_PIN_13
+#define PNL_R_SCK_GPIO_Port GPIOB
 #define CAM_RST_Pin GPIO_PIN_11
 #define CAM_RST_GPIO_Port GPIOB
 #define TOF_LPN_Pin GPIO_PIN_8
@@ -179,18 +177,18 @@ PUTCHAR_PROTOTYPE;
 #define SW_BRG_2D3D_GPIO_Port GPIOA
 #define ALS_RST_Pin GPIO_PIN_2
 #define ALS_RST_GPIO_Port GPIOA
-#define PNL_R_TEMP_Pin GPIO_PIN_1
-#define PNL_R_TEMP_GPIO_Port GPIOC
-#define PNL_L_NSS_Pin GPIO_PIN_12
-#define PNL_L_NSS_GPIO_Port GPIOB
+#define PNL_L_TEMP_Pin GPIO_PIN_1
+#define PNL_L_TEMP_GPIO_Port GPIOC
+#define PNL_R_NSS_Pin GPIO_PIN_12
+#define PNL_R_NSS_GPIO_Port GPIOB
 #define TOF_EN_Pin GPIO_PIN_7
 #define TOF_EN_GPIO_Port GPIOE
 #define IMU_BOOTN_Pin GPIO_PIN_5
 #define IMU_BOOTN_GPIO_Port GPIOC
 #define LT7911_INT_Pin GPIO_PIN_1
 #define LT7911_INT_GPIO_Port GPIOA
-#define PNL_L_MISO_Pin GPIO_PIN_2
-#define PNL_L_MISO_GPIO_Port GPIOC
+#define PNL_R_MISO_Pin GPIO_PIN_2
+#define PNL_R_MISO_GPIO_Port GPIOC
 #define SPI_I2C_N_Pin GPIO_PIN_9
 #define SPI_I2C_N_GPIO_Port GPIOE
 #define LT7911_RSTN_Pin GPIO_PIN_2
@@ -206,8 +204,9 @@ PUTCHAR_PROTOTYPE;
 /* Model Code Rules:
  *  1st character: J, Jorjin
  *  2nd character: 8, J8 series
+ *  3rd character: L,
  */
-#define MODEL_SUFFIX "A5"
+#define MODEL_SUFFIX "J8L"
 //#define PRINTF_VIA_CDC_ENABLED
 
 void resample_linear(uint16_t *pbuf, uint32_t* tmp );

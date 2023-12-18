@@ -138,10 +138,10 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     /**ADC1 GPIO Configuration
     PA0-WKUP     ------> ADC1_IN0
     */
-    GPIO_InitStruct.Pin = PNL_L_TEMP_Pin;
+    GPIO_InitStruct.Pin = PNL_R_TEMP_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(PNL_L_TEMP_GPIO_Port, &GPIO_InitStruct);
+    HAL_GPIO_Init(PNL_R_TEMP_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN ADC1_MspInit 1 */
 
@@ -159,10 +159,10 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
     /**ADC2 GPIO Configuration
     PC1     ------> ADC2_IN11
     */
-    GPIO_InitStruct.Pin = PNL_R_TEMP_Pin;
+    GPIO_InitStruct.Pin = PNL_L_TEMP_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(PNL_R_TEMP_GPIO_Port, &GPIO_InitStruct);
+    HAL_GPIO_Init(PNL_L_TEMP_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN ADC2_MspInit 1 */
 
@@ -184,7 +184,7 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
     /**ADC1 GPIO Configuration
     PA0-WKUP     ------> ADC1_IN0
     */
-    HAL_GPIO_DeInit(PNL_L_TEMP_GPIO_Port, PNL_L_TEMP_Pin);
+    HAL_GPIO_DeInit(PNL_R_TEMP_GPIO_Port, PNL_R_TEMP_Pin);
 
   /* USER CODE BEGIN ADC1_MspDeInit 1 */
 
@@ -201,7 +201,7 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
     /**ADC2 GPIO Configuration
     PC1     ------> ADC2_IN11
     */
-    HAL_GPIO_DeInit(PNL_R_TEMP_GPIO_Port, PNL_R_TEMP_Pin);
+    HAL_GPIO_DeInit(PNL_L_TEMP_GPIO_Port, PNL_L_TEMP_Pin);
 
   /* USER CODE BEGIN ADC2_MspDeInit 1 */
 

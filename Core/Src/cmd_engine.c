@@ -1046,8 +1046,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
 }
 void Ecx343_data_init_default(void)
 {
-    const char *strL = "AWI_A5";
-    const char *strR = "AWI_A5";
+    const char *strL = "JORJIN_J8L";
+    const char *strR = "JORJIN_J8L";
     memset(ecx343_data.uLCD_DEVICEL, 0, sizeof(ecx343_data.uLCD_DEVICEL));
     memcpy(ecx343_data.uLCD_DEVICEL, strL, strlen(strL));
 

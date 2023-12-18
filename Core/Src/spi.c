@@ -178,19 +178,19 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* spiHandle)
     PB13     ------> SPI2_SCK
     PC2     ------> SPI2_MISO
     */
-    GPIO_InitStruct.Pin = PNL_L_MOSI_Pin|PNL_L_MISO_Pin;
+    GPIO_InitStruct.Pin = PNL_R_MOSI_Pin|PNL_R_MISO_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = PNL_L_SCK_Pin;
+    GPIO_InitStruct.Pin = PNL_R_SCK_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
-    HAL_GPIO_Init(PNL_L_SCK_GPIO_Port, &GPIO_InitStruct);
+    HAL_GPIO_Init(PNL_R_SCK_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN SPI2_MspInit 1 */
 
@@ -210,7 +210,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* spiHandle)
     PE2     ------> SPI4_SCK
     PE5     ------> SPI4_MISO
     */
-    GPIO_InitStruct.Pin = PNL_R_MOSI_Pin|PNL_R_SCK_Pin|PNL_R_MISO_Pin;
+    GPIO_InitStruct.Pin = PNL_L_MOSI_Pin|PNL_L_SCK_Pin|PNL_L_MISO_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -260,9 +260,9 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
     PB13     ------> SPI2_SCK
     PC2     ------> SPI2_MISO
     */
-    HAL_GPIO_DeInit(GPIOC, PNL_L_MOSI_Pin|PNL_L_MISO_Pin);
+    HAL_GPIO_DeInit(GPIOC, PNL_R_MOSI_Pin|PNL_R_MISO_Pin);
 
-    HAL_GPIO_DeInit(PNL_L_SCK_GPIO_Port, PNL_L_SCK_Pin);
+    HAL_GPIO_DeInit(PNL_R_SCK_GPIO_Port, PNL_R_SCK_Pin);
 
   /* USER CODE BEGIN SPI2_MspDeInit 1 */
 
@@ -281,7 +281,7 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
     PE2     ------> SPI4_SCK
     PE5     ------> SPI4_MISO
     */
-    HAL_GPIO_DeInit(GPIOE, PNL_R_MOSI_Pin|PNL_R_SCK_Pin|PNL_R_MISO_Pin);
+    HAL_GPIO_DeInit(GPIOE, PNL_L_MOSI_Pin|PNL_L_SCK_Pin|PNL_L_MISO_Pin);
 
   /* USER CODE BEGIN SPI4_MspDeInit 1 */
 
