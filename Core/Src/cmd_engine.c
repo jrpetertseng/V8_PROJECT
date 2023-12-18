@@ -18,13 +18,15 @@
 #include "ecx343.h"
 
 
+
 #define MAX_TOF_DATA_COUNT (8*8*1)
 #define N_TARGETS_PER_ZONE 4
 #define TOF_8X8_DATA_PACKET_SIZE (4+1+1+4+(1+4+2+1+1)*MAX_TOF_DATA_COUNT+4+4)
 #define TOF_4X4_DATA_PACKET_SIZE (4+1+1+4+(1+4+2+1+1)*(MAX_TOF_DATA_COUNT/4)+4+4)
 #define TOF_DATA_PREFIX 0x41544144 /* "DATA" */
 #define TOF_DATA_SUFFIX 0x0a0d4445 /* "ED\r\n" */
-
+static uint8_t tofNumOfTargets[MAX_TOF_DATA_COUNT];
+uint8_t TofRangePacket[TOF_8X8_DATA_PACKET_SIZE];
 
 bool bPresenceSent = false;
 bool bGestureEnabled = false;
@@ -1103,3 +1105,80 @@ uint8_t LcdVorbit(int value) {
     }
     return tmp;
 }
+
+#if ENABLE_TOF
+void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp) {
+
+    uint8_t *ptr = TofRangePacket,zone_idx;
+    uint32_t checksum = 0;
+    uint16_t target_idx;
+    uint8_t data_count = MAX_TOF_DATA_COUNT ;
+
+#ifdef SHOW_TOF_RANGE_PERFORMANCE
+    ++TofRangeInputCount;
+#endif
+    // drop the new data if the packet has been updated since the last CDC transmission
+//    if (bRangePacketUpdated) return;
+
+    // add the "DATA" prefix
+    *((uint32_t *)ptr) = TOF_DATA_PREFIX;
+    ptr+=4;
+    // add the number of zone
+    *(ptr++) = data_count;
+    // add the silicon temperature (degree Celsius)
+    *(ptr++) = range_data->silicon_temp_degc;
+    // add the timestamp
+    *((uint32_t *)ptr) = timeStamp;
+    ptr+=4;
+    // add per zone/target data
+    for (target_idx=0, zone_idx=0;
+            target_idx < data_count*N_TARGETS_PER_ZONE;
+            target_idx+=N_TARGETS_PER_ZONE, zone_idx++) {
+        uint8_t offset = 0;
+        // add the number of targets
+        *ptr = range_data->nb_target_detected[zone_idx];
+        tofNumOfTargets[zone_idx] = *ptr;
+        // pick the strongest signal for output if there're multiple targets
+        if (*ptr > 1) {
+            uint8_t max_offset = 0;
+            uint32_t max_signal_rate = 0;
+            for (; offset<*ptr; offset++) {
+                uint32_t tmp = range_data->signal_per_spad[target_idx+offset];
+                if (tmp > max_signal_rate) {
+                    max_signal_rate = tmp;
+                    max_offset = offset;
+                }
+            }
+            offset = max_offset;
+        }
+        checksum += *(ptr++);
+        // add the peak signal rate (kcps/SPAD)
+        *((int32_t*)ptr) = range_data->signal_per_spad[target_idx+offset];
+//        tofPeakRate[zone_idx] = *((int32_t*)ptr);
+        checksum += *((uint32_t*)ptr);
+        ptr+=4;
+        // add the median range (mm)
+        *((int16_t*)ptr) = range_data->distance_mm[target_idx+offset];
+//        tofMedianRange[zone_idx] =
+//                ((tofPeakRate[zone_idx]<MIN_SIGNAL_RATE) || tofNumOfTargets[zone_idx] == 0)?
+//                        -1 : *((int16_t*)ptr);
+        checksum += *((uint16_t*)ptr);
+        ptr+=2;
+        // add the reflectance (%)
+        *ptr = range_data->reflectance[target_idx+offset];
+        checksum += *(ptr++);
+        // add the target status
+        *ptr = range_data->target_status[target_idx+offset];
+        checksum += *(ptr++);
+    }
+    // add checksum
+    *((uint32_t *)ptr) = checksum;
+    // add the "ED\r\n" suffix
+    *((uint32_t *)(ptr+4)) = TOF_DATA_SUFFIX;
+    // set the updated flag
+//    bRangePacketUpdated = true;
+    usbcdc_sendData( TofRangePacket, TOF_8X8_DATA_PACKET_SIZE);
+
+    return;
+}
+#endif

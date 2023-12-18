@@ -27,6 +27,7 @@
 #include "spi.h"
 #include "tim.h"
 #include "usb_device.h"
+//#include "usb_otg_hs.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -98,10 +99,9 @@ PingPongBuffer_t pingPong;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-
+static void MPU_Config(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -183,9 +183,11 @@ int main(void)
   MX_SPI1_Init();
   MX_SPI2_Init();
   MX_SPI4_Init();
+  MX_TIM13_Init();
   MX_ADC1_Init();
   MX_ADC2_Init();
-  MX_TIM13_Init();
+//  MX_USB_OTG_HS_PCD_Init();
+
   /* USER CODE BEGIN 2 */
   nBno08xGpioInts   = 0;
   nAlsGpioInts      = 0;
@@ -199,7 +201,9 @@ int main(void)
        Error_Handler();
   }
 #endif
-
+//  HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
+//  HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
+//  HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -214,7 +218,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//
+    /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -229,14 +234,15 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-
   /** Configure LSE Drive Capability
   */
   HAL_PWR_EnableBkUpAccess();
+
   /** Configure the main internal regulator output voltage
   */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -252,12 +258,14 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
   /** Activate the Over-Drive mode
   */
   if (HAL_PWREx_EnableOverDrive() != HAL_OK)
   {
     Error_Handler();
   }
+
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -313,6 +321,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     {
         p_threshold = RPR0521_ReadPS();
         nPsGpioInts += 1;
+    }
+#endif
+#if ENABLE_TOF
+    else if(GPIO_Pin == TOF_INT_Pin)
+    {
+//        nTofGpioInts_1 += 1;
+        isrToFTaskTrigger();
     }
 #endif
 }
@@ -407,34 +422,6 @@ void Error_Handler(void)
   {
   }
   /* USER CODE END Error_Handler_Debug */
-}
-
-void resample_linear(uint16_t *pbuf, uint32_t* tmp )
-{
-    int32_t diff = *(pbuf+15) - *(pbuf+14);
-    tmp[0] = *(pbuf+15) + diff;
-    for (uint8_t i=1; i<AUDIO_IN_PACKET/2; i++)
-    {
-        tmp[i] = tmp[i-1] + diff;
-
-    }
-}
-int cmp(const void *a, const void *b) {
-    return (*(int16_t*)a - *(int16_t*)b);
-}
-
-int16_t median_calc(int16_t arr[], int size) {
-    // Sort the array
-    qsort(arr, size, sizeof(int16_t), cmp);
-
-    // Calculate median
-    if (size % 2 == 0) {
-        // If the array size is even, return the average of the middle two elements
-        return (arr[size / 2 - 1] + arr[size / 2]) / 2;
-    } else {
-        // If the array size is odd, return the middle element
-        return arr[size / 2];
-    }
 }
 
 #ifdef  USE_FULL_ASSERT

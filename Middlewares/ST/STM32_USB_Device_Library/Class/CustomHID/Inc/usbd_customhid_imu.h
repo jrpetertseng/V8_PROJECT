@@ -63,7 +63,7 @@ extern "C" {
 #endif /* CUSTOM_HID_IMU_HS_BINTERVAL */
 
 #ifndef CUSTOM_HID_IMU_FS_BINTERVAL
-#define CUSTOM_HID_IMU_FS_BINTERVAL                      0x05U
+#define CUSTOM_HID_IMU_FS_BINTERVAL                      0x01U  //0x05U
 #endif /* CUSTOM_HID_IMU_FS_BINTERVAL */
 
 #ifndef USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE

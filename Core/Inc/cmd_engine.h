@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 #include "flash_rw_process.h"
+#include "debug_defs.h"
+#include "vl53l8cx_api.h"
 // Override USB configurations
 //#define CUSTOM_HID_EPIN_SIZE  0x08U
 //#define CUSTOM_HID_EPOUT_SIZE 0x08U
@@ -143,4 +145,9 @@ int Check_Ecx343_data_checksum(ECX343_DATA data);
 void Lcd_swMode(uint8_t lcdmode);
 uint8_t LcdHorbit(int value);
 uint8_t LcdVorbit(int value);
+
+#if ENABLE_TOF
+void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp);
+#endif
+
 #endif /* __CMD_ENGINE_H */
