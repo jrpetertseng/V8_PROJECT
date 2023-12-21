@@ -16,8 +16,8 @@
 #define ENABLE_IMU                      1
 #define ENABLE_MIS                      1
 #define ENABLE_ALS                      1
-#define ENABLE_PS                       0
-#define ENABLE_ADC                      0
+#define ENABLE_PS                       1
+#define ENABLE_ADC                      1
 #define ENABLE_SCAN_I2C                 0
 
 

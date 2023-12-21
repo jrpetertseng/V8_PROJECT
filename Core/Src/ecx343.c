@@ -23,7 +23,7 @@
 #define ALPHA 0.05f          					// Smoothing factor for exponential smoothing
 #define MIN_TEMPERATURE 20.0f  					// Minimum valid temperature
 #define MAX_TEMPERATURE 100.0f  				// Maximum valid temperature
-#define TEMPERATURE_THRESHOLD 5.0f  			// Maximum allowed deviation from smoothed temperature
+#define TEMPERATURE_THRESHOLD 15.0f  			// Maximum allowed deviation from smoothed temperature
 
 // Circular buffer structure for storing temperature readings
 typedef struct {
@@ -47,6 +47,9 @@ uint8_t flag_Freq, flag_2D3D;
 uint16_t current_brightness[2] = {0, 0};
 const uint16_t minInternalBrightness = 0x64;
 const uint16_t maxInternalBrightness = 0x1F4;
+
+uint16_t previousLuxR;
+uint16_t previousLuxL;
 
 // Global variables for storing temperature values and counts
 float temperatureLeft;
@@ -95,6 +98,11 @@ static PowContStatus panel_ps_transition(uint8_t pnl_select);
 static PanelRegStatus panel_reg_read_value(uint8_t addr, uint8_t *value, uint8_t pnl_select);
 static PanelRegStatus panel_reg_write_value(uint8_t addr, uint8_t value, uint8_t pnl_select);
 static bool is_ecx343RW_buf_valid(ECX343_DATA *buf);
+
+PowerControlFn power_control_functions[] = {
+    ECX343EN_PowerOff,
+    ECX343EN_PowerOn,
+};
 
 void ECX343EN_Init(void)
 {
@@ -482,6 +490,25 @@ PanelRegStatus panel_reg_write(uint8_t map, uint8_t addr, uint8_t value, uint8_t
     return PANEL_REG_OK;
 }
 
+void ECX343EN_PowerSaving(uint8_t type)
+{
+	if (type) {
+		while(panel_ps_transition(0) == PANEL_CONT_CONTINUE) {
+			osDelay(10);
+		}
+		while(panel_ps_transition(1) == PANEL_CONT_CONTINUE) {
+			osDelay(10);
+		}
+	} else {
+		while(panel_ps_release(0) == PANEL_CONT_CONTINUE) {
+			osDelay(10);
+		}
+		while(panel_ps_release(1) == PANEL_CONT_CONTINUE) {
+			osDelay(10);
+		}
+	}
+}
+
 void ECX343EN_Inversion(uint8_t value, uint8_t pnl_select)
 {
     /*
@@ -612,24 +639,24 @@ void ECX343EN_TempDetect(uint8_t value, uint8_t pnl_select)
 }
 
 bool is_ecx343RW_buf_valid(ECX343_DATA *buf) {
-    // 檢查 ecx343RW_buf[0] 和 ecx343RW_buf[1] 是否在範圍 0 到 3 之間
+    // Check if ecx343RW_buf[0] and ecx343RW_buf[1] are within the range of 0 to 3
     bool invl_valid = (buf->uLCD_INVL == 0) || (buf->uLCD_INVL == 1) || (buf->uLCD_INVL == 2) || (buf->uLCD_INVL == 3);
     bool invr_valid = (buf->uLCD_INVR == 0) || (buf->uLCD_INVR == 1) || (buf->uLCD_INVR == 2) || (buf->uLCD_INVR == 3);
 
-    // 檢查 ecx343RW_buf[2] 和 ecx343RW_buf[3] 的值是否在範圍 100 到 500 之間
+    // Check if ecx343RW_buf[2] and ecx343RW_buf[3] values are within the range of 100 to 500
     bool luxl_valid = (buf->uLCD_LUXL >= 100) && (buf->uLCD_LUXL <= 500);
     bool luxr_valid = (buf->uLCD_LUXR >= 100) && (buf->uLCD_LUXR <= 500);
 
-    // 檢查 ecx343RW_buf[4]、ecx343RW_buf[5]、ecx343RW_buf[6] 和 ecx343RW_buf[7] 是否在範圍 0~16 或 100~116 之間
+    // Check if ecx343RW_buf[4], ecx343RW_buf[5], ecx343RW_buf[6], and ecx343RW_buf[7] are within the range of 0~16 or 100~116
     bool horbl_valid = ((buf->uLCD_HORBL >= 0) && (buf->uLCD_HORBL <= 16)) || ((buf->uLCD_HORBL >= 100) && (buf->uLCD_HORBL <= 116));
     bool horbr_valid = ((buf->uLCD_HORBR >= 0) && (buf->uLCD_HORBR <= 16)) || ((buf->uLCD_HORBR >= 100) && (buf->uLCD_HORBR <= 116));
     bool vorbl_valid = ((buf->uLCD_VORBL >= 0) && (buf->uLCD_VORBL <= 16)) || ((buf->uLCD_VORBL >= 100) && (buf->uLCD_VORBL <= 116));
     bool vorbr_valid = ((buf->uLCD_VORBR >= 0) && (buf->uLCD_VORBR <= 16)) || ((buf->uLCD_VORBR >= 100) && (buf->uLCD_VORBR <= 116));
 
-    // 檢查 ecx343RW_buf[8] 是否在範圍 0 到 3 之間
+    // Check if ecx343RW_buf[8] is within the range of 0 to 3
     bool mode_valid = (buf->uLCD_MODE >= 0) && (buf->uLCD_MODE <= 3);
 
-    // 返回檢查結果
+    // Return the result of the checks
     return invl_valid && invr_valid && luxl_valid && luxr_valid && horbl_valid && horbr_valid && vorbl_valid && vorbr_valid && mode_valid;
 }
 
@@ -673,13 +700,33 @@ void write_panel_registers(ECX343_DATA *data) {
     current_brightness[1] = data->uLCD_LUXL;
 }
 
+void adjustBrightness(void)
+{
+    uint16_t newLuxL = (uint16_t)(ecx343_current_data.uLCD_LUXL);
+    uint16_t newLuxR = (uint16_t)(ecx343_current_data.uLCD_LUXR);
+
+    if (newLuxL != previousLuxL)
+    {
+        ECX343EN_ArbitraryLuminanceL((uint8_t)(newLuxL & 0xFF), PANEL_LEFT);
+        ECX343EN_ArbitraryLuminanceH((uint8_t)((newLuxL & 0x100) >> 8), PANEL_LEFT);
+        previousLuxL = newLuxL;
+    }
+
+    if (newLuxR != previousLuxR)
+    {
+        ECX343EN_ArbitraryLuminanceL((uint8_t)(newLuxR & 0xFF), PANEL_RIGHT);
+        ECX343EN_ArbitraryLuminanceH((uint8_t)((newLuxR & 0x100) >> 8), PANEL_RIGHT);
+        previousLuxR = newLuxR;
+    }
+}
+
 void ECX343EN_SetLuminance(uint16_t internalBrightness, uint8_t pnl_select)
 {
     if (internalBrightness < minInternalBrightness || internalBrightness > maxInternalBrightness) {
         return;
     }
 
-    uint8_t highByte = (internalBrightness & 0x0100) >> 8;
+    uint8_t highByte = (internalBrightness & 0x100) >> 8;
     uint8_t lowByte = internalBrightness & 0x00FF;
 
     ECX343EN_ArbitraryLuminanceH(highByte, pnl_select);
@@ -700,7 +747,7 @@ int map_lux_to_internal_brightness(int lux)
 
 void smoothly_change_brightness(int target_brightness, uint8_t panel)
 {
-    const int adjustment_rate = 50;
+    const int adjustment_rate = 10;
 
     if (abs(current_brightness[panel] - target_brightness) < adjustment_rate)
     {
@@ -804,11 +851,11 @@ void updatePanelTemperature(void) {
     float leftOrigVolt[2] = {0.0};
     float rightOrigVolt[2] = {0.0};
 
-    leftOrigVolt[0] = readVoltageAndCalculate(PANEL_TEMP_VOLT1, PANEL_LEFT, &hadc1);
-    rightOrigVolt[0] = readVoltageAndCalculate(PANEL_TEMP_VOLT1, PANEL_RIGHT, &hadc2);
+    rightOrigVolt[0] = readVoltageAndCalculate(PANEL_TEMP_VOLT1, PANEL_RIGHT, &hadc1);
+    leftOrigVolt[0] = readVoltageAndCalculate(PANEL_TEMP_VOLT1, PANEL_LEFT, &hadc2);
 
-    leftOrigVolt[1] = readVoltageAndCalculate(PANEL_TEMP_VOLT2, PANEL_LEFT, &hadc1);
-    rightOrigVolt[1] = readVoltageAndCalculate(PANEL_TEMP_VOLT2, PANEL_RIGHT, &hadc2);
+    rightOrigVolt[1] = readVoltageAndCalculate(PANEL_TEMP_VOLT2, PANEL_RIGHT, &hadc1);
+    leftOrigVolt[1] = readVoltageAndCalculate(PANEL_TEMP_VOLT2, PANEL_LEFT, &hadc2);
     // Calculate the panel temperatures using a specific formula
     // This formula is likely based on the characteristics or calibration data of the temperature sensors
     // It converts voltage readings into temperature values
@@ -829,8 +876,6 @@ void updatePanelTemperature(void) {
 	// Apply exponential smoothing to the temperature data in the buffers
 	smoothed_left = exponential_smoothing_sequence(&leftTemperatureBuffer);
 	smoothed_right = exponential_smoothing_sequence(&rightTemperatureBuffer);
-
-
 }
 
 void ECX343EN_CalculateTemperatures(float *temperatureResult) {
@@ -838,10 +883,10 @@ void ECX343EN_CalculateTemperatures(float *temperatureResult) {
     float leftOrigVolt[2] = {0.0};
 
     // Read voltage and calculate temperature for left and right panels
-    leftOrigVolt[0] = readVoltageAndCalculate(PANEL_TEMP_VOLT1, PANEL_LEFT, &hadc1);
-    rightOrigVolt[0] = readVoltageAndCalculate(PANEL_TEMP_VOLT1, PANEL_RIGHT, &hadc2);
-    leftOrigVolt[1] = readVoltageAndCalculate(PANEL_TEMP_VOLT2, PANEL_LEFT, &hadc1);
-    rightOrigVolt[1] = readVoltageAndCalculate(PANEL_TEMP_VOLT2, PANEL_RIGHT, &hadc2);
+    rightOrigVolt[0] = readVoltageAndCalculate(PANEL_TEMP_VOLT1, PANEL_RIGHT, &hadc1);
+    leftOrigVolt[0] = readVoltageAndCalculate(PANEL_TEMP_VOLT1, PANEL_LEFT, &hadc2);
+    rightOrigVolt[1] = readVoltageAndCalculate(PANEL_TEMP_VOLT2, PANEL_RIGHT, &hadc1);
+    leftOrigVolt[1] = readVoltageAndCalculate(PANEL_TEMP_VOLT2, PANEL_LEFT, &hadc2);
 
     // Calculate and store the temperatures based on voltage readings
     // Ensure these calculations are based on the specific characteristics of your temperature sensors
@@ -1001,7 +1046,7 @@ const setPanelSeqTable PanelContPanelReg60HzSettingTable[] = {
 //    {PANEL_MAP_0, PANEL_ADDR_8B, 0xDA, 0},
 //    {PANEL_MAP_0, PANEL_ADDR_8C, 0x, 0},
 //    {PANEL_MAP_0, PANEL_ADDR_8D, 0x, 0},
-//    {PANEL_MAP_0, PANEL_ADDR_8E, 0x00, 0},
+    {PANEL_MAP_0, PANEL_ADDR_8E, 0x0C, 0},
 //    {PANEL_MAP_0, PANEL_ADDR_8F, 0x, 0},
 //
 //    {PANEL_MAP_0, PANEL_ADDR_90, 0x, 0},
@@ -1275,7 +1320,7 @@ const setPanelSeqTable PanelContPanelReg120HzSettingTable[] = {
 //    {PANEL_MAP_0, PANEL_ADDR_8B, 0xDA, 0},
 //    {PANEL_MAP_0, PANEL_ADDR_8C, 0x, 0},
 //    {PANEL_MAP_0, PANEL_ADDR_8D, 0x, 0},
-//    {PANEL_MAP_0, PANEL_ADDR_8E, 0x00, 0},
+    {PANEL_MAP_0, PANEL_ADDR_8E, 0x0C, 0},
 //    {PANEL_MAP_0, PANEL_ADDR_8F, 0x, 0},
 //
 //    {PANEL_MAP_0, PANEL_ADDR_90, 0x, 0},

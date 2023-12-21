@@ -34,6 +34,7 @@ bool bPresenceEnabled = false;
 bool command_flag = false;
 
 extern uint8_t DebugSwitch;
+extern uint8_t AutoBrightness;
 
 ECX343_DATA ecx343_data;
 ECX343_DATA ecx343_current_data;
@@ -275,6 +276,9 @@ static Command string_to_command(char* str, uint32_t len) {
                 buf_offset = 10;
             } else if (!strncmp(str+3, "adcdebug", 8)) {
                 cmd.Cmd =  CE_SET_ADC_DEBUG;
+                buf_offset = 11;
+            } else if (!strncmp(str+3, "autobn", 6)) {
+                cmd.Cmd =  CE_SET_AUTO_BRIGHTNESS;
                 buf_offset = 11;
             }
         } else if (!strncmp(str, "get", 3)) {
@@ -802,6 +806,14 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
         break;
+    case CE_SET_AUTO_BRIGHTNESS:
+        if (!args_len) {
+        	AutoBrightness = !AutoBrightness;
+            reply += sprintf(reply, "Set ADC DEBUG: %d", AutoBrightness);
+        } else {
+            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        }
+        break;
     /* get command set */
     case CE_GET_ECHO:
         if (!args_len)
@@ -1046,8 +1058,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
 }
 void Ecx343_data_init_default(void)
 {
-    const char *strL = "JORJIN_J8L";
-    const char *strR = "JORJIN_J8L";
+    const char *strL = "JORJIN J8L";
+    const char *strR = "JORJIN J8L";
     memset(ecx343_data.uLCD_DEVICEL, 0, sizeof(ecx343_data.uLCD_DEVICEL));
     memcpy(ecx343_data.uLCD_DEVICEL, strL, strlen(strL));
 

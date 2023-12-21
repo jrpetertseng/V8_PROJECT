@@ -54,10 +54,12 @@
 #include "i2s.h"
 #include "pingpong_buf.h"
 #include "vl53l8cx_api.h"
+#include "button_handling.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+
 #if ENABLE_CDC_ENGINEERING_TEST
 static JQueueMessage_t report_usb;
 #endif
@@ -73,7 +75,6 @@ typedef StaticTask_t osStaticThreadDef_t;
 #define SPK_TICK            9000
 #define PROXIMITY_THRESHOLD 300
 #define BRIGHTNESS_CHANGE_THRESHOLD  10
-#define ADJUSTMENT_INTERVAL          pdMS_TO_TICKS(1000)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -99,23 +100,20 @@ extern float temperatureLeft;
 extern float temperatureRight;
 extern float smoothed_left;
 extern float smoothed_right;
+extern uint16_t current_brightness[2];
 
+enum PowerState current_state = POWER_OFF;
 uint8_t DebugSwitch = 0;
-uint8_t p_flag = 0;
-uint8_t on_flag = 0;
+uint8_t AutoBrightness = 0;
 uint16_t p_threshold = 1;
 int16_t data_i2s[AUDIO_IN_PACKET*_PACK_SIZE];
 int16_t average_volume = 1430; //1430
 uint8_t buttonEvent;
 
-uint16_t previousLuxR;
-uint16_t previousLuxL;
-
 //bool medianFlag = true;
 //int16_t median_buf[AUDIO_IN_PACKET/2];
 //extern uint32_t _tmp[AUDIO_IN_PACKET/2];
 void *pinpong_ptr;
-
 
 /* Definitions for cmdToFTask */
 #if ENABLE_CMD
@@ -787,26 +785,6 @@ void switchMode(void)
 //        MAX9850_SWITCH_VOLUME(currentVolume);
 //}
 
-void adjustBrightness(void)
-{
-    uint16_t newLuxL = (uint16_t)(ecx343_current_data.uLCD_LUXL);
-    uint16_t newLuxR = (uint16_t)(ecx343_current_data.uLCD_LUXR);
-
-    if (newLuxL != previousLuxL)
-    {
-        ECX343EN_ArbitraryLuminanceL((uint8_t)(newLuxL & 0xFF), PANEL_LEFT);
-        ECX343EN_ArbitraryLuminanceH((uint8_t)((newLuxL & 0x100) >> 8), PANEL_LEFT);
-        previousLuxL = newLuxL;
-    }
-
-    if (newLuxR != previousLuxR)
-    {
-        ECX343EN_ArbitraryLuminanceL((uint8_t)(newLuxR & 0xFF), PANEL_RIGHT);
-        ECX343EN_ArbitraryLuminanceH((uint8_t)((newLuxR & 0x100) >> 8), PANEL_RIGHT);
-        previousLuxR = newLuxR;
-    }
-}
-
 void adjustInversion(uint8_t inversion)
 {
     ECX343EN_Inversion(inversion, PANEL_LEFT);
@@ -816,45 +794,34 @@ void adjustInversion(uint8_t inversion)
 void ALSensorTask(void * argument)
 {
     static int previous_brightness = 0;
-    static TickType_t last_adjustment_time = 0;
-    const TickType_t xMaxExpectedBlockTime = pdMS_TO_TICKS(500);
 
     for(;;)
     {
-    	AL3010_ReadData();
+    	uint32_t thread_flag = osThreadFlagsWait(0x10, osFlagsWaitAny, osWaitForever);
 
-//        int current_lux = light;
-//        int new_brightness = map_lux_to_internal_brightness(current_lux);
-//        TickType_t current_time = xTaskGetTickCount();
-//
-//        if ((abs(new_brightness - previous_brightness) >= BRIGHTNESS_CHANGE_THRESHOLD) &&
-//            (current_time - last_adjustment_time >= ADJUSTMENT_INTERVAL)) {
-//
-//        	smoothly_change_brightness(new_brightness, PANEL_RIGHT);
-//            smoothly_change_brightness(new_brightness, PANEL_LEFT);
-//            previous_brightness = new_brightness;
-//            last_adjustment_time = current_time;
-//        }
-
-        uint32_t thread_flag = osThreadFlagsWait(0x01, osFlagsWaitAny, xMaxExpectedBlockTime);
-
-        if (thread_flag == osOK) {
-        	usbDebug("thread_flag %d\r\n", thread_flag);
+        if (thread_flag & 0x10) {
+        	AL3010_ReadData();
             ALS_SendReport_FS();
+
+        }
+        if (AutoBrightness) {
+			int current_lux = light;
+			int new_brightness = map_lux_to_internal_brightness(current_lux);
+
+			if ((abs(new_brightness - previous_brightness) >= BRIGHTNESS_CHANGE_THRESHOLD))
+			{
+				while (current_brightness[PANEL_RIGHT] != new_brightness || current_brightness[PANEL_LEFT] != new_brightness)
+				{
+					smoothly_change_brightness(new_brightness, PANEL_RIGHT);
+					smoothly_change_brightness(new_brightness, PANEL_LEFT);
+				}
+				previous_brightness = new_brightness;
+				ecx343_current_data.uLCD_LUXL = current_brightness[PANEL_LEFT];
+				ecx343_current_data.uLCD_LUXR = current_brightness[PANEL_RIGHT];
+			}
         }
     }
 }
-
-//void ALSensorTask(void * argument)
-//{
-//    for(;;)
-//    {
-//
-//        AL3010_ReadData();
-//        osThreadFlagsWait(0x01, osFlagsWaitAny, osWaitForever);
-//        ALS_SendReport_FS();
-//    }
-//}
 
 void MainTask(void * argument)
 {
@@ -882,40 +849,40 @@ void MainTask(void * argument)
 #else
     ECX343EN_PowerOn();
     osDelay(10);
-    on_flag = 1;
+    current_state = 1;
 #endif
+    uint8_t thresholdCount = 0;
 
-    uint8_t p_count = 0;
-    static uint8_t button2D3DPrevState = GPIO_PIN_SET;
-    static uint8_t mode_state;
+    uint32_t pressTime = 0, releaseTime = 0;
+    ButtonState buttonFuncCurrState = BUTTON_RELEASED;
+    ButtonState buttonFuncPrevState = BUTTON_RELEASED;
+    OperationMode currentMode = MODE_BRIGHTNESS;
+    PowerSave displayType = MODE_RELEASE;
+    ButtonClickType clickType = NO_CLICK;
 
-    uint32_t startTime = osKernelGetTickCount();
-    uint32_t checkInterval = 10000;
+//    uint32_t startTime = osKernelGetTickCount();
+//    uint32_t checkInterval = 10000;
+
     for(;;)
     {
 
 #if ENABLE_PS
 //    	usbDebug("p_threshold: %d@\r\n", p_threshold);
-        p_flag = (p_threshold > PROXIMITY_THRESHOLD) ? true : false;
-        if (p_flag != on_flag)
-        {
-            p_count++;
+        if ((p_threshold > PROXIMITY_THRESHOLD) != (current_state == POWER_ON)) {
+            thresholdCount++;
+            if (thresholdCount > 10) {
+                current_state = (current_state == POWER_OFF) ? POWER_ON : POWER_OFF;
+                thresholdCount = 0;
 
-            if (p_count > 5)
-            {
-                on_flag = !on_flag;
-                on_flag ? ECX343EN_PowerOn() : ECX343EN_PowerOff();
-                p_count = 0;
+                power_control_functions[current_state]();
             }
-        }
-        else
-        {
-            p_count = 0;
+        } else {
+            thresholdCount = 0;
         }
 #endif
     	osDelay(100);
 
-    	if (!on_flag) continue;
+    	if (!current_state) continue;
 
         if (command_flag)
         {
@@ -923,49 +890,44 @@ void MainTask(void * argument)
             switchMode();
         }
 
-        uint8_t button2D3DCurrState = HAL_GPIO_ReadPin(SW_KEY_2D3D_GPIO_Port, SW_KEY_2D3D_Pin);
+        /* ButtonEvent */
+        bool isReleased = false;
+        bool newEventOccurred = UpdateButtonState(&buttonFuncPrevState, &buttonFuncCurrState, &pressTime, &releaseTime, &isReleased);
 
-        buttonEvent = 0;
-        buttonEvent |= ((button2D3DCurrState != button2D3DPrevState) & (button2D3DCurrState == GPIO_PIN_RESET));
+        if (newEventOccurred) {
+            clickType = isReleased ? GetButtonClickType(pressTime, releaseTime) : LONG_PRESS;
+            ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
+        } else if (possibleSingleClick && (osKernelGetTickCount() - lastClickTime > CLICK_DETECTION_PERIOD)) {
+            possibleSingleClick = false;
+            clickType = SINGLE_CLICK;
+            ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
+        }
+
+        uint8_t buttonEvent = 0;
         buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_MINUS_GPIO_Port, PNL_VOL_MINUS_Pin) == GPIO_PIN_RESET) << 1;
         buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_PLUS_GPIO_Port, PNL_VOL_PLUS_Pin) == GPIO_PIN_RESET) << 2;
-
-        switch(buttonEvent) {
-            case 1:
-                mode_state = (ecx343_current_data.uLCD_MODE + 1) % 4;
-                flag_Freq = mode_state & 0x01;
-                flag_2D3D = (mode_state & 0x02) >> 1;
-                switchMode();
-                usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
-                break;
-            case 2: //Down
-//            	adjustVolume(1);
-                usbDebug("#volume -@\r\n");
-                break;
-            case 4: //Up
-//            	adjustVolume(-1);
-                usbDebug("#volume +@\r\n");
-                break;
-            default:
-                break;
+        if (buttonEvent) {
+            ProcessButtonEvent(buttonEvent, &clickType, &currentMode, &displayType);
         }
-        button2D3DPrevState = button2D3DCurrState;
+        /**/
 
-        if ((osKernelGetTickCount() - startTime) > checkInterval)
-        {
-            startTime = osKernelGetTickCount();
-			if (smoothed_left > 90.0f || smoothed_right > 90.0f)
-			{
-				for (uint8_t i = 0; i < 10; i++)
-				{
-					ecx343_current_data.uLCD_LUXL -= 10;
-					ecx343_current_data.uLCD_LUXR -= 10;
-					adjustBrightness();
-					osDelay(10);
-				}
-			}
-
-        }
+        /* Reduce brightness by 1000 when panel exceeds 90 degrees. */
+//        if ((osKernelGetTickCount() - startTime) > checkInterval)
+//        {
+//            startTime = osKernelGetTickCount();
+//			if (smoothed_left > 90.0f || smoothed_right > 90.0f)
+//			{
+//				for (uint8_t i = 0; i < 10; i++)
+//				{
+//					ecx343_current_data.uLCD_LUXL -= 10;
+//					ecx343_current_data.uLCD_LUXR -= 10;
+//					adjustBrightness();
+//					osDelay(10);
+//				}
+//			}
+//
+//        }
+        /**/
     }
 }
 
@@ -973,7 +935,7 @@ void ADCTask(void *argument)
 {
     for (;;)
     {
-        if (on_flag)
+        if (current_state)
         {
         	if(DebugSwitch)
         	{

@@ -377,6 +377,15 @@ typedef enum {
     PANEL_LEFT,
 } PanelSelect;
 
+enum PowerState {
+    POWER_OFF,
+    POWER_ON,
+};
+
+typedef void (*PowerControlFn)();
+
+extern PowerControlFn power_control_functions[];
+
 #define PANEL_WRITE_LENGTH                   (uint16_t)2
 #define PANEL_REG_RW_TIMEOUT                 (uint32_t)1000
 
@@ -398,6 +407,7 @@ void ECX343EN_Init(void);
 void ECX343EN_Run(void);
 void ECX343EN_PowerOn(void);
 void ECX343EN_PowerOff(void);
+void ECX343EN_PowerSaving(uint8_t type);
 void ECX343EN_Inversion(uint8_t value, uint8_t pnl_select);
 void ECX343EN_LuminanceModeSetting(uint8_t value, uint8_t pnl_select);
 void ECX343EN_ArbitraryLuminanceH(uint8_t value, uint8_t pnl_select);
@@ -413,5 +423,6 @@ int map_lux_to_internal_brightness(int lux);
 void smoothly_change_brightness(int target_brightness, uint8_t panel);
 void ECX343EN_CalculateTemperatures(float *temperatureResult);
 void updatePanelTemperature(void);
+void adjustBrightness(void);
 #endif /* INC_ECX343_H_ */
 

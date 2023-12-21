@@ -312,7 +312,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 #if ENABLE_ALS
     else if(ALS_INT_Pin == GPIO_Pin)
     {
-        osThreadFlagsSet(ALSensorTaskHandle, 0x01);
+        osThreadFlagsSet(ALSensorTaskHandle, 0x10);
         nAlsGpioInts += 1;
     }
 #endif
