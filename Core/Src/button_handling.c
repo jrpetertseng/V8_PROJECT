@@ -76,16 +76,24 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
         case NO_CLICK:
             break;
         case SINGLE_CLICK:
-            *displayType = !(*displayType);
-            ECX343EN_PowerSaving(*displayType);
-            usbDebug("#power %d@\r\n", *displayType);
+        	uint8_t mode_state;
+
+            // *displayType = !(*displayType);
+            // ECX343EN_PowerSaving(*displayType);
+            // usbDebug("#power %d@\r\n", *displayType);
+
+            mode_state = (ecx343_current_data.uLCD_MODE + 1) % 4;
+            flag_Freq = mode_state & 0x01;
+            flag_2D3D = (mode_state & 0x02) >> 1;
+            switchMode();
+//            usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
             break;
         case DOUBLE_CLICK:
             *currentMode = (*currentMode == MODE_BRIGHTNESS) ? MODE_VOLUME : MODE_BRIGHTNESS;
-            usbDebug("#btmode %d@\r\n", *currentMode);
+//            usbDebug("#btmode %d@\r\n", *currentMode);
             break;
         case LONG_PRESS:
-			usbDebug("#take a picture@\r\n");
+//			usbDebug("#take a picture@\r\n");
             break;
     }
     *clickType = NO_CLICK;
@@ -103,10 +111,10 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType, Operati
                 ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR > 100) ?
                     ecx343_current_data.uLCD_LUXR - 10 : ecx343_current_data.uLCD_LUXR;
                 adjustBrightness();
-                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
+//                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
                 break;
             } else {
-            	usbDebug("#volume -@\r\n");
+//            	usbDebug("#volume -@\r\n");
             }
             break;
         case 4:
@@ -116,9 +124,9 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType, Operati
                 ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR < 500) ?
                     ecx343_current_data.uLCD_LUXR + 10 : ecx343_current_data.uLCD_LUXR;
                 adjustBrightness();
-                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
+//                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
             } else {
-            	usbDebug("#volume +@\r\n");
+//            	usbDebug("#volume +@\r\n");
             }
             break;
     }

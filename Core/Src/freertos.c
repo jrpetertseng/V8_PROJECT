@@ -73,7 +73,7 @@ typedef StaticTask_t osStaticThreadDef_t;
 #define VOLUME              4
 #define I2C_BUS             (&hi2c1)
 #define SPK_TICK            9000
-#define PROXIMITY_THRESHOLD 300
+#define PROXIMITY_THRESHOLD 10
 #define BRIGHTNESS_CHANGE_THRESHOLD  10
 /* USER CODE END PD */
 
@@ -303,9 +303,6 @@ static int               nExecs_IsrToF;
 SemaphoreHandle_t isrALSLock = NULL;
 SemaphoreHandle_t isrPSLock = NULL;
 
-void switchMode(void);
-void adjustBrightness(void);
-void adjustInversion(uint8_t inversion);
 float readVoltageAndCalculate(uint8_t voltage, uint8_t panel, ADC_HandleTypeDef *hadc);
 
 void MainTask(void * argument);
@@ -769,14 +766,6 @@ void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s)
 }
 #endif
 
-void switchMode(void)
-{
-    ecx343_current_data.uLCD_MODE = (flag_Freq & 0x01) + ((flag_2D3D<<1) & 0x02);
-    ECX343EN_PowerOff();
-    LT7911_Mode_Switch(ecx343_current_data.uLCD_MODE);
-    ECX343EN_PowerOn();
-}
-
 //void adjustVolume(int step) {
 //    currentVolume += step;
 //    if(currentVolume <= MAX_VOLUME) currentVolume=MAX_VOLUME;
@@ -785,10 +774,131 @@ void switchMode(void)
 //        MAX9850_SWITCH_VOLUME(currentVolume);
 //}
 
-void adjustInversion(uint8_t inversion)
+void MainTask(void * argument)
 {
-    ECX343EN_Inversion(inversion, PANEL_LEFT);
-    ECX343EN_Inversion(inversion, PANEL_RIGHT);
+    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
+    osDelay(1000);
+
+    AL3010_Init();
+    osDelay(10);
+
+    RPR0521_Init();
+    osDelay(10);
+    RPR0521_SetUp();
+    osDelay(10);
+
+    HAL_GPIO_WritePin(LT7911_RSTN_GPIO_Port, LT7911_RSTN_Pin, GPIO_PIN_SET);
+    osDelay(10);
+    Ecx343_data_init_default();
+    osDelay(10);
+    ECX343EN_Init();
+    osDelay(10);
+
+#if ENABLE_PS
+#else
+    ECX343EN_PowerOn();
+    osDelay(10);
+    current_state = 1;
+	 panel_reg_write(0, 0x80, 0x01, 0);
+	 panel_reg_write(0, 0x80, 0x01, 1);
+
+#endif
+//	 uint8_t result;
+//	 uint8_t panel = 0;
+
+    uint8_t thresholdCount = 0;
+
+    uint32_t pressTime = 0, releaseTime = 0;
+    ButtonState buttonFuncCurrState = BUTTON_RELEASED;
+    ButtonState buttonFuncPrevState = BUTTON_RELEASED;
+    OperationMode currentMode = MODE_BRIGHTNESS;
+    PowerSave displayType = MODE_RELEASE;
+    ButtonClickType clickType = NO_CLICK;
+
+#if REDUCE_BRIGHTNESS_ON_HIGH_TEMP
+    uint32_t startTime = osKernelGetTickCount();
+    uint32_t checkInterval = 10000;
+#endif
+    for(;;)
+    {
+
+#if ENABLE_PS
+//    	usbDebug("p_threshold: %d@\r\n", p_threshold);
+        if ((p_threshold > PROXIMITY_THRESHOLD) != (current_state == POWER_ON)) {
+            thresholdCount++;
+            if (thresholdCount > 5) {
+                current_state = (current_state == POWER_OFF) ? POWER_ON : POWER_OFF;
+                thresholdCount = 0;
+
+                power_control_functions[current_state]();
+            }
+        } else {
+            thresholdCount = 0;
+        }
+#endif
+    	osDelay(100);
+
+//		 usbDebug("panel: %d\r\n", panel);
+//		 for (uint16_t i=0x00; i<0xFF; i++)
+//		 {
+//		 	panel_reg_read(0, i, &result, panel);
+//		 	usbDebug("Addr %02X: [%02X]\r\n", i, result);
+//		 	osDelay(20);
+//		 }
+//		 panel = !panel;
+//		 usbDebug("----------\r\n");
+
+    	if (!current_state) continue;
+
+        if (command_flag)
+        {
+            command_flag = false;
+            switchMode();
+        }
+
+        /* ButtonEvent */
+        bool isReleased = false;
+        bool newEventOccurred = UpdateButtonState(&buttonFuncPrevState, &buttonFuncCurrState, &pressTime, &releaseTime, &isReleased);
+
+        if (newEventOccurred) {
+            clickType = isReleased ? GetButtonClickType(pressTime, releaseTime) : LONG_PRESS;
+            ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
+        } else if (possibleSingleClick && (osKernelGetTickCount() - lastClickTime > CLICK_DETECTION_PERIOD)) {
+            possibleSingleClick = false;
+            clickType = SINGLE_CLICK;
+            ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
+        }
+
+        uint8_t buttonEvent = 0;
+        buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_MINUS_GPIO_Port, PNL_VOL_MINUS_Pin) == GPIO_PIN_RESET) << 1;
+        buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_PLUS_GPIO_Port, PNL_VOL_PLUS_Pin) == GPIO_PIN_RESET) << 2;
+        if (buttonEvent) {
+            ProcessButtonEvent(buttonEvent, &clickType, &currentMode, &displayType);
+        }
+        /**/
+
+#if REDUCE_BRIGHTNESS_ON_HIGH_TEMP
+        /* Reduce brightness by 1000 when panel exceeds 90 degrees. */
+        if ((osKernelGetTickCount() - startTime) > checkInterval)
+        {
+            startTime = osKernelGetTickCount();
+			if (smoothed_left > 90.0f || smoothed_right > 90.0f)
+			{
+				for (uint8_t i = 0; i < 10; i++)
+				{
+					ecx343_current_data.uLCD_LUXL -= 10;
+					ecx343_current_data.uLCD_LUXR -= 10;
+					adjustBrightness();
+					osDelay(10);
+				}
+			}
+
+        }
+        /**/
+#endif
+    }
 }
 
 void ALSensorTask(void * argument)
@@ -820,114 +930,6 @@ void ALSensorTask(void * argument)
 				ecx343_current_data.uLCD_LUXR = current_brightness[PANEL_RIGHT];
 			}
         }
-    }
-}
-
-void MainTask(void * argument)
-{
-    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
-    osDelay(1000);
-
-    AL3010_Init();
-    osDelay(10);
-
-    RPR0521_Init();
-    osDelay(10);
-    RPR0521_SetUp();
-    osDelay(10);
-
-    HAL_GPIO_WritePin(LT7911_RSTN_GPIO_Port, LT7911_RSTN_Pin, GPIO_PIN_SET);
-    osDelay(10);
-    Ecx343_data_init_default();
-    osDelay(10);
-    ECX343EN_Init();
-    osDelay(10);
-
-#if ENABLE_PS
-#else
-    ECX343EN_PowerOn();
-    osDelay(10);
-    current_state = 1;
-#endif
-    uint8_t thresholdCount = 0;
-
-    uint32_t pressTime = 0, releaseTime = 0;
-    ButtonState buttonFuncCurrState = BUTTON_RELEASED;
-    ButtonState buttonFuncPrevState = BUTTON_RELEASED;
-    OperationMode currentMode = MODE_BRIGHTNESS;
-    PowerSave displayType = MODE_RELEASE;
-    ButtonClickType clickType = NO_CLICK;
-
-//    uint32_t startTime = osKernelGetTickCount();
-//    uint32_t checkInterval = 10000;
-
-    for(;;)
-    {
-
-#if ENABLE_PS
-//    	usbDebug("p_threshold: %d@\r\n", p_threshold);
-        if ((p_threshold > PROXIMITY_THRESHOLD) != (current_state == POWER_ON)) {
-            thresholdCount++;
-            if (thresholdCount > 10) {
-                current_state = (current_state == POWER_OFF) ? POWER_ON : POWER_OFF;
-                thresholdCount = 0;
-
-                power_control_functions[current_state]();
-            }
-        } else {
-            thresholdCount = 0;
-        }
-#endif
-    	osDelay(100);
-
-    	if (!current_state) continue;
-
-        if (command_flag)
-        {
-            command_flag = false;
-            switchMode();
-        }
-
-        /* ButtonEvent */
-        bool isReleased = false;
-        bool newEventOccurred = UpdateButtonState(&buttonFuncPrevState, &buttonFuncCurrState, &pressTime, &releaseTime, &isReleased);
-
-        if (newEventOccurred) {
-            clickType = isReleased ? GetButtonClickType(pressTime, releaseTime) : LONG_PRESS;
-            ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
-        } else if (possibleSingleClick && (osKernelGetTickCount() - lastClickTime > CLICK_DETECTION_PERIOD)) {
-            possibleSingleClick = false;
-            clickType = SINGLE_CLICK;
-            ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
-        }
-
-        uint8_t buttonEvent = 0;
-        buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_MINUS_GPIO_Port, PNL_VOL_MINUS_Pin) == GPIO_PIN_RESET) << 1;
-        buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_PLUS_GPIO_Port, PNL_VOL_PLUS_Pin) == GPIO_PIN_RESET) << 2;
-        if (buttonEvent) {
-            ProcessButtonEvent(buttonEvent, &clickType, &currentMode, &displayType);
-        }
-        /**/
-
-        /* Reduce brightness by 1000 when panel exceeds 90 degrees. */
-//        if ((osKernelGetTickCount() - startTime) > checkInterval)
-//        {
-//            startTime = osKernelGetTickCount();
-//			if (smoothed_left > 90.0f || smoothed_right > 90.0f)
-//			{
-//				for (uint8_t i = 0; i < 10; i++)
-//				{
-//					ecx343_current_data.uLCD_LUXL -= 10;
-//					ecx343_current_data.uLCD_LUXR -= 10;
-//					adjustBrightness();
-//					osDelay(10);
-//				}
-//			}
-//
-//        }
-        /**/
     }
 }
 

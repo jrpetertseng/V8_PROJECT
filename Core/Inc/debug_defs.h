@@ -20,6 +20,7 @@
 #define ENABLE_ADC                      1
 #define ENABLE_SCAN_I2C                 0
 
+#define REDUCE_BRIGHTNESS_ON_HIGH_TEMP  0
 
 
 #define _PACK_SIZE 1

@@ -635,6 +635,13 @@ void ECX343EN_OrbitV(uint8_t V_value, uint8_t pnl_select)
 
 void ECX343EN_TempDetect(uint8_t value, uint8_t pnl_select)
 {
+    /*
+    0x09 [5:4]
+    Test pin(pin#59) output selection
+    10: V1 output
+    11: V2 output
+    Tpnl = ((V2-V1)679.6[mV] / 2.5[mV/Celsius]
+    */
     panel_reg_write(PANEL_MAP_0, PANEL_TEMPERATURE_DETECTION, value, pnl_select);
 }
 
@@ -698,6 +705,20 @@ void write_panel_registers(ECX343_DATA *data) {
 
     current_brightness[0] = data->uLCD_LUXR;
     current_brightness[1] = data->uLCD_LUXL;
+}
+
+void adjustInversion(uint8_t inversion)
+{
+    ECX343EN_Inversion(inversion, PANEL_LEFT);
+    ECX343EN_Inversion(inversion, PANEL_RIGHT);
+}
+
+void switchMode(void)
+{
+    ecx343_current_data.uLCD_MODE = (flag_Freq & 0x01) + ((flag_2D3D<<1) & 0x02);
+    ECX343EN_PowerOff();
+    LT7911_Mode_Switch(ecx343_current_data.uLCD_MODE);
+    ECX343EN_PowerOn();
 }
 
 void adjustBrightness(void)
@@ -893,8 +914,6 @@ void ECX343EN_CalculateTemperatures(float *temperatureResult) {
     temperatureResult[0] = ((leftOrigVolt[1] - leftOrigVolt[0]) - 0.6796) * 1.0 / 0.0025;
     temperatureResult[1] = ((rightOrigVolt[1] - rightOrigVolt[0]) - 0.6796) * 1.0 / 0.0025;
 }
-
-
 
 const setPanelSeqTable PanelContPanelReg60HzSettingTable[] = {
 //    {PANEL_MAP_0, PANEL_ADDR_01, 0x00, 0},
