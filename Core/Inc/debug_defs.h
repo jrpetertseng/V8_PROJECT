@@ -11,7 +11,8 @@
 #define ENABLE_CDC_DEFAULT_ECHOBACK     0
 #define ENABLE_CDC_PRINT_CMD_ENGINE     0
 #define ENABLE_CMD                      1
-#define ENABLE_TOF                      0
+#define ENABLE_TOF                      1
+#define ENABLE_TOF_DEBUG                0
 #define ENABLE_OLD_TOF                  0
 #define ENABLE_IMU                      1
 #define ENABLE_MIS                      1

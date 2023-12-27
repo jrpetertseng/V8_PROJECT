@@ -73,20 +73,13 @@ uint8_t RdByte(
 		uint8_t *p_value)
 {
 	uint8_t status = 0;
-	uint8_t reg_write[2];
-	uint8_t data_write[1];
-	uint8_t data_read[1] = {0x00};
+	uint8_t data_write[2];
+	uint8_t data_read[1];
 
-	reg_write[0] = (RegisterAdress >> 8) & 0xFF;
-	reg_write[1] = RegisterAdress & 0xFF;
-    status = HAL_I2C_Master_Transmit(&TOF_BUS, p_platform->address, reg_write, 2, 100);
-    status = HAL_I2C_Master_Receive(&TOF_BUS, p_platform->address, data_read, 1, 100);
-//	data_write[0] = 0x00;
-//	status = HAL_I2C_Mem_Write(&TOF_BUS, (uint16_t) (p_platform->address),
-//	        reg_write, I2C_MEMADD_SIZE_8BIT, data_write, 1, 100);
-//	status = HAL_I2C_Mem_Read(&TOF_BUS, (uint16_t) (p_platform->address),
-//	        RegisterAdress, I2C_MEMADD_SIZE_8BIT, data_read, 1, 100);
-
+	data_write[0] = (RegisterAdress >> 8) & 0xFF;
+	data_write[1] = RegisterAdress & 0xFF;
+	status = HAL_I2C_Master_Transmit(&TOF_BUS, p_platform->address, data_write, 2, 100);
+	status = HAL_I2C_Master_Receive(&TOF_BUS, p_platform->address, data_read, 1, 100);
 	*p_value = data_read[0];
 	return status;
 }
@@ -96,15 +89,14 @@ uint8_t WrByte(
 		uint16_t RegisterAdress,
 		uint8_t value)
 {
-	uint8_t data_write[1];
-	HAL_StatusTypeDef status = 0;
+	uint8_t data_write[3];
+	uint8_t status = 0;
 
 	data_write[0] = (RegisterAdress >> 8) & 0xFF;
 	data_write[1] = RegisterAdress & 0xFF;
-	data_write[0] = value & 0xFF;
+	data_write[2] = value & 0xFF;
 	status = HAL_I2C_Master_Transmit(&TOF_BUS,p_platform->address, data_write, 3, 100);
-//	status = HAL_I2C_Mem_Write(&TOF_BUS, (uint16_t) (p_platform->address),
-//            RegisterAdress, I2C_MEMADD_SIZE_8BIT, data_write, 1, 100);
+
 	return status;
 }
 
@@ -162,7 +154,7 @@ uint8_t Reset_Sensor(VL53L8CX_Platform *p_platform)
     /* Set pin AVDD to LOW */
     HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_RESET);
     /* Set pin VDDIO  to LOW */
-    /* Set pin CORE_1V8 to LOW */
+//    /* Set pin CORE_1V8 to LOW */
     osDelay(100);
 
     /* Set pin LPN to HIGH */   //ON
@@ -171,7 +163,7 @@ uint8_t Reset_Sensor(VL53L8CX_Platform *p_platform)
     HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
     /* Set pin VDDIO to HIGH */
     /* Set pin CORE_1V8 to HIGH */
-    osDelay(100);
+//    HAL_Delay(100);
 	return 0;
 }
 
@@ -194,10 +186,11 @@ void SwapBuffer(
 	}
 }
 
-uint8_t WaitMs(
+const uint8_t WaitMs(
 		VL53L8CX_Platform *p_platform,
                uint32_t TimeMs)
 {
-    osDelay(TimeMs);
+//    osDelay(TimeMs);
+    vTaskDelay(pdMS_TO_TICKS(TimeMs));
 	return 0;
 }

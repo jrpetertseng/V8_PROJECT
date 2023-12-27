@@ -66,7 +66,7 @@
 #define USBD_VID                        0x350E
 #define USBD_LANGID_STRING              1033
 #define USBD_MANUFACTURER_STRING        "JORJIN TECHNOLOGIES INC."
-#define USBD_PID_FS                     0x3801
+#define USBD_PID_FS                     0x3801 //J8L   //0x3503 //A5   //0x3801 //J8L
 #define USBD_PRODUCT_STRING_FS          "JORJIN J8L"
 #define USBD_CONFIGURATION_STRING_FS    "HID_VCP_AUD Config"
 #define USBD_INTERFACE_STRING_FS        "HID_VCP_AUD Interface"

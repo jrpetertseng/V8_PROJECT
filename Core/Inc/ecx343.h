@@ -424,5 +424,6 @@ void smoothly_change_brightness(int target_brightness, uint8_t panel);
 void ECX343EN_CalculateTemperatures(float *temperatureResult);
 void updatePanelTemperature(void);
 void adjustBrightness(void);
+uint8_t CheckPanelState(void);
 #endif /* INC_ECX343_H_ */
 

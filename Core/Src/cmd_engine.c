@@ -9,7 +9,7 @@
 #include "al3010.h"
 #include "lt7911.h"
 
-#include <stdbool.h>
+//#include <stdbool.h>
 #include <stdlib.h>
 
 //#include "gesture.h"
@@ -20,7 +20,7 @@
 
 
 #define MAX_TOF_DATA_COUNT (8*8*1)
-#define N_TARGETS_PER_ZONE 4
+#define N_TARGETS_PER_ZONE VL53L8CX_NB_TARGET_PER_ZONE
 #define TOF_8X8_DATA_PACKET_SIZE (4+1+1+4+(1+4+2+1+1)*MAX_TOF_DATA_COUNT+4+4)
 #define TOF_4X4_DATA_PACKET_SIZE (4+1+1+4+(1+4+2+1+1)*(MAX_TOF_DATA_COUNT/4)+4+4)
 #define TOF_DATA_PREFIX 0x41544144 /* "DATA" */
@@ -32,6 +32,7 @@ bool bPresenceSent = false;
 bool bGestureEnabled = false;
 bool bPresenceEnabled = false;
 bool command_flag = false;
+bool bRangePacketUpdated = false;
 
 extern uint8_t DebugSwitch;
 extern uint8_t AutoBrightness;
@@ -45,6 +46,9 @@ const uint32_t precenseKey = (1UL << (CE_KEY_SCROLLLOCK - CE_KEY_BASE));
 //static uint16_t keycodeMap[7];
 
 #define MAX_CMD_RESP_LENGTH     256
+
+#define ENABLE_RANGING_CHECK        1
+#define ENABLE_RANGE_PACKET_UPDATE  1
 static uint8_t CeCmdRespTxBuffer[MAX_CMD_RESP_LENGTH];
 
 
@@ -160,6 +164,22 @@ void usbcmd_sendData( uint8_t *p, int nLength)
 
 void CE_Routine(void)
 {
+#if ENABLE_TOF
+    // check ToF timeout
+  #if ENABLE_RANGE_PACKET_UPDATE
+    // check if ToF's ranging data has been updated
+    if (bRangePacketUpdated) {
+        // send out the range data
+//        usbcdc_sendData( TofRangePacket,
+//                         ((TOF_Range_Config == TOF_RANGING_8X8_15FPS)?(TOF_8X8_DATA_PACKET_SIZE):(TOF_4X4_DATA_PACKET_SIZE)));
+        usbcdc_sendData( TofRangePacket, TOF_8X8_DATA_PACKET_SIZE);
+        bRangePacketUpdated = false;
+#ifdef SHOW_TOF_RANGE_PERFORMANCE
+        ++TofRangeOutputCount;
+#endif
+    }
+  #endif
+#endif
 }
 
 void CE_Parse_ToF_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len) {
@@ -1130,7 +1150,7 @@ void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp) 
     ++TofRangeInputCount;
 #endif
     // drop the new data if the packet has been updated since the last CDC transmission
-//    if (bRangePacketUpdated) return;
+    if (bRangePacketUpdated) return;
 
     // add the "DATA" prefix
     *((uint32_t *)ptr) = TOF_DATA_PREFIX;
@@ -1188,8 +1208,8 @@ void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp) 
     // add the "ED\r\n" suffix
     *((uint32_t *)(ptr+4)) = TOF_DATA_SUFFIX;
     // set the updated flag
-//    bRangePacketUpdated = true;
-    usbcdc_sendData( TofRangePacket, TOF_8X8_DATA_PACKET_SIZE);
+    bRangePacketUpdated = true;
+//    usbcdc_sendData( TofRangePacket, TOF_8X8_DATA_PACKET_SIZE);
 
     return;
 }

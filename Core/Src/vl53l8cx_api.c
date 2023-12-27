@@ -221,7 +221,7 @@ uint8_t vl53l8cx_is_alive(
 		uint8_t				*p_is_alive)
 {
 	uint8_t status = VL53L8CX_STATUS_OK;
-	uint8_t device_id=0xFF, revision_id=0xFF;
+	uint8_t device_id, revision_id;
 
 	status |= WrByte(&(p_dev->platform), 0x7fff, 0x00);
 	status |= RdByte(&(p_dev->platform), 0, &device_id);
@@ -286,11 +286,11 @@ uint8_t vl53l8cx_init(
 	status |= WrByte(&(p_dev->platform), 0x7fff, 0x02);
 
 	/* Enable FW access */
-//	status |= WrByte(&(p_dev->platform), 0x7fff, 0x01);
-//	status |= WrByte(&(p_dev->platform), 0x06, 0x01);
-//	status |= _vl53l8cx_poll_for_answer(p_dev, 1, 0, 0x21, 0xFF, 0x4);
-//
-//	status |= WrByte(&(p_dev->platform), 0x7fff, 0x00);
+	status |= WrByte(&(p_dev->platform), 0x7fff, 0x01);
+	status |= WrByte(&(p_dev->platform), 0x06, 0x01);
+	status |= _vl53l8cx_poll_for_answer(p_dev, 1, 0, 0x21, 0xFF, 0x4);
+
+	status |= WrByte(&(p_dev->platform), 0x7fff, 0x00);
 
 	/* Enable host access to GO1 */
 	status |= RdByte(&(p_dev->platform), 0x7fff, &tmp);
@@ -321,25 +321,25 @@ uint8_t vl53l8cx_init(
 	status |= WrByte(&(p_dev->platform), 0x20, 0x06);
 
 	/* Download FW into VL53L8CX */
-//	status |= WrByte(&(p_dev->platform), 0x7fff, 0x09);
-//	status |= WrMulti(&(p_dev->platform),0,
-//		(uint8_t*)&VL53L8CX_FIRMWARE[0],0x8000);
-//	status |= WrByte(&(p_dev->platform), 0x7fff, 0x0a);
-//	status |= WrMulti(&(p_dev->platform),0,
-//		(uint8_t*)&VL53L8CX_FIRMWARE[0x8000],0x8000);
-//	status |= WrByte(&(p_dev->platform), 0x7fff, 0x0b);
-//	status |= WrMulti(&(p_dev->platform),0,
-//		(uint8_t*)&VL53L8CX_FIRMWARE[0x10000],0x5000);
-//	status |= WrByte(&(p_dev->platform), 0x7fff, 0x01);
-//
-//	/* Check if FW correctly downloaded */
-//	status |= WrByte(&(p_dev->platform), 0x7fff, 0x01);
-//	status |= WrByte(&(p_dev->platform), 0x06, 0x03);
-//
-//	status |= WaitMs(&(p_dev->platform), 5);
-//	status |= WrByte(&(p_dev->platform), 0x7fff, 0x00);
-//	status |= RdByte(&(p_dev->platform), 0x7fff, &tmp);
-//	status |= WrByte(&(p_dev->platform), 0x0C, 0x01);
+	status |= WrByte(&(p_dev->platform), 0x7fff, 0x09);
+	status |= WrMulti(&(p_dev->platform),0,
+		(uint8_t*)&VL53L8CX_FIRMWARE[0],0x8000);
+	status |= WrByte(&(p_dev->platform), 0x7fff, 0x0a);
+	status |= WrMulti(&(p_dev->platform),0,
+		(uint8_t*)&VL53L8CX_FIRMWARE[0x8000],0x8000);
+	status |= WrByte(&(p_dev->platform), 0x7fff, 0x0b);
+	status |= WrMulti(&(p_dev->platform),0,
+		(uint8_t*)&VL53L8CX_FIRMWARE[0x10000],0x5000);
+	status |= WrByte(&(p_dev->platform), 0x7fff, 0x01);
+
+	/* Check if FW correctly downloaded */
+	status |= WrByte(&(p_dev->platform), 0x7fff, 0x01);
+	status |= WrByte(&(p_dev->platform), 0x06, 0x03);
+
+	status |= WaitMs(&(p_dev->platform), 5);
+	status |= WrByte(&(p_dev->platform), 0x7fff, 0x00);
+	status |= RdByte(&(p_dev->platform), 0x7fff, &tmp);
+	status |= WrByte(&(p_dev->platform), 0x0C, 0x01);
 
 	/* Reset MCU and wait boot */
 	status |= WrByte(&(p_dev->platform), 0x7FFF, 0x00);
@@ -360,15 +360,15 @@ uint8_t vl53l8cx_init(
 	status |= WrByte(&(p_dev->platform), 0x7fff, 0x02);
 
 	/* Firmware checksum */
-//	status |= RdMulti(&(p_dev->platform), (uint16_t)(0x812FFC & 0xFFFF),
-//			p_dev->temp_buffer, 4);
-//	SwapBuffer(p_dev->temp_buffer, 4);
-//	memcpy((uint8_t*)&crc_checksum, &(p_dev->temp_buffer[0]), 4);
-//	if (crc_checksum != (uint32_t)0xee922b77)
-//	{
-//		status |= VL53L8CX_STATUS_FW_CHECKSUM_FAIL;
-//	}
-	//crc_checksum = *((uint32_t *)&p_dev->temp_buffer[0]);
+	status |= RdMulti(&(p_dev->platform), (uint16_t)(0x812FFC & 0xFFFF),
+			p_dev->temp_buffer, 4);
+	SwapBuffer(p_dev->temp_buffer, 4);
+	memcpy((uint8_t*)&crc_checksum, &(p_dev->temp_buffer[0]), 4);
+	if (crc_checksum != (uint32_t)0xee922b77)
+	{
+		status |= VL53L8CX_STATUS_FW_CHECKSUM_FAIL;
+	}
+	crc_checksum = *((uint32_t *)&p_dev->temp_buffer[0]);
 
 	/* Get offset NVM data and store them into the offset buffer */
 	status |= WrMulti(&(p_dev->platform), 0x2fd8,

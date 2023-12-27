@@ -148,8 +148,8 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(LT7911_INT_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+//  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
+//  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
 //  HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
 //  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
@@ -157,8 +157,8 @@ void MX_GPIO_Init(void)
   HAL_NVIC_SetPriority(EXTI4_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+//  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
+//  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 }
 

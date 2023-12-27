@@ -76,6 +76,9 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
         case NO_CLICK:
             break;
         case SINGLE_CLICK:
+//            HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_RESET);
+//            osDelay(50);
+//            HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
             *displayType = !(*displayType);
             ECX343EN_PowerSaving(*displayType);
             usbDebug("#power %d@\r\n", *displayType);

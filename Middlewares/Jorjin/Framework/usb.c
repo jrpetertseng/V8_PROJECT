@@ -297,26 +297,28 @@ void usbLoop() {
 //				usbTxUnblock();
 //                break;
             case USB_CDC_TOF_DATA:
-                usbToF_TxBlock();
+//                usbToF_TxBlock();
                 usbTx_inc_tof();
                 ret = CDC_Transmit_FS((uint8_t *)msg.data.ToFMsg.p, msg.data.ToFMsg.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
                     usbTx_inc_tof_error();
-                    usbTxUnblock();
+//                    usbTxUnblock();
                 }
+//                usbTxUnblock();
                 break;
             case USB_DEBUG_MSG:
-                usbToF_TxBlock();
+//                usbToF_TxBlock();
                 usbTx_inc_devctlr();
                 ret = CDC_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
                     usbTx_inc_devctlr_error();
-                    usbTxUnblock();
+//                    usbTxUnblock();
                 }
+//                usbTxUnblock();
                 break;
             default:
                 break;

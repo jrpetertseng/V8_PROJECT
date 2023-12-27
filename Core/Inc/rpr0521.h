@@ -84,4 +84,5 @@ HAL_StatusTypeDef RPR0521_Init(void);
 void RPR0521_SetUp(void);
 HAL_StatusTypeDef PS_Enable(void);
 uint16_t RPR0521_ReadPS(void);
+//extern uint16_t p_threshold;
 #endif /* INC_RPR0521_H_ */
