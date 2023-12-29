@@ -504,9 +504,7 @@ HAL_StatusTypeDef USB_FlushTxFifo(USB_OTG_GlobalTypeDef *USBx, uint32_t num)
   /* Wait for AHB master IDLE state. */
   do
   {
-    count++;
-
-    if (count > 200000U)
+    if (++count > 200000U)
     {
       return HAL_TIMEOUT;
     }
@@ -518,9 +516,7 @@ HAL_StatusTypeDef USB_FlushTxFifo(USB_OTG_GlobalTypeDef *USBx, uint32_t num)
 
   do
   {
-    count++;
-
-    if (count > 200000U)
+    if (++count > 200000U)
     {
       return HAL_TIMEOUT;
     }
@@ -541,9 +537,7 @@ HAL_StatusTypeDef USB_FlushRxFifo(USB_OTG_GlobalTypeDef *USBx)
   /* Wait for AHB master IDLE state. */
   do
   {
-    count++;
-
-    if (count > 200000U)
+    if (++count > 200000U)
     {
       return HAL_TIMEOUT;
     }
@@ -555,9 +549,7 @@ HAL_StatusTypeDef USB_FlushRxFifo(USB_OTG_GlobalTypeDef *USBx)
 
   do
   {
-    count++;
-
-    if (count > 200000U)
+    if (++count > 200000U)
     {
       return HAL_TIMEOUT;
     }
@@ -892,10 +884,8 @@ HAL_StatusTypeDef USB_EPStartXfer(USB_OTG_GlobalTypeDef *USBx, USB_OTG_EPTypeDef
     else
     {
       pktcnt = (uint16_t)((ep->xfer_len + ep->maxpacket - 1U) / ep->maxpacket);
-      ep->xfer_size = ep->maxpacket * pktcnt;
-
       USBx_OUTEP(epnum)->DOEPTSIZ |= USB_OTG_DOEPTSIZ_PKTCNT & ((uint32_t)pktcnt << 19);
-      USBx_OUTEP(epnum)->DOEPTSIZ |= USB_OTG_DOEPTSIZ_XFRSIZ & ep->xfer_size;
+      USBx_OUTEP(epnum)->DOEPTSIZ |= USB_OTG_DOEPTSIZ_XFRSIZ & (ep->maxpacket * pktcnt);
     }
 
     if (dma == 1U)
@@ -1003,11 +993,8 @@ HAL_StatusTypeDef USB_EP0StartXfer(USB_OTG_GlobalTypeDef *USBx, USB_OTG_EPTypeDe
       ep->xfer_len = ep->maxpacket;
     }
 
-    /* Store transfer size, for EP0 this is equal to endpoint max packet size */
-    ep->xfer_size = ep->maxpacket;
-
     USBx_OUTEP(epnum)->DOEPTSIZ |= (USB_OTG_DOEPTSIZ_PKTCNT & (1U << 19));
-    USBx_OUTEP(epnum)->DOEPTSIZ |= (USB_OTG_DOEPTSIZ_XFRSIZ & ep->xfer_size);
+    USBx_OUTEP(epnum)->DOEPTSIZ |= (USB_OTG_DOEPTSIZ_XFRSIZ & (ep->maxpacket));
 
     if (dma == 1U)
     {
@@ -1023,64 +1010,6 @@ HAL_StatusTypeDef USB_EP0StartXfer(USB_OTG_GlobalTypeDef *USBx, USB_OTG_EPTypeDe
 
   return HAL_OK;
 }
-
-
-/**
-   * @brief  USB_EPStoptXfer  Stop transfer on an EP
-   * @param  USBx  usb device instance
-   * @param  ep pointer to endpoint structure
-   * @retval HAL status
-   */
-HAL_StatusTypeDef USB_EPStopXfer(USB_OTG_GlobalTypeDef *USBx, USB_OTG_EPTypeDef *ep)
-{
-  __IO uint32_t count = 0U;
-  HAL_StatusTypeDef ret = HAL_OK;
-  uint32_t USBx_BASE = (uint32_t)USBx;
-
-  /* IN endpoint */
-  if (ep->is_in == 1U)
-  {
-    /* EP enable, IN data in FIFO */
-    if (((USBx_INEP(ep->num)->DIEPCTL) & USB_OTG_DIEPCTL_EPENA) == USB_OTG_DIEPCTL_EPENA)
-    {
-      USBx_INEP(ep->num)->DIEPCTL |= (USB_OTG_DIEPCTL_SNAK);
-      USBx_INEP(ep->num)->DIEPCTL |= (USB_OTG_DIEPCTL_EPDIS);
-
-      do
-      {
-        count++;
-
-        if (count > 10000U)
-        {
-          ret = HAL_ERROR;
-          break;
-        }
-      } while (((USBx_INEP(ep->num)->DIEPCTL) & USB_OTG_DIEPCTL_EPENA) ==  USB_OTG_DIEPCTL_EPENA);
-    }
-  }
-  else /* OUT endpoint */
-  {
-    if (((USBx_OUTEP(ep->num)->DOEPCTL) & USB_OTG_DOEPCTL_EPENA) == USB_OTG_DOEPCTL_EPENA)
-    {
-      USBx_OUTEP(ep->num)->DOEPCTL |= (USB_OTG_DOEPCTL_SNAK);
-      USBx_OUTEP(ep->num)->DOEPCTL |= (USB_OTG_DOEPCTL_EPDIS);
-
-      do
-      {
-        count++;
-
-        if (count > 10000U)
-        {
-          ret = HAL_ERROR;
-          break;
-        }
-      } while (((USBx_OUTEP(ep->num)->DOEPCTL) & USB_OTG_DOEPCTL_EPENA) ==  USB_OTG_DOEPCTL_EPENA);
-    }
-  }
-
-  return ret;
-}
-
 
 /**
   * @brief  USB_WritePacket : Writes a packet into the Tx FIFO associated
@@ -1269,7 +1198,7 @@ HAL_StatusTypeDef USB_StopDevice(USB_OTG_GlobalTypeDef *USBx)
   *          This parameter can be a value from 0 to 255
   * @retval HAL status
   */
-HAL_StatusTypeDef USB_SetDevAddress(USB_OTG_GlobalTypeDef *USBx, uint8_t address)
+HAL_StatusTypeDef  USB_SetDevAddress(USB_OTG_GlobalTypeDef *USBx, uint8_t address)
 {
   uint32_t USBx_BASE = (uint32_t)USBx;
 
@@ -1284,7 +1213,7 @@ HAL_StatusTypeDef USB_SetDevAddress(USB_OTG_GlobalTypeDef *USBx, uint8_t address
   * @param  USBx  Selected device
   * @retval HAL status
   */
-HAL_StatusTypeDef USB_DevConnect(USB_OTG_GlobalTypeDef *USBx)
+HAL_StatusTypeDef  USB_DevConnect(USB_OTG_GlobalTypeDef *USBx)
 {
   uint32_t USBx_BASE = (uint32_t)USBx;
 
@@ -1301,7 +1230,7 @@ HAL_StatusTypeDef USB_DevConnect(USB_OTG_GlobalTypeDef *USBx)
   * @param  USBx  Selected device
   * @retval HAL status
   */
-HAL_StatusTypeDef USB_DevDisconnect(USB_OTG_GlobalTypeDef *USBx)
+HAL_StatusTypeDef  USB_DevDisconnect(USB_OTG_GlobalTypeDef *USBx)
 {
   uint32_t USBx_BASE = (uint32_t)USBx;
 
@@ -1316,9 +1245,9 @@ HAL_StatusTypeDef USB_DevDisconnect(USB_OTG_GlobalTypeDef *USBx)
 /**
   * @brief  USB_ReadInterrupts: return the global USB interrupt status
   * @param  USBx  Selected device
-  * @retval USB Global Interrupt status
+  * @retval HAL status
   */
-uint32_t USB_ReadInterrupts(USB_OTG_GlobalTypeDef *USBx)
+uint32_t  USB_ReadInterrupts(USB_OTG_GlobalTypeDef *USBx)
 {
   uint32_t tmpreg;
 
@@ -1329,26 +1258,9 @@ uint32_t USB_ReadInterrupts(USB_OTG_GlobalTypeDef *USBx)
 }
 
 /**
-  * @brief  USB_ReadChInterrupts: return USB channel interrupt status
-  * @param  USBx  Selected device
-  * @param  chnum Channel number
-  * @retval USB Channel Interrupt status
-  */
-uint32_t USB_ReadChInterrupts(USB_OTG_GlobalTypeDef *USBx, uint8_t chnum)
-{
-  uint32_t USBx_BASE = (uint32_t)USBx;
-  uint32_t tmpreg;
-
-  tmpreg = USBx_HC(chnum)->HCINT;
-  tmpreg &= USBx_HC(chnum)->HCINTMSK;
-
-  return tmpreg;
-}
-
-/**
   * @brief  USB_ReadDevAllOutEpInterrupt: return the USB device OUT endpoints interrupt status
   * @param  USBx  Selected device
-  * @retval USB Device OUT EP interrupt status
+  * @retval HAL status
   */
 uint32_t USB_ReadDevAllOutEpInterrupt(USB_OTG_GlobalTypeDef *USBx)
 {
@@ -1364,7 +1276,7 @@ uint32_t USB_ReadDevAllOutEpInterrupt(USB_OTG_GlobalTypeDef *USBx)
 /**
   * @brief  USB_ReadDevAllInEpInterrupt: return the USB device IN endpoints interrupt status
   * @param  USBx  Selected device
-  * @retval USB Device IN EP interrupt status
+  * @retval HAL status
   */
 uint32_t USB_ReadDevAllInEpInterrupt(USB_OTG_GlobalTypeDef *USBx)
 {
@@ -1446,7 +1358,7 @@ uint32_t USB_GetMode(USB_OTG_GlobalTypeDef *USBx)
   * @param  USBx  Selected device
   * @retval HAL status
   */
-HAL_StatusTypeDef USB_ActivateSetup(USB_OTG_GlobalTypeDef *USBx)
+HAL_StatusTypeDef  USB_ActivateSetup(USB_OTG_GlobalTypeDef *USBx)
 {
   uint32_t USBx_BASE = (uint32_t)USBx;
 
@@ -1508,9 +1420,7 @@ static HAL_StatusTypeDef USB_CoreReset(USB_OTG_GlobalTypeDef *USBx)
   /* Wait for AHB master IDLE state. */
   do
   {
-    count++;
-
-    if (count > 200000U)
+    if (++count > 200000U)
     {
       return HAL_TIMEOUT;
     }
@@ -1522,9 +1432,7 @@ static HAL_StatusTypeDef USB_CoreReset(USB_OTG_GlobalTypeDef *USBx)
 
   do
   {
-    count++;
-
-    if (count > 200000U)
+    if (++count > 200000U)
     {
       return HAL_TIMEOUT;
     }
@@ -1551,9 +1459,7 @@ static HAL_StatusTypeDef USB_HS_PHYCInit(USB_OTG_GlobalTypeDef *USBx)
   /* wait for LDO Ready */
   while ((USB_HS_PHYC->USB_HS_PHYC_LDO & USB_HS_PHYC_LDO_STATUS) == 0U)
   {
-    count++;
-
-    if (count > 200000U)
+    if (++count > 200000U)
     {
       return HAL_TIMEOUT;
     }
@@ -1945,9 +1851,9 @@ HAL_StatusTypeDef USB_HC_Init(USB_OTG_GlobalTypeDef *USBx, uint8_t ch_num,
                                       (((uint32_t)ep_type << 18) & USB_OTG_HCCHAR_EPTYP) |
                                       ((uint32_t)mps & USB_OTG_HCCHAR_MPSIZ) | HCcharEpDir | HCcharLowSpeed;
 
-  if ((ep_type == EP_TYPE_INTR) || (ep_type == EP_TYPE_ISOC))
+  if (ep_type == EP_TYPE_INTR)
   {
-    USBx_HC((uint32_t)ch_num)->HCCHAR |= USB_OTG_HCCHAR_ODDFRM;
+    USBx_HC((uint32_t)ch_num)->HCCHAR |= USB_OTG_HCCHAR_ODDFRM ;
   }
 
   return ret;
@@ -2143,9 +2049,7 @@ HAL_StatusTypeDef USB_HC_Halt(USB_OTG_GlobalTypeDef *USBx, uint8_t hc_num)
         USBx_HC(hcnum)->HCCHAR |= USB_OTG_HCCHAR_CHENA;
         do
         {
-          count++;
-
-          if (count > 1000U)
+          if (++count > 1000U)
           {
             break;
           }
@@ -2167,9 +2071,7 @@ HAL_StatusTypeDef USB_HC_Halt(USB_OTG_GlobalTypeDef *USBx, uint8_t hc_num)
       USBx_HC(hcnum)->HCCHAR |= USB_OTG_HCCHAR_CHENA;
       do
       {
-        count++;
-
-        if (count > 1000U)
+        if (++count > 1000U)
         {
           break;
         }
@@ -2257,9 +2159,7 @@ HAL_StatusTypeDef USB_StopHost(USB_OTG_GlobalTypeDef *USBx)
 
     do
     {
-      count++;
-
-      if (count > 1000U)
+      if (++count > 1000U)
       {
         break;
       }

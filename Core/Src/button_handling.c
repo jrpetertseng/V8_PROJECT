@@ -77,6 +77,8 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
             break;
         case SINGLE_CLICK:
         	uint8_t mode_state;
+//			uint8_t result;
+//			uint8_t panel = 0;
 
             // *displayType = !(*displayType);
             // ECX343EN_PowerSaving(*displayType);
@@ -87,6 +89,23 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
             flag_2D3D = (mode_state & 0x02) >> 1;
             switchMode();
 //            usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
+
+//			usbDebug("panel: %d\r\n", panel);
+//			for (uint16_t i=0x00; i<0xFF; i++)
+//			{
+//				panel_reg_read(0, i, &result, panel);
+//				usbDebug("Addr [0x%02X]: [0x%02X]\r\n", i, result);
+//				osDelay(20);
+//			}
+//			usbDebug("----------\r\n");
+//			panel = !panel;
+//			usbDebug("panel: %d\r\n", panel);
+//			for (uint16_t i=0x00; i<0xFF; i++)
+//			{
+//				panel_reg_read(0, i, &result, panel);
+//				usbDebug("Addr [0x%02X]: [0x%02X]\r\n", i, result);
+//				osDelay(20);
+//			}
             break;
         case DOUBLE_CLICK:
             *currentMode = (*currentMode == MODE_BRIGHTNESS) ? MODE_VOLUME : MODE_BRIGHTNESS;

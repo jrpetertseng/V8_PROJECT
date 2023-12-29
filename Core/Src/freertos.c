@@ -801,12 +801,7 @@ void MainTask(void * argument)
     ECX343EN_PowerOn();
     osDelay(10);
     current_state = 1;
-	 panel_reg_write(0, 0x80, 0x01, 0);
-	 panel_reg_write(0, 0x80, 0x01, 1);
-
 #endif
-//	 uint8_t result;
-//	 uint8_t panel = 0;
 
     uint8_t thresholdCount = 0;
 
@@ -839,16 +834,6 @@ void MainTask(void * argument)
         }
 #endif
     	osDelay(100);
-
-//		 usbDebug("panel: %d\r\n", panel);
-//		 for (uint16_t i=0x00; i<0xFF; i++)
-//		 {
-//		 	panel_reg_read(0, i, &result, panel);
-//		 	usbDebug("Addr %02X: [%02X]\r\n", i, result);
-//		 	osDelay(20);
-//		 }
-//		 panel = !panel;
-//		 usbDebug("----------\r\n");
 
     	if (!current_state) continue;
 
@@ -956,17 +941,18 @@ void ADCTask(void *argument)
 void I2CScanTask(void * argument)
 {
 	uint8_t result;
-	uint16_t deviceAddr;
+	uint8_t deviceAddr;
 
 	for(;;)
 	{
-		for (uint16_t i=1; i<128; i++)
+		for (uint16_t i=0x00; i<0xFF; i++)
 		{
 			result = HAL_I2C_IsDeviceReady(I2C_BUS, (i<<1), 3, 5);
 			if (result == HAL_OK)
 			{
 				deviceAddr = (i<<1);
-				usbDebug("Ready deviceAddr: [%02x]\r\n", deviceAddr);
+				usbDebug("Ready deviceAddr: [0x%02X]\r\n", deviceAddr);
+				osDelay(10);
 			}
 		}
 		vTaskDelay(pdMS_TO_TICKS(5000));

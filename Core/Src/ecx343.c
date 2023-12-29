@@ -196,7 +196,7 @@ static PowContStatus pow_on_sequence(void)
             break;
 
         case POW_ON_SEQ_LVDS_EN:
-            ECX343EN_LVDS_ENABLE();
+//            ECX343EN_LVDS_ENABLE();
             pow_on_seq = POW_ON_SEQ_PS_OFF_SETTING;
             break;
 
@@ -348,7 +348,7 @@ static PowContStatus pow_off_sequence(void)
                 break;
 
             case POW_OFF_SEQ_LVDS_DIS:
-                ECX343EN_LVDS_DISABLE();
+//                ECX343EN_LVDS_DISABLE();
                 pow_off_seq = POW_OFF_SEQ_P_XCLR;
                 break;
 

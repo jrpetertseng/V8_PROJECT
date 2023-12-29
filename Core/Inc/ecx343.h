@@ -23,14 +23,14 @@
 #define ECX343EN_6V6_N_ENABLE()                 HAL_GPIO_WritePin(PNL_6V6_N_EN_GPIO_Port, PNL_6V6_N_EN_Pin, GPIO_PIN_SET);
 #define ECX343EN_L_XCLR_ENABLE()                HAL_GPIO_WritePin(PNL_L_XCLR_GPIO_Port, PNL_L_XCLR_Pin, GPIO_PIN_SET);
 #define ECX343EN_R_XCLR_ENABLE()                HAL_GPIO_WritePin(PNL_R_XCLR_GPIO_Port, PNL_R_XCLR_Pin, GPIO_PIN_SET);
-#define ECX343EN_LVDS_ENABLE()                  HAL_GPIO_WritePin(LT7911_INT_GPIO_Port, LT7911_INT_Pin, GPIO_PIN_SET);
+#define ECX343EN_LVDS_ENABLE()  				(HAL_GPIO_ReadPin(LT7911_INT_GPIO_Port, LT7911_INT_Pin) == GPIO_PIN_SET)
 
 #define ECX343EN_1V8_DISABLE()                  HAL_GPIO_WritePin(PNL_1V8_EN_GPIO_Port, PNL_1V8_EN_Pin, GPIO_PIN_RESET);
 #define ECX343EN_3V3_DISABLE()                  HAL_GPIO_WritePin(PNL_3V3_EN_GPIO_Port, PNL_3V3_EN_Pin, GPIO_PIN_RESET);
 #define ECX343EN_6V6_N_DISABLE()                HAL_GPIO_WritePin(PNL_6V6_N_EN_GPIO_Port, PNL_6V6_N_EN_Pin, GPIO_PIN_RESET);
 #define ECX343EN_L_XCLR_DISABLE()               HAL_GPIO_WritePin(PNL_L_XCLR_GPIO_Port, PNL_L_XCLR_Pin, GPIO_PIN_RESET);
 #define ECX343EN_R_XCLR_DISABLE()               HAL_GPIO_WritePin(PNL_R_XCLR_GPIO_Port, PNL_R_XCLR_Pin, GPIO_PIN_RESET);
-#define ECX343EN_LVDS_DISABLE()                 HAL_GPIO_WritePin(LT7911_INT_GPIO_Port, LT7911_INT_Pin, GPIO_PIN_RESET);
+#define ECX343EN_LVDS_DISABLE()                 (HAL_GPIO_ReadPin(LT7911_INT_GPIO_Port, LT7911_INT_Pin) == GPIO_PIN_RESET)
 
 
 //power on sequence number
