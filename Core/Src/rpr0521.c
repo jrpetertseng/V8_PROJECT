@@ -154,14 +154,16 @@ uint16_t RPR0521_ReadPS(void)
 {
     uint8_t LOW_BYTE;
     uint8_t HIGH_BYTE;
-    uint16_t received_data;
+    uint16_t p_threshold;
 
-    ReadRegister(PS_DATA_MSB, &HIGH_BYTE);
-    ReadRegister(PS_DATA_LSB, &LOW_BYTE);
-    received_data = ((((uint16_t)HIGH_BYTE) << 8) & 0xFF00)
+    HAL_StatusTypeDef ret = 0;
+
+    ret += ReadRegister(PS_DATA_MSB, &HIGH_BYTE);
+    ret += ReadRegister(PS_DATA_LSB, &LOW_BYTE);
+    p_threshold = ((((uint16_t)HIGH_BYTE) << 8) & 0xFF00)
                           | (((uint16_t)LOW_BYTE) & 0x00FF);
 
-    return received_data;
+    return p_threshold;
 }
 
 static HAL_StatusTypeDef WriteRegister(uint16_t reg, uint8_t *value)

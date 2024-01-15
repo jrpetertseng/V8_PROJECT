@@ -63,9 +63,22 @@
   */
 
 /* USER CODE BEGIN EXPORTED_TYPES */
+/*
 typedef __PACKED_STRUCT _HID_Keyboard_ALS_Report {
 	uint8_t report_id;
 	uint32_t keys;
+} HID_Keyboard_ALS_Report;
+*/
+typedef __PACKED_STRUCT _HID_Keyboard_ALS_Report {
+    uint8_t report_id;
+    uint8_t modifier;
+    uint8_t reserved;
+    uint8_t key1;
+    uint8_t key2;
+    uint8_t key3;
+    uint8_t key4;
+    uint8_t key5;
+    uint8_t key6;
 } HID_Keyboard_ALS_Report;
 /* USER CODE END EXPORTED_TYPES */
 

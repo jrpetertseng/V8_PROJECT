@@ -154,6 +154,7 @@ static PowContStatus pow_on_sequence(void)
 
         case POW_ON_SEQ_PNL_6V6_N:
             ECX343EN_6V6_N_ENABLE();
+            osDelay(100);
             pow_on_seq = POW_ON_SEQ_P_XCLR;
             break;
 
@@ -913,6 +914,27 @@ void ECX343EN_CalculateTemperatures(float *temperatureResult) {
     // Ensure these calculations are based on the specific characteristics of your temperature sensors
     temperatureResult[0] = ((leftOrigVolt[1] - leftOrigVolt[0]) - 0.6796) * 1.0 / 0.0025;
     temperatureResult[1] = ((rightOrigVolt[1] - rightOrigVolt[0]) - 0.6796) * 1.0 / 0.0025;
+}
+
+uint8_t CheckPanelState(void)
+{
+    uint8_t result;
+    uint8_t ret = 0;
+    panel_reg_write(0, 0x80, 0x01, 0);
+    panel_reg_write(0, 0x80, 0x01, 1);
+    osDelay(100);
+    for (uint8_t j=0; j<2; j++){
+        usbDebug("panel: %d\r\n", j);
+        for (uint16_t i=0x00; i<0x0A; i++)
+        {
+          panel_reg_read(0, i, &result, j);
+          usbDebug("Addr %02X: [%02X]\r\n", i, result);
+          osDelay(20);
+        }
+    }
+    usbDebug("----------\r\n");
+
+    return ret;
 }
 
 const setPanelSeqTable PanelContPanelReg60HzSettingTable[] = {

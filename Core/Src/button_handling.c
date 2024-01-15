@@ -9,6 +9,10 @@
 #include "ecx343.h"
 #include "usb.h"
 
+// #include "usbd_custom_hid_if_als.h"
+// #include "cmd_engine.h"
+// HID_Keyboard_ALS_Report ALS_report;
+// JQueueMessage_t alsReport;
 extern ECX343_DATA ecx343_current_data;
 
 uint32_t lastClickTime = 0;
@@ -77,8 +81,8 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
             break;
         case SINGLE_CLICK:
         	uint8_t mode_state;
-//			uint8_t result;
-//			uint8_t panel = 0;
+
+            // CheckPanelState();
 
             // *displayType = !(*displayType);
             // ECX343EN_PowerSaving(*displayType);
@@ -88,24 +92,28 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
             flag_Freq = mode_state & 0x01;
             flag_2D3D = (mode_state & 0x02) >> 1;
             switchMode();
-//            usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
+            //  usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
+/*
+            ALS_report.report_id = 0x11;
+            ALS_report.modifier = 0x00;
+            ALS_report.reserved = 0x00;
+            ALS_report.key1 = 0x04;
+            ALS_report.key2 = 0x00;
+            ALS_report.key3 = 0x00;
+            ALS_report.key4 = 0x00;
+            ALS_report.key5 = 0x00;
+            ALS_report.key6 = 0x00;
 
-//			usbDebug("panel: %d\r\n", panel);
-//			for (uint16_t i=0x00; i<0xFF; i++)
-//			{
-//				panel_reg_read(0, i, &result, panel);
-//				usbDebug("Addr [0x%02X]: [0x%02X]\r\n", i, result);
-//				osDelay(20);
-//			}
-//			usbDebug("----------\r\n");
-//			panel = !panel;
-//			usbDebug("panel: %d\r\n", panel);
-//			for (uint16_t i=0x00; i<0xFF; i++)
-//			{
-//				panel_reg_read(0, i, &result, panel);
-//				usbDebug("Addr [0x%02X]: [0x%02X]\r\n", i, result);
-//				osDelay(20);
-//			}
+            alsReport.type = USB_HID_ALS_INPUT_REPORT;
+            alsReport.data.alsReport.len = sizeof(HID_Keyboard_ALS_Report);
+
+            memcpy(alsReport.data.alsReport.report, (void *)&ALS_report, sizeof(ALS_report));
+            usbSendMessage(&alsReport);
+            osDelay(10);
+*/
+//        	ALS_report.key1 = 0x00;
+//        	memcpy(alsReport.data.alsReport.report, (void *)&ALS_report, sizeof(ALS_report));
+//        	usbSendMessage(&alsReport);
             break;
         case DOUBLE_CLICK:
             *currentMode = (*currentMode == MODE_BRIGHTNESS) ? MODE_VOLUME : MODE_BRIGHTNESS;
