@@ -76,12 +76,17 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
         case NO_CLICK:
             break;
         case SINGLE_CLICK:
+            uint8_t mode_state;
 //            HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_RESET);
 //            osDelay(50);
 //            HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
-            *displayType = !(*displayType);
-            ECX343EN_PowerSaving(*displayType);
-            usbDebug("#power %d@\r\n", *displayType);
+//            *displayType = !(*displayType);
+//            ECX343EN_PowerSaving(*displayType);
+//            usbDebug("#power %d@\r\n", *displayType);
+            mode_state = (ecx343_current_data.uLCD_MODE + 1) % 4;
+            flag_Freq = mode_state & 0x01;
+            flag_2D3D = (mode_state & 0x02) >> 1;
+            switchMode();
             break;
         case DOUBLE_CLICK:
             *currentMode = (*currentMode == MODE_BRIGHTNESS) ? MODE_VOLUME : MODE_BRIGHTNESS;

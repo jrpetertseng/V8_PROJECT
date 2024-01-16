@@ -50,6 +50,8 @@ extern uint32_t nIMUHIDUsbOuts;
 extern uint32_t nUsbAudioInts;
 extern uint32_t nDMAAudioInts;
 extern uint32_t nTaskAudioInts;
+extern uint8_t interruptTofEnable;
+//extern uint32_t nTofGpioInts_1;
 extern void (* tof_callback)(void);
 /* USER CODE END EC */
 
@@ -69,6 +71,7 @@ void Error_Handler(void);
 extern void usb_printf(const char *format, ...);
 extern void boot_UserDFU(void);
 extern void isrToFTaskTrigger( void);
+extern void McuReset(void);
 
 // ref: https://stackoverflow.com/questions/49820288/stm32-printf-over-usb-cdc
 #ifdef __GNUC__
@@ -199,7 +202,7 @@ PUTCHAR_PROTOTYPE;
 /* USER CODE BEGIN Private defines */
 
 #define V_MAJOR 0
-#define V_MINOR 0
+#define V_MINOR 1
 #define V_PATCH 1
 /* Model Code Rules:
  *  1st character: J, Jorjin

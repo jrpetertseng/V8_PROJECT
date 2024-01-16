@@ -12,14 +12,21 @@
 #define ENABLE_CDC_PRINT_CMD_ENGINE     0
 #define ENABLE_CMD                      1
 #define ENABLE_TOF                      1
+#define ENABLE_TOF_FORCE_RESET          1
+#define ENABLE_TOF_15HZ                 0
 #define ENABLE_TOF_DEBUG                0
 #define ENABLE_OLD_TOF                  0
 #define ENABLE_IMU                      1
-#define ENABLE_MIS                      1
-#define ENABLE_ALS                      1
-#define ENABLE_PS                       1
-#define ENABLE_ADC                      1
+#define ENABLE_MIS                      0
+#define ENABLE_ALS                      0
+#define ENABLE_PS                       0
+#define ENABLE_ADC                      0
 #define ENABLE_SCAN_I2C                 0
+#define ENABLE_STACK_CHECK              0
+
+#define ENABLE_PANEL                    0
+
+#define ADD_HID_KEYBOARD                0
 
 
 

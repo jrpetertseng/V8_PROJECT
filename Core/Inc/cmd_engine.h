@@ -150,6 +150,7 @@ uint8_t LcdVorbit(int value);
 #if ENABLE_TOF
 extern bool bRangePacketUpdated;
 void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp);
+extern uint8_t tof_resetFlag;
 #endif
 
 #endif /* __CMD_ENGINE_H */

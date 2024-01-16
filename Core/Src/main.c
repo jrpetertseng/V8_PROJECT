@@ -85,10 +85,13 @@ extern osThreadId_t PSTaskHandle;
 
 uint32_t nBno08xGpioInts;
 uint32_t nAlsGpioInts;
+
 uint32_t nPsGpioInts;
 uint32_t nIMUHIDUsbOuts;
 uint32_t nDMAAudioInts;
+uint32_t nTofGpioInts_1;
 uint32_t nTaskAudioInts;
+uint8_t interruptTofEnable = 0;
 extern uint16_t p_threshold;
 extern int16_t data_i2s[AUDIO_IN_PACKET*_PACK_SIZE];
 
@@ -120,6 +123,24 @@ void boot_UserDFU(void)
     SCB_DisableDCache();
     *((unsigned long *)0x20017FF0) = 0xDEADBEEF; // 256KB STM32F723
 
+    __DSB();
+    __ISB();
+
+    __DSB();
+
+    NVIC_SystemReset();
+    /* Should never reach!!! */
+    while(1);
+}
+void McuReset(void)
+{
+    USBD_Stop(&hUsbDeviceFS);
+    HAL_Delay(100);
+    USBD_DeInit(&hUsbDeviceFS);
+    HAL_Delay(100);
+
+    SCB_DisableICache();
+    SCB_DisableDCache();
     __DSB();
     __ISB();
 
@@ -329,7 +350,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 #if ENABLE_TOF
     else if(GPIO_Pin == TOF_INT_Pin)
     {
-//        nTofGpioInts_1 += 1;
+        nTofGpioInts_1 = 0;
         isrToFTaskTrigger();
     }
 #endif

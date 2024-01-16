@@ -49,6 +49,7 @@ EndBSPDependencies */
 #include "sensor_hid.h"
 #include "usb.h"
 
+USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
   * @{
   */
@@ -713,7 +714,7 @@ static uint8_t USBD_CUSTOM_HID_IMU_Setup(USBD_HandleTypeDef *pdev,
 uint8_t USBD_CUSTOM_HID_IMU_SendReport(USBD_HandleTypeDef *pdev,
                                    uint8_t *report, uint16_t len)
 {
-  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
+//  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
 
   if (pdev->pClassData == NULL)
   {
@@ -724,6 +725,8 @@ uint8_t USBD_CUSTOM_HID_IMU_SendReport(USBD_HandleTypeDef *pdev,
 
   if (pdev->dev_state == USBD_STATE_CONFIGURED)
   {
+    if (hhid->state > 0x01)
+        hhid->state = CUSTOM_HID_IDLE;
     if (hhid->state == CUSTOM_HID_IDLE)
     {
       hhid->state = CUSTOM_HID_BUSY;

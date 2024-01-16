@@ -132,6 +132,14 @@ void ECX343EN_PowerOff(void)
     pow_off_seq = 1;
 }
 
+void switchMode(void)
+{
+    ecx343_current_data.uLCD_MODE = (flag_Freq & 0x01) + ((flag_2D3D<<1) & 0x02);
+    ECX343EN_PowerOff();
+    LT7911_Mode_Switch(ecx343_current_data.uLCD_MODE);
+    ECX343EN_PowerOn();
+}
+
 static PowContStatus pow_on_sequence(void)
 {
     PowContStatus pnl_status;

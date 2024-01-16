@@ -52,6 +52,7 @@
 #include "bno080.h"
 
 #include "i2s.h"
+#include "i2c.h"
 #include "pingpong_buf.h"
 #include "vl53l8cx_api.h"
 #include "button_handling.h"
@@ -102,6 +103,8 @@ extern float smoothed_left;
 extern float smoothed_right;
 extern uint16_t current_brightness[2];
 
+extern uint32_t nTofGpioInts_1;
+
 enum PowerState current_state = POWER_OFF;
 uint8_t DebugSwitch = 0;
 uint8_t AutoBrightness = 0;
@@ -114,6 +117,8 @@ uint8_t buttonEvent;
 //int16_t median_buf[AUDIO_IN_PACKET/2];
 //extern uint32_t _tmp[AUDIO_IN_PACKET/2];
 void *pinpong_ptr;
+
+VL53L8CX_Configuration  Dev;
 
 /* Definitions for cmdToFTask */
 #if ENABLE_CMD
@@ -145,8 +150,10 @@ const osThreadAttr_t isrToFTask_attributes = {
 
 #if ENABLE_TOF
 static void ToFTask(void * argument);
+void ResetTof(void);
+void Tof_Hard_reset(void);
 osThreadId_t ToFTaskHandle;
-static uint32_t ToFTaskBuffer[ 1536 ]; //512 //1536
+static uint32_t ToFTaskBuffer[ 2048 ]; //512 //1536
 osStaticThreadDef_t ToFTaskControlBlock;
 const osThreadAttr_t ToFTask_attributes = {
   .name = "ToFTask",
@@ -218,7 +225,7 @@ const osThreadAttr_t ALSensorTask_attributes = {
 #endif
 /* Definitions for usbTxTask */
 osThreadId_t usbTxTaskHandle;
-uint32_t usbTxTaskBuffer[ 1024 ]; //512
+uint32_t usbTxTaskBuffer[ 2048 ]; //512 //1024
 osStaticThreadDef_t usbTxTaskControlBlock;
 const osThreadAttr_t usbTxTask_attributes = {
   .name = "usbTxTask",
@@ -311,13 +318,14 @@ static TimerHandle_t     ceTimers;
 static SemaphoreHandle_t ceLock;
 static int               nExecs_CmdToF;
 static SemaphoreHandle_t isrToFLock;
-static int               nExecs_IsrToF;
+//static int               nExecs_IsrToF;
+uint32_t                 nExecs_IsrToF;
 static SemaphoreHandle_t I2C1_Lock;
 
 SemaphoreHandle_t isrALSLock = NULL;
 SemaphoreHandle_t isrPSLock = NULL;
 
-void switchMode(void);
+
 void adjustBrightness(void);
 void adjustInversion(uint8_t inversion);
 float readVoltageAndCalculate(uint8_t voltage, uint8_t panel, ADC_HandleTypeDef *hadc);
@@ -463,8 +471,12 @@ void UsbTxTask(void *argument)
 {
   /* USER CODE BEGIN Pre UsbTxTask */
   // This task is responsible to create all other tasks.
+#if ENABLE_TOF_15HZ
+    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_RESET);
+#else
     HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
+#endif
+//    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
     osDelay(1000);
   usbInit();
@@ -799,13 +811,7 @@ void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s)
 }
 #endif
 
-void switchMode(void)
-{
-    ecx343_current_data.uLCD_MODE = (flag_Freq & 0x01) + ((flag_2D3D<<1) & 0x02);
-    ECX343EN_PowerOff();
-    LT7911_Mode_Switch(ecx343_current_data.uLCD_MODE);
-    ECX343EN_PowerOn();
-}
+
 
 
 void adjustInversion(uint8_t inversion)
@@ -908,12 +914,14 @@ void MainTask(void * argument)
 //    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
 //    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
 //    osDelay(1000);
+#if ENABLE_PANEL
     HAL_GPIO_WritePin(LT7911_RSTN_GPIO_Port, LT7911_RSTN_Pin, GPIO_PIN_SET);
     osDelay(10);
     Ecx343_data_init_default();
     osDelay(10);
     ECX343EN_Init();
     osDelay(10);
+#endif
 #if ENABLE_TOF
     isrToFLock       = xSemaphoreCreateBinary();
     ToFTaskHandle = osThreadNew( ToFTask, NULL, &ToFTask_attributes);
@@ -922,7 +930,8 @@ void MainTask(void * argument)
 #endif
 #if ENABLE_ALS
   ALSensorTaskHandle = osThreadNew(ALSensorTask, NULL, &ALSensorTask_attributes);
-
+  AL3010_Init();
+  osDelay(10);
 #endif
 
 #if ENABLE_ADC
@@ -931,23 +940,26 @@ void MainTask(void * argument)
 
 #if ENABLE_PS
   PSTaskHandle = osThreadNew(PSensorTask, NULL, &PSensorTask_attributes);
+  RPR0521_Init();
+  osDelay(10);
+  RPR0521_SetUp();
+  osDelay(10);
 #endif
 
-    AL3010_Init();
-    osDelay(10);
 
-    RPR0521_Init();
-    osDelay(10);
-    RPR0521_SetUp();
-    osDelay(10);
+
+//    RPR0521_Init();
+//    osDelay(10);
+//    RPR0521_SetUp();
+//    osDelay(10);
 
 
 #if ENABLE_SCAN_I2C
   I2CScanTaskHandle = osThreadNew(I2CScanTask, NULL, &I2CScanTask_attributes);
 #endif
     //Enable TOF Int
-    HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+//    HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
+//    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
     //Enable PS Int
     HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(EXTI0_IRQn);
@@ -956,14 +968,15 @@ void MainTask(void * argument)
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 #if ENABLE_PS
 #else
+#if ENABLE_PANEL
     ECX343EN_PowerOn();
     osDelay(10);
     current_state = 1;
-    CheckPanelState();
-
+//    CheckPanelState();
 
     panel_reg_write(0, 0x80, 0x01, 0);
     panel_reg_write(0, 0x80, 0x01, 1);
+#endif
 #endif
 
 //    uint8_t thresholdCount = 0;
@@ -999,7 +1012,17 @@ void MainTask(void * argument)
 //        }
 //#endif
     	osDelay(100);
-
+#if ENABLE_TOF_FORCE_RESET
+    	nTofGpioInts_1 += 1;
+    	if (nTofGpioInts_1>=10 && interruptTofEnable) {
+    	    Tof_Hard_reset();
+//    	    McuReset();
+    	}
+        if (tof_resetFlag)
+        {
+            Tof_Hard_reset();
+        }
+#endif
 //        for (uint8_t j=0; j<2; j++){
 //            usbDebug("panel: %d\r\n", j);
 //            for (uint16_t i=0x00; i<0x0A; i++)
@@ -1106,18 +1129,78 @@ void I2CScanTask(void * argument)
 #if ENABLE_TOF
 static void ToFTask(void * argument)
 {
-    VL53L8CX_Configuration  Dev;
-    VL53L8CX_ResultsData    Results;
-    uint8_t resolution, isAlive, status;
+
+    static VL53L8CX_ResultsData   Results;
+    uint8_t resolution;
+    uint8_t status;
+
+    UBaseType_t uxHighWaterMark;
+//    uint8_t isAlive, status;
 //    uint8_t p_data_ready;
     /*ToF Initialize*/
 //    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
 //    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
 //    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
 //    osDelay(1000);
+
+    ResetTof();
+  /* Infinite loop */
+    while(1)
+    {
+        // Wait until isr triggered.
+        xSemaphoreTake( isrToFLock, portMAX_DELAY);
+        /* Do ToF Get data. */
+
+        nExecs_IsrToF += 1;
+        if (bRangePacketUpdated) continue;
+        if(xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
+        {
+            status = vl53l8cx_get_resolution(&Dev, &resolution);
+            status = vl53l8cx_get_ranging_data(&Dev, &Results);
+            i2c1TxUnblock();
+
+#if ENABLE_TOF_DEBUG
+            for(int i = 0; i < resolution;i++){
+                /* Print per zone results */
+                usbDebug("Zone : %2d, Nb targets : %2u, Ambient : %4lu Kcps/spads, \r\n",
+                        i,
+                        Results.nb_target_detected[i],
+                        Results.ambient_per_spad[i]);
+
+                /* Print per target results */
+                if(Results.nb_target_detected[i] > 0){
+                    usbDebug("Target status : %3u, Distance : %4d mm \r\n",
+                            Results.target_status[VL53L8CX_NB_TARGET_PER_ZONE * i],
+                            Results.distance_mm[VL53L8CX_NB_TARGET_PER_ZONE * i]);
+                }else{
+                    usbDebug("Target status : 255, Distance : No target\r\n");
+                }
+            }
+            usbDebug("\r\n");
+        }
+#else
+        /*GOTO ToF CDC Process*/
+            TickType_t timestamp = xTaskGetTickCount();
+            tof_ranging_callback(&Results, timestamp);
+#if ENABLE_STACK_CHECK
+            //test: check high water
+            if(nExecs_IsrToF%100==0)
+            {
+                uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+                usbDebug("ToF_task free stack：%lu\n", uxHighWaterMark);
+            }
+#endif
+        }
+#endif
+    }
+}
+
+void ResetTof(void)
+{
+    uint8_t isAlive, status;
+    i2c1TxUnblock();
     Dev.platform.address = VL53L8CX_DEFAULT_I2C_ADDRESS;
-//    usb_waitUntilInited();
-//    osDelay(500);
+//    Hard_reset();
     Reset_Sensor(&(Dev.platform));
     while(1)
     {
@@ -1129,7 +1212,8 @@ static void ToFTask(void * argument)
         if(!isAlive)
         {
 //            usbDebug("VL53L8CX not detected at requested address (0x%x) \r\n", Dev.platform.address);
-            vTaskDelay(pdMS_TO_TICKS(1000));
+            Reset_Sensor(&(Dev.platform));
+            vTaskDelay(pdMS_TO_TICKS(500));
         }
         else break;
 
@@ -1139,7 +1223,12 @@ static void ToFTask(void * argument)
     {
         status = vl53l8cx_init(&Dev);
         status = vl53l8cx_set_resolution(&Dev, VL53L8CX_RESOLUTION_8X8);
-        status = vl53l8cx_set_ranging_frequency_hz(&Dev, 8);                // Set 2Hz ranging frequency
+        status = vl53l8cx_set_target_order(&Dev, VL53L8CX_TARGET_ORDER_CLOSEST);
+#if ENABLE_TOF_15HZ
+        status = vl53l8cx_set_ranging_frequency_hz(&Dev, 15);
+#else
+        status = vl53l8cx_set_ranging_frequency_hz(&Dev, 8);
+#endif
         status = vl53l8cx_set_ranging_mode(&Dev, VL53L8CX_RANGING_MODE_CONTINUOUS);  // Set mode continuous
 //        usbDebug("Ranging starts \r\n");
         status = vl53l8cx_start_ranging(&Dev);
@@ -1150,51 +1239,23 @@ static void ToFTask(void * argument)
 //    HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
 //    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
     osThreadFlagsSet(MainTaskHandle, 0x02);
+}
 
-  /* Infinite loop */
-    while(1)
+void Tof_Hard_reset(void)
+{
+    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+    xSemaphoreGive(isrToFLock);
+    xSemaphoreTake( isrToFLock, portMAX_DELAY);
+//    osDelay(2000);
+    if(xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
     {
-        // Wait until isr triggered.
-        xSemaphoreTake( isrToFLock, portMAX_DELAY);
-//        status = vl53l8cx_check_data_ready(&Dev, &p_data_ready);
-//        if(!p_data_ready)
-//        {
-//            osDelay(10);
-//            continue;
-//        }
-        /* Do ToF Get data. */
-        nExecs_IsrToF += 1;
-        if (bRangePacketUpdated) continue;
-        if(xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
-        {
-            status = vl53l8cx_get_resolution(&Dev, &resolution);
-            status = vl53l8cx_get_ranging_data(&Dev, &Results);
-            i2c1TxUnblock();
-
-#if ENABLE_TOF_DEBUG
-        for(int i = 0; i < resolution;i++){
-            /* Print per zone results */
-            usbDebug("Zone : %2d, Nb targets : %2u, Ambient : %4lu Kcps/spads, \r\n",
-                    i,
-                    Results.nb_target_detected[i],
-                    Results.ambient_per_spad[i]);
-
-            /* Print per target results */
-            if(Results.nb_target_detected[i] > 0){
-                usbDebug("Target status : %3u, Distance : %4d mm \r\n",
-                        Results.target_status[VL53L8CX_NB_TARGET_PER_ZONE * i],
-                        Results.distance_mm[VL53L8CX_NB_TARGET_PER_ZONE * i]);
-            }else{
-                usbDebug("Target status : 255, Distance : No target\r\n");
-            }
-        }
-        usbDebug("\r\n");
-#else
-        /*GOTO ToF CDC Process*/
-            TickType_t timestamp = xTaskGetTickCount();
-            tof_ranging_callback(&Results, timestamp);
-        }
-#endif
+        I2C1_SoftwareReset();
+        ResetTof();
+        tof_resetFlag = 0;
+        nTofGpioInts_1 = 0;
+        osDelay(20);
+        HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
+        HAL_NVIC_EnableIRQ(EXTI1_IRQn);
     }
 }
 #endif

@@ -12,7 +12,7 @@
 //#include <stdbool.h>
 #include <stdlib.h>
 
-//#include "gesture.h"
+#include "gesture.h"
 #include "usb.h"
 #include "cmd.h"
 #include "ecx343.h"
@@ -36,6 +36,7 @@ bool bRangePacketUpdated = false;
 
 extern uint8_t DebugSwitch;
 extern uint8_t AutoBrightness;
+uint8_t tof_resetFlag = 0;
 
 ECX343_DATA ecx343_data;
 ECX343_DATA ecx343_current_data;
@@ -632,13 +633,20 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         }
         break;
     case CE_SET_TOF_PWR:
-        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+//        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        reply += sprintf(reply, "OK");
+        tof_resetFlag = 1;
         break;
     case CE_SET_TOF_MODE:
-        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+//        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        reply += sprintf(reply, "OK");
         break;
     case CE_SET_TOF_CONF:
-        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        //reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        reply += sprintf(reply, "OK");
+        HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
+        HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+        interruptTofEnable = 1;
         break;
     case CE_SET_TOF_KEY:
         reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
@@ -858,7 +866,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         break;
     case CE_GET_FW_VER:
         if (!args_len)
-            reply += sprintf(reply, "%d.%d.%d %s", V_MAJOR, V_MINOR, V_PATCH, MODEL_SUFFIX);
+//            reply += sprintf(reply, "%d.%d.%d %s", V_MAJOR, V_MINOR, V_PATCH, MODEL_SUFFIX);
+            reply += sprintf(reply, "%d.%d.%d %s", 1, 1, 0, MODEL_SUFFIX);
         else
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         break;

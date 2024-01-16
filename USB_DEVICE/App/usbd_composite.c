@@ -6,6 +6,7 @@
 #include "usbd_audio.h"
 
 static USBD_CDC_HandleTypeDef            *pCDCData_Tof;
+static USBD_CUSTOM_HID_HandleTypeDef     *pHIDData;
 static USBD_CUSTOM_HID_IMU_HandleTypeDef *pHIDData_IMU;
 static USBD_AUDIO_HandleTypeDef          *pAUDData_MIC;
 #define AUDIO_SAMPLE_FREQ(frq)         (uint8_t)(frq), (uint8_t)((frq >> 8)), (uint8_t)((frq >> 16))
@@ -494,6 +495,11 @@ static uint8_t  USBD_Composite_Init (USBD_HandleTypeDef *pdev,
 //  pdev->pUserData = &USBD_CustomHID_ALS_fops_FS;
 //  res +=  USBD_CUSTOM_HID_ALS.Init(pdev,cfgidx);
 //  pHIDData_ALS = pdev->pClassData;
+#if ADD_HID_KEYBOARD
+  pdev->pClassData = pHIDData;
+  pdev->pUserData = &USBD_CustomHID_fops_FS;
+  res +=  USBD_CUSTOM_HID.Init(pdev,cfgidx);
+#endif
   
   pdev->pUserData = &USBD_Interface_fops_FS;
   res +=  USBD_CDC.Init(pdev,cfgidx);
@@ -518,6 +524,12 @@ static uint8_t  USBD_Composite_DeInit (USBD_HandleTypeDef *pdev,
     pdev->pUserData = &USBD_AUDIO_fops_FS;
     res +=  USBD_AUDIO.DeInit(pdev,cfgidx);
 
+#if ADD_HID_KEYBOARD
+    pdev->pClassData = pHIDData;
+    pdev->pUserData = &USBD_CustomHID_fops_FS;
+    res +=  USBD_CUSTOM_HID.DeInit(pdev,cfgidx);
+#endif
+
     pdev->pClassData = pHIDData_IMU;
     pdev->pUserData = &USBD_CustomHID_IMU_fops_FS;
     res +=  USBD_CUSTOM_HID_IMU.DeInit(pdev,cfgidx);
@@ -529,6 +541,8 @@ static uint8_t  USBD_Composite_DeInit (USBD_HandleTypeDef *pdev,
     pdev->pClassData = pCDCData_Tof;
     pdev->pUserData = &USBD_Interface_fops_FS;
     res +=  USBD_CDC.DeInit(pdev,cfgidx);
+
+
 
     return res;
 }
@@ -549,7 +563,12 @@ static uint8_t  USBD_Composite_EP0_RxReady(USBD_HandleTypeDef *pdev)
 	        pdev->pClassData = pCDCData_Tof;
 	        pdev->pUserData =  &USBD_Interface_fops_FS;
 	        return(USBD_CDC.EP0_RxReady(pdev));
-
+#if ADD_HID_KEYBOARD
+		case USBD_HID_INTERFACE:
+	        pdev->pClassData = pHIDData;
+	        pdev->pUserData =  &USBD_CustomHID_fops_FS;
+	        return(USBD_CUSTOM_HID.EP0_RxReady (pdev));
+#endif
 	    case USBD_HID_INTERFACE_IMU:
 	        pdev->pClassData = pHIDData_IMU;
 	        pdev->pUserData =  &USBD_CustomHID_IMU_fops_FS;
@@ -596,7 +615,12 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
              pdev->pClassData = pCDCData_Tof;
              pdev->pUserData =  &USBD_Interface_fops_FS;
            return(USBD_CDC.Setup(pdev, req));
-
+#if ADD_HID_KEYBOARD
+		 case USBD_HID_INTERFACE:
+             pdev->pClassData = pHIDData;
+             pdev->pUserData =  &USBD_CustomHID_fops_HS;
+           return(USBD_CUSTOM_HID.Setup (pdev, req));
+#endif
 		 case USBD_HID_INTERFACE_IMU:
              pdev->pClassData = pHIDData_IMU;
              pdev->pUserData =  &USBD_CustomHID_IMU_fops_FS;
@@ -625,7 +649,13 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
              pdev->pClassData = pCDCData_Tof;
              pdev->pUserData =  &USBD_Interface_fops_FS;
            return(USBD_CDC.Setup(pdev, req));
-
+#if ADD_HID_KEYBOARD
+		 case CUSTOM_HID_EPIN_ADDR:
+         case CUSTOM_HID_EPOUT_ADDR:
+             pdev->pClassData = pHIDData;
+             pdev->pUserData =  &USBD_CustomHID_fops_FS;
+           return(USBD_CUSTOM_HID.Setup (pdev, req));
+#endif
          case CUSTOM_HID_IMU_EPIN_ADDR:
          case CUSTOM_HID_IMU_EPOUT_ADDR:
              pdev->pClassData = pHIDData_IMU;
@@ -670,7 +700,12 @@ uint8_t  USBD_Composite_DataIn (USBD_HandleTypeDef *pdev,
         pdev->pClassData = pCDCData_Tof;
         pdev->pUserData =  &USBD_Interface_fops_FS;
          return(USBD_CDC.DataIn(pdev,epnum));
-
+#if ADD_HID_KEYBOARD
+      case HID_INDATA_NUM:
+             pdev->pClassData = pHIDData;
+             pdev->pUserData =  &USBD_CustomHID_fops_FS;
+         return(USBD_CUSTOM_HID.DataIn(pdev,epnum));
+#endif
       case HID_IMU_INDATA_NUM:
              pdev->pClassData = pHIDData_IMU;
              pdev->pUserData =  &USBD_CustomHID_IMU_fops_FS;
@@ -711,7 +746,12 @@ uint8_t  USBD_Composite_DataOut (USBD_HandleTypeDef *pdev,
         pdev->pClassData = pCDCData_Tof;
         pdev->pUserData =  &USBD_Interface_fops_FS;
          return(USBD_CDC.DataOut(pdev,epnum));
-
+#if ADD_HID_KEYBOARD
+      case HID_OUTDATA_NUM:
+             pdev->pClassData = pHIDData;
+             pdev->pUserData =  &USBD_CustomHID_fops_FS;
+         return(USBD_CUSTOM_HID.DataOut(pdev,epnum));
+#endif
       case HID_IMU_OUTDATA_NUM:
              pdev->pClassData = pHIDData_IMU;
              pdev->pUserData =  &USBD_CustomHID_IMU_fops_FS;
@@ -774,6 +814,12 @@ void USBD_Composite_Switch_Itf(USBD_HandleTypeDef *pdev, USBD_COMPOSITE_ItfTypeD
       pdev->pClassData = pCDCData_Tof;
       pdev->pUserData =  &USBD_Interface_fops_FS;
       break;
+#if ADD_HID_KEYBOARD
+  case USBD_CUSTOMHID_INTERFACE:
+      pdev->pClassData = pHIDData;
+      pdev->pUserData = &USBD_CustomHID_fops_FS;
+      break;
+#endif
   case USBD_CUSTOMHID_IMU_INTERFACE:
       pdev->pClassData = pHIDData_IMU;
       pdev->pUserData = &USBD_CustomHID_IMU_fops_FS;
@@ -806,6 +852,12 @@ USBD_COMPOSITE_ItfTypeDef USBD_Composite_Get_Current_Itf(USBD_HandleTypeDef *pde
 //  {
 //	  return USBD_CUSTOMHID_ALS_INTERFACE;
 //  }
+#if ADD_HID_KEYBOARD
+  else if (pdev->pClassData == pHIDData)
+  {
+	  return USBD_CUSTOMHID_INTERFACE;
+  }
+#endif
 
   return USBD_AUD_MIC_INTERFACE;
 }

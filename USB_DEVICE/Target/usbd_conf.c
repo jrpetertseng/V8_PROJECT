@@ -384,6 +384,11 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_FS, (CDC_CMD_EP & 0x7F), 0x40);
 #pragma message "CDC_IN_EP: " XSTR(CDC_IN_EP)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_FS, (CDC_IN_EP & 0x7F), 0x40);
+  // HID KEY-BOARD
+#if ADD_HID_KEYBOARD
+#pragma message "CUSTOM_HID_EPIN_ADDR: " XSTR(CUSTOM_HID_EPIN_ADDR)
+  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_FS, (CUSTOM_HID_EPIN_ADDR & 0x7F), 0x40);
+#endif
   }
   return USBD_OK;
 }

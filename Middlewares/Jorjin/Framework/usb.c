@@ -23,6 +23,8 @@ extern int8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len);
 
 static void UsbEscapeISRTask(void * argument);
 
+extern uint32_t                 nExecs_IsrToF;
+
 #if (0x20001U == osCMSIS)
 
 #include "FreeRTOS.h"
@@ -256,9 +258,9 @@ void usbSendMessageISR(JISRQueueMessage_t *msg) {
 }
 
 void usbLoop() {
-    JQueueMessage_t msg;
+    static JQueueMessage_t msg;
     uint8_t         ret;
-	
+    UBaseType_t uxHighWaterMark;
     if (gCtx.queue == NULL) return;
     
     gCtx.bInited = 0x1;
@@ -272,9 +274,7 @@ void usbLoop() {
                 nIMUHIDUsbOuts += 1;
                 usbImu_TxBlock();
                 usbTx_inc_imu_report();
-                //ret = USBD_OK;
                 ret = USBD_CUSTOM_HID_IMU_SendReport_FS(msg.data.imuReport.report, msg.data.imuReport.len);
-//                ret = USBD_CUSTOM_HID_IMU_SendReport_FS((uint8_t*)&test_buf, 15);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
@@ -297,8 +297,9 @@ void usbLoop() {
 //				usbTxUnblock();
 //                break;
             case USB_CDC_TOF_DATA:
-//                usbToF_TxBlock();
-                usbTx_inc_tof();
+                usbToF_TxBlock();
+//                nTofGpioInts_1 += 1;
+//                usbTx_inc_tof();
                 ret = CDC_Transmit_FS((uint8_t *)msg.data.ToFMsg.p, msg.data.ToFMsg.len);
                 if(USBD_OK != ret)
                 {
@@ -306,10 +307,10 @@ void usbLoop() {
                     usbTx_inc_tof_error();
 //                    usbTxUnblock();
                 }
-//                usbTxUnblock();
+                usbTxUnblock();
                 break;
             case USB_DEBUG_MSG:
-//                usbToF_TxBlock();
+                usbToF_TxBlock();
                 usbTx_inc_devctlr();
                 ret = CDC_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
                 if(USBD_OK != ret)
@@ -318,11 +319,23 @@ void usbLoop() {
                     usbTx_inc_devctlr_error();
 //                    usbTxUnblock();
                 }
-//                usbTxUnblock();
+#if ENABLE_STACK_CHECK
+                osDelay(1000);
+#endif
+                usbTxUnblock();
                 break;
             default:
                 break;
             }
+#if ENABLE_STACK_CHECK
+            //test: check high water
+            if(nExecs_IsrToF%100==0 && nExecs_IsrToF!=0)
+            {
+                uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+                usbDebug("USB_task free stack：%lu\n", uxHighWaterMark);
+            }
+#endif
+
         }
     }
 }

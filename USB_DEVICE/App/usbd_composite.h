@@ -43,6 +43,11 @@
 #define USBD_HID_INTERFACE_IMU       2
 //#define USBD_HID_INTERFACE_ALS       3
 
+#define USBD_HID_INTERFACE_NUM       1          /* HID Interface NUM */
+#define USBD_HID_INTERFACE  		 5
+
+#define HID_INDATA_NUM               (CUSTOM_HID_EPIN_ADDR & 0x0F)
+#define HID_OUTDATA_NUM              (CUSTOM_HID_EPOUT_ADDR & 0x0F)
 #define CDC_INDATA_NUM               (CDC_IN_EP & 0x0F)
 #define CDC_OUTDATA_NUM              (CDC_OUT_EP & 0x0F)
 #define CDC_OUTCMD_NUM               (CDC_CMD_EP & 0x0F)
