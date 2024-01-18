@@ -8,9 +8,13 @@ import cv2
 import socket
 import sys
 import time
+from enum import Enum
 
-outCV = True
-
+# outPutMode = [outCV, outTCP, noOutput] = [0, 0, 1]
+class outPutMode(Enum):
+    outCV = 0
+    outTCP = 1
+    noOutput = 2
 class Tof:
 
     def __init__(self, port="COM1"):
@@ -21,7 +25,7 @@ class Tof:
         self.buffer = bytearray()
         # Run/Stop flag
         self.run_flag = True
-
+        
         # Start transmitting data
         self.start()
     
@@ -44,7 +48,7 @@ class Tof:
         """Start transmitting data, creates a parser thread."""
         # self.send_command(command="settofpwr 0")
         # self.send_command(command="settofpwr 1")
-        # self.send_command(command="settofconf 0")
+        self.send_command(command="settofconf 0")
         pass
 
 
@@ -96,8 +100,12 @@ class Tof:
         status (target status): ndarray of char (np.ubyte)"""
 
         # Read data
-        self.buffer += self.serial.read(size=593)
-        if len(self.buffer) < 593:
+        try:
+            self.buffer += self.serial.read(size=593)
+            if len(self.buffer) < 593:
+                return (None, None)
+        except:
+            print("Failed to read data.")
             return (None, None)
         # Cleanup previous tail
         ind = self.buffer.find(bytearray("DATA", encoding="ASCII"))
@@ -106,6 +114,9 @@ class Tof:
         self.buffer += self.serial.read(size=ind)
         if len(self.buffer) < 593:
             return (None, None)
+        
+        # tmp = self.buffer[5]
+        # print(f"Temperature: {tmp}")
 
         # Little Endian
         # 0-3: DATA
@@ -150,44 +161,60 @@ if __name__ == "__main__":
     
     # socket
     host, port = "127.0.0.1", 25001
-    data = "1,2,3"
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     connect = False   
-
+    disconnect_count = 0
+    frame_count = 0
     comport = sys.argv[1]
     tof = Tof(comport)
+    # parameters
+    total_time = time.time()
+    outPutMode = outPutMode.outCV
+
     while True:
         start_time = time.time()
         signal, dist = tof.get_frame()
+        if disconnect_count > 20:
+            print("Disconnect")
+            break
         if dist is None:
+            disconnect_count += 1
             continue
+        else:
+            disconnect_count = 0
+            frame_count += 1
+        
         # # print(f"range(mm): {dist.mean() / 4}")
         # print(f"Min_Raw: {dist}")
         # print(f"Ori dist:{signal.min()}")
         # print(f"dist:{dist}")
         # # print(f"status:{status}")
-
-        # print(f"FPS:{(1/(time.time()-start_time))}")
+            
         # dist = np.flip(dist, axis=0)
-        if outCV:
-            color_depth = tof.getColorMap(dist, 8)
-            # cv2.imshow("Depth", color_depth)
-            tof.display('Depth', color_depth)
-            if cv2.waitKey(1)==ord('q'):
-                break
+        match outPutMode:
+            case outPutMode.noOutput:
+                if frame_count % 20 == 0:
+                    print(f"FPS:{(1/(time.time()-start_time))}")
+                    frame_count = 0
+            case outPutMode.outCV:
+                color_depth = tof.getColorMap(dist, 8)
+                tof.display('Depth', color_depth)
+                if cv2.waitKey(1)==ord('q'):
+                    break
+            case outPutMode.outTCP:
+                try:
+                    if not connect:
+                        sock.connect((host, port))
+                        connect = True
 
-        else:
-            try:
-                if not connect:
-                    sock.connect((host, port))
-                    connect = True
+                    sock.sendall(dist.tobytes())
+                    # print(f"range(mm): {dist.mean() / 4}")
+                    # response = sock.recv(1024).decode("utf-8")
+                    # print (response)
 
-                sock.sendall(dist.tobytes())
-                # print(f"range(mm): {dist.mean() / 4}")
-                # response = sock.recv(1024).decode("utf-8")
-                # print (response)
-
-            except:
-                print("fail to send data")
-                connect = False
+                except:
+                    print("fail to send data")
+                    connect = False
+            
+    print(f"Total_time:{time.time()-total_time}")
 

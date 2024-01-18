@@ -6,7 +6,9 @@
 #include "usbd_audio.h"
 
 static USBD_CDC_HandleTypeDef            *pCDCData_Tof;
+#if ADD_HID_KEYBOARD
 static USBD_CUSTOM_HID_HandleTypeDef     *pHIDData;
+#endif
 static USBD_CUSTOM_HID_IMU_HandleTypeDef *pHIDData_IMU;
 static USBD_AUDIO_HandleTypeDef          *pAUDData_MIC;
 #define AUDIO_SAMPLE_FREQ(frq)         (uint8_t)(frq), (uint8_t)((frq >> 8)), (uint8_t)((frq >> 16))

@@ -271,14 +271,15 @@ void usbLoop() {
             case USB_HID_INPUT_REPORT:
                 break;
             case USB_HID_IMU_INPUT_REPORT:
-                nIMUHIDUsbOuts += 1;
+//                nIMUHIDUsbOuts += 1;
+                nIMUHIDUsbOuts = 0;
                 usbImu_TxBlock();
                 usbTx_inc_imu_report();
                 ret = USBD_CUSTOM_HID_IMU_SendReport_FS(msg.data.imuReport.report, msg.data.imuReport.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
-                    //usbTxUnblock();
+                    usbTxUnblock();
                 }
                 /* Success, release the lock. */
                 usbTxUnblock();

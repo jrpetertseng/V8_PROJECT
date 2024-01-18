@@ -49,7 +49,7 @@ EndBSPDependencies */
 #include "sensor_hid.h"
 #include "usb.h"
 
-USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
+//USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
   * @{
   */
@@ -444,19 +444,19 @@ static uint8_t USBD_CUSTOM_HID_IMU_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgi
 
 static char seiko_feature_report_response[SEIKO_FEATURE_REPORT_LENGTH] =
 {
-    0x01, 0x02, 0x00, 0x06, 0x02, 0x0A, 0x00, 0x00,
+    0x01, 0x02, 0x00, 0x06, 0x02, 0x02, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 static char seiko_feature_report_response_01[SEIKO_FEATURE_REPORT_LENGTH] =
 {
-    0x01, 0x02, 0x00, 0x06, 0x02, 0x0A, 0x00, 0x00,
+    0x01, 0x02, 0x00, 0x06, 0x02, 0x02, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 static char seiko_feature_report_response_09[SEIKO_FEATURE_REPORT_LENGTH] =
 {
-    0x09, 0x02, 0x00, 0x06, 0x02, 0x0A, 0x00, 0x00,
+    0x09, 0x02, 0x00, 0x06, 0x02, 0x02, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
@@ -714,7 +714,7 @@ static uint8_t USBD_CUSTOM_HID_IMU_Setup(USBD_HandleTypeDef *pdev,
 uint8_t USBD_CUSTOM_HID_IMU_SendReport(USBD_HandleTypeDef *pdev,
                                    uint8_t *report, uint16_t len)
 {
-//  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
+  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
 
   if (pdev->pClassData == NULL)
   {
@@ -734,6 +734,7 @@ uint8_t USBD_CUSTOM_HID_IMU_SendReport(USBD_HandleTypeDef *pdev,
     }
     else
     {
+//      hhid->state = CUSTOM_HID_IDLE;
       return (uint8_t)USBD_BUSY;
     }
   }

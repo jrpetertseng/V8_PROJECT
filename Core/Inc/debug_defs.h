@@ -17,7 +17,7 @@
 #define ENABLE_TOF_DEBUG                0
 #define ENABLE_OLD_TOF                  0
 #define ENABLE_IMU                      1
-#define ENABLE_MIS                      0
+#define ENABLE_MIS                      1
 #define ENABLE_ALS                      0
 #define ENABLE_PS                       0
 #define ENABLE_ADC                      0

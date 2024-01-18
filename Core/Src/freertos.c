@@ -87,7 +87,7 @@ typedef StaticTask_t osStaticThreadDef_t;
 /* USER CODE BEGIN Variables */
 extern I2C_HandleTypeDef  hi2c1;
 extern I2C_HandleTypeDef  hi2c3;
-extern USBD_HandleTypeDef hUsbDeviceHS;
+//extern USBD_HandleTypeDef hUsbDeviceHS;
 extern TIM_HandleTypeDef  htim13;
 extern USBD_AUDIO_HandleTypeDef hUACMic;
 extern PingPongBuffer_t pingPong;
@@ -112,7 +112,7 @@ uint8_t AutoBrightness = 0;
 int16_t data_i2s[AUDIO_IN_PACKET*_PACK_SIZE];
 int16_t average_volume = 1430; //1430
 uint8_t buttonEvent;
-
+extern uint16_t tofResetCount;
 //bool medianFlag = true;
 //int16_t median_buf[AUDIO_IN_PACKET/2];
 //extern uint32_t _tmp[AUDIO_IN_PACKET/2];
@@ -131,7 +131,7 @@ const osThreadAttr_t cmdToFTask_attributes = {
   .cb_size = sizeof(cmdToFTaskControlBlock),
   .stack_mem = &cmdToFTaskBuffer[0],
   .stack_size = sizeof(cmdToFTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal, //osPriorityBelowNormal
+  .priority = (osPriority_t) osPriorityBelowNormal, //osPriorityBelowNormal
 };
 #endif
 #if ENABLE_OLD_TOF
@@ -233,7 +233,7 @@ const osThreadAttr_t usbTxTask_attributes = {
   .cb_size = sizeof(usbTxTaskControlBlock),
   .stack_mem = &usbTxTaskBuffer[0],
   .stack_size = sizeof(usbTxTaskBuffer),
-  .priority = (osPriority_t) osPriorityAboveNormal,
+  .priority = (osPriority_t) osPriorityHigh, //osPriorityAboveNormal
 };
 
 #if ENABLE_SCAN_I2C
@@ -932,6 +932,9 @@ void MainTask(void * argument)
   ALSensorTaskHandle = osThreadNew(ALSensorTask, NULL, &ALSensorTask_attributes);
   AL3010_Init();
   osDelay(10);
+  //Enable ALS Int
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 #endif
 
 #if ENABLE_ADC
@@ -944,6 +947,9 @@ void MainTask(void * argument)
   osDelay(10);
   RPR0521_SetUp();
   osDelay(10);
+  //Enable PS Int
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 #endif
 
 
@@ -960,12 +966,8 @@ void MainTask(void * argument)
     //Enable TOF Int
 //    HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
 //    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-    //Enable PS Int
-    HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(EXTI0_IRQn);
-    //Enable ALS Int
-    HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
-    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+
 #if ENABLE_PS
 #else
 #if ENABLE_PANEL
@@ -1015,6 +1017,7 @@ void MainTask(void * argument)
 #if ENABLE_TOF_FORCE_RESET
     	nTofGpioInts_1 += 1;
     	if (nTofGpioInts_1>=10 && interruptTofEnable) {
+    	    tofResetCount += 1;
     	    Tof_Hard_reset();
 //    	    McuReset();
     	}
@@ -1023,6 +1026,19 @@ void MainTask(void * argument)
             Tof_Hard_reset();
         }
 #endif
+        //IMU Debug
+        nBno08xGpioInts += 1;
+        nIMUHIDUsbOuts += 1;
+        if (nBno08xGpioInts > 40){
+            usbDebug("IMU interrupt Dead \r\n");
+//            HAL_GPIO_WritePin(IMU_RST_GPIO_Port, IMU_RST_Pin, GPIO_PIN_RESET);
+//            osDelay(10);
+//            HAL_GPIO_WritePin(IMU_RST_GPIO_Port, IMU_RST_Pin, GPIO_PIN_SET);
+//
+//            initSensor();
+        }
+        if (nIMUHIDUsbOuts > 40)
+            usbDebug("IMU HID OutPut Dead \r\n");
 //        for (uint8_t j=0; j<2; j++){
 //            usbDebug("panel: %d\r\n", j);
 //            for (uint16_t i=0x00; i<0x0A; i++)

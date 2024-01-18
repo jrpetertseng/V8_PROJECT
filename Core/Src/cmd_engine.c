@@ -12,7 +12,7 @@
 //#include <stdbool.h>
 #include <stdlib.h>
 
-#include "gesture.h"
+//#include "gesture.h"
 #include "usb.h"
 #include "cmd.h"
 #include "ecx343.h"
@@ -27,6 +27,7 @@
 #define TOF_DATA_SUFFIX 0x0a0d4445 /* "ED\r\n" */
 static uint8_t tofNumOfTargets[MAX_TOF_DATA_COUNT];
 uint8_t TofRangePacket[TOF_8X8_DATA_PACKET_SIZE];
+uint16_t tofResetCount = 0;
 
 bool bPresenceSent = false;
 bool bGestureEnabled = false;
@@ -634,8 +635,21 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         break;
     case CE_SET_TOF_PWR:
 //        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
-        reply += sprintf(reply, "OK");
-        tof_resetFlag = 1;
+        value = strtol(data, &data, 10);
+        if (value == 0 && *(data-1) != '0') {
+            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        } else if (value == 0) {
+            HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+            interruptTofEnable = 0;
+            usbDebug("tofResetCount: %d \r\n", tofResetCount);
+            reply += sprintf(reply, "OK");
+        } else if (value == 2) {
+            tof_resetFlag = 1;
+            reply += sprintf(reply, "OK");
+        }
+        else {
+            reply += sprintf(reply, "OK");
+        }
         break;
     case CE_SET_TOF_MODE:
 //        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);

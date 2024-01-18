@@ -206,7 +206,7 @@ int main(void)
   MX_SPI1_Init();
   MX_SPI2_Init();
   MX_SPI4_Init();
-  MX_TIM13_Init();
+//  MX_TIM13_Init();
   MX_ADC1_Init();
   MX_ADC2_Init();
 //  MX_USB_OTG_HS_PCD_Init();
@@ -330,7 +330,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     if(IMU_INTN_Pin == GPIO_Pin)
     {
         SH2_GPIO_EXTI_Callback( GPIO_Pin);
-        nBno08xGpioInts += 1;
+//        nBno08xGpioInts += 1;
+        nBno08xGpioInts = 0;
     }
 #if ENABLE_ALS
     else if(ALS_INT_Pin == GPIO_Pin)
