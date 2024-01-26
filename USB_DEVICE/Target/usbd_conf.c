@@ -28,7 +28,7 @@
 
 #include "usbd_customhid.h"
 #include "usbd_customhid_imu.h"
-//#include "usbd_customhid_als.h"
+#include "usbd_customhid_als.h"
 #include "usbd_cdc.h"
 #include "usbd_audio.h"
 /* USER CODE BEGIN Includes */
@@ -376,8 +376,9 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   // CUSTOM HID IMU
 #pragma message "CUSTOM_HID_IMU_EPIN_ADDR: " XSTR(CUSTOM_HID_IMU_EPIN_ADDR)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_FS, (CUSTOM_HID_IMU_EPIN_ADDR & 0x7F), 0x40);
-////   CUSTOM HID ALS
-//  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_FS, (CUSTOM_HID_ALS_EPIN_ADDR & 0x7F), 0x40);
+//   CUSTOM HID KEY
+#pragma message "CUSTOM_HID_KEY_EPIN_ADDR: " XSTR(CUSTOM_HID_KEY_EPIN_ADDR)
+  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_FS, (CUSTOM_HID_KEY_EPIN_ADDR & 0x7F), 0x40);
 
   // CDC ACM ToF
 #pragma message "CDC_CMD_EP: " XSTR(CDC_CMD_EP)

@@ -9,10 +9,10 @@
 #include "ecx343.h"
 #include "usb.h"
 
-// #include "usbd_custom_hid_if_als.h"
-// #include "cmd_engine.h"
-// HID_Keyboard_ALS_Report ALS_report;
-// JQueueMessage_t alsReport;
+#include "usbd_custom_hid_if_als.h"
+#include "cmd_engine.h"
+HID_Keyboard_KEY_Report KEY_report;
+JQueueMessage_t keyReport;
 extern ECX343_DATA ecx343_current_data;
 
 uint32_t lastClickTime = 0;
@@ -93,27 +93,7 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
             flag_2D3D = (mode_state & 0x02) >> 1;
             switchMode();
             //  usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
-/*
-            ALS_report.report_id = 0x11;
-            ALS_report.modifier = 0x00;
-            ALS_report.reserved = 0x00;
-            ALS_report.key1 = 0x04;
-            ALS_report.key2 = 0x00;
-            ALS_report.key3 = 0x00;
-            ALS_report.key4 = 0x00;
-            ALS_report.key5 = 0x00;
-            ALS_report.key6 = 0x00;
 
-            alsReport.type = USB_HID_ALS_INPUT_REPORT;
-            alsReport.data.alsReport.len = sizeof(HID_Keyboard_ALS_Report);
-
-            memcpy(alsReport.data.alsReport.report, (void *)&ALS_report, sizeof(ALS_report));
-            usbSendMessage(&alsReport);
-            osDelay(10);
-*/
-//        	ALS_report.key1 = 0x00;
-//        	memcpy(alsReport.data.alsReport.report, (void *)&ALS_report, sizeof(ALS_report));
-//        	usbSendMessage(&alsReport);
             break;
         case DOUBLE_CLICK:
             *currentMode = (*currentMode == MODE_BRIGHTNESS) ? MODE_VOLUME : MODE_BRIGHTNESS;
@@ -132,29 +112,69 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType, Operati
             HandleButtonClick(currentMode, displayType, clickType);
             break;
         case 2:
-            if (*currentMode == MODE_BRIGHTNESS) {
-                ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL > 100) ?
-                    ecx343_current_data.uLCD_LUXL - 10 : ecx343_current_data.uLCD_LUXL;
-                ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR > 100) ?
-                    ecx343_current_data.uLCD_LUXR - 10 : ecx343_current_data.uLCD_LUXR;
-                adjustBrightness();
-//                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
-                break;
-            } else {
-//            	usbDebug("#volume -@\r\n");
-            }
+            KEY_report.report_id = 0x11;
+            KEY_report.modifier = 0x00;
+            KEY_report.reserved = 0x00;
+            KEY_report.key1 = 0x04;
+            KEY_report.key2 = 0x00;
+            KEY_report.key3 = 0x00;
+            KEY_report.key4 = 0x00;
+            KEY_report.key5 = 0x00;
+            KEY_report.key6 = 0x00;
+
+            keyReport.type = USB_HID_KEY_INPUT_REPORT;
+            keyReport.data.keyReport.len = sizeof(HID_Keyboard_KEY_Report);
+
+            memcpy(keyReport.data.keyReport.report, (void *)&KEY_report, sizeof(KEY_report));
+            usbSendMessage(&keyReport);
+            osDelay(20);
+
+            KEY_report.key1 = 0x00;
+            memcpy(keyReport.data.keyReport.report, (void *)&KEY_report, sizeof(KEY_report));
+            usbSendMessage(&keyReport);
+//            if (*currentMode == MODE_BRIGHTNESS) {
+//                ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL > 100) ?
+//                    ecx343_current_data.uLCD_LUXL - 10 : ecx343_current_data.uLCD_LUXL;
+//                ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR > 100) ?
+//                    ecx343_current_data.uLCD_LUXR - 10 : ecx343_current_data.uLCD_LUXR;
+//                adjustBrightness();
+////                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
+//                break;
+//            } else {
+////            	usbDebug("#volume -@\r\n");
+//            }
             break;
         case 4:
-            if (*currentMode == MODE_BRIGHTNESS) {
-                ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL < 500) ?
-                    ecx343_current_data.uLCD_LUXL + 10 : ecx343_current_data.uLCD_LUXL;
-                ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR < 500) ?
-                    ecx343_current_data.uLCD_LUXR + 10 : ecx343_current_data.uLCD_LUXR;
-                adjustBrightness();
-//                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
-            } else {
-//            	usbDebug("#volume +@\r\n");
-            }
+            KEY_report.report_id = 0x11;
+            KEY_report.modifier = 0x00;
+            KEY_report.reserved = 0x00;
+            KEY_report.key1 = 0x05;
+            KEY_report.key2 = 0x00;
+            KEY_report.key3 = 0x00;
+            KEY_report.key4 = 0x00;
+            KEY_report.key5 = 0x00;
+            KEY_report.key6 = 0x00;
+
+            keyReport.type = USB_HID_KEY_INPUT_REPORT;
+            keyReport.data.keyReport.len = sizeof(HID_Keyboard_KEY_Report);
+
+            memcpy(keyReport.data.keyReport.report, (void *)&KEY_report, sizeof(KEY_report));
+            usbSendMessage(&keyReport);
+            osDelay(20);
+
+            KEY_report.key1 = 0x00;
+            memcpy(keyReport.data.keyReport.report, (void *)&KEY_report, sizeof(KEY_report));
+            usbSendMessage(&keyReport);
+//            if (*currentMode == MODE_BRIGHTNESS) {
+//                ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL < 500) ?
+//                    ecx343_current_data.uLCD_LUXL + 10 : ecx343_current_data.uLCD_LUXL;
+//                ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR < 500) ?
+//                    ecx343_current_data.uLCD_LUXR + 10 : ecx343_current_data.uLCD_LUXR;
+//                adjustBrightness();
+////                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
+//            } else {
+////            	usbDebug("#volume +@\r\n");
+//            }
             break;
     }
 }

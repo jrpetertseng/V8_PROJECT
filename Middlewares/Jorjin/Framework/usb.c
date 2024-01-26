@@ -7,7 +7,7 @@
 #include "usbd_cdc_if.h"
 #include "usbd_cdc_if_devctlr.h"
 #include "usbd_custom_hid_if_imu.h"
-//#include "usbd_custom_hid_if_als.h"
+#include "usbd_custom_hid_if_als.h"
 #include "debug_defs.h"
 
 #include "cmsis_os.h"
@@ -125,9 +125,9 @@ static inline void usbTx_inc_imu_report( void)
     gCtx.stat.nTxImu += 1;
 }
 
-static inline void usbTx_inc_als_report( void)
+static inline void usbTx_inc_key_report( void)
 {
-    gCtx.stat.nTxAls += 1;
+    gCtx.stat.nTxKey += 1;
 }
 
 static inline void usbTx_inc_tof( void)
@@ -283,19 +283,19 @@ void usbLoop() {
                 /* Success, release the lock. */
                 usbTxUnblock();
                 break;
-//            case USB_HID_ALS_INPUT_REPORT:
-//                usbAls_TxBlock();
-//                usbTx_inc_als_report();
-//                //ret = USBD_OK;
-//                ret = USBD_CUSTOM_HID_ALS_SendReport_FS(msg.data.alsReport.report, msg.data.alsReport.len);
-//                if(USBD_OK != ret)
-//                {
-//                    /* Fail, release the lock. */
-//                    //usbTxUnblock();
-//                }
-//                /* Success, release the lock. */
-//				usbTxUnblock();
-//                break;
+           case USB_HID_KEY_INPUT_REPORT:
+               usbAls_TxBlock();
+               usbTx_inc_key_report();
+               //ret = USBD_OK;
+               ret = USBD_CUSTOM_HID_KEY_SendReport_FS(msg.data.keyReport.report, msg.data.keyReport.len);
+               if(USBD_OK != ret)
+               {
+                   /* Fail, release the lock. */
+                   //usbTxUnblock();
+               }
+               /* Success, release the lock. */
+				usbTxUnblock();
+               break;
             case USB_CDC_TOF_DATA:
 //                usbToF_TxBlock();
                 usbTx_inc_tof();

@@ -43,48 +43,48 @@ extern "C" {
 /** @defgroup USBD_CUSTOM_HID_Exported_Defines
   * @{
   */
-#define CUSTOM_HID_ALS_EPIN_ADDR                         0x85U
+#define CUSTOM_HID_KEY_EPIN_ADDR                         0x85U
 
-#ifndef CUSTOM_HID_ALS_EPIN_SIZE
-#define CUSTOM_HID_ALS_EPIN_SIZE                         0x40U
+#ifndef CUSTOM_HID_KEY_EPIN_SIZE
+#define CUSTOM_HID_KEY_EPIN_SIZE                         0x10U
 #endif
 
-#define CUSTOM_HID_ALS_EPOUT_ADDR                        0x05U
+#define CUSTOM_HID_KEY_EPOUT_ADDR                        0x05U
 
-#ifndef CUSTOM_HID_ALS_EPOUT_SIZE
-#define CUSTOM_HID_ALS_EPOUT_SIZE                        0x40U
+#ifndef CUSTOM_HID_KEY_EPOUT_SIZE
+#define CUSTOM_HID_KEY_EPOUT_SIZE                        0x10U
 #endif
 
-#define USB_CUSTOM_HID_ALS_CONFIG_DESC_SIZ               41U
-#define USB_CUSTOM_HID_ALS_DESC_SIZ                      9U
+#define USB_CUSTOM_HID_KEY_CONFIG_DESC_SIZ               41U
+#define USB_CUSTOM_HID_KEY_DESC_SIZ                      9U
 
-#ifndef CUSTOM_HID_ALS_HS_BINTERVAL
-#define CUSTOM_HID_ALS_HS_BINTERVAL                      0x05U
-#endif /* CUSTOM_HID_ALS_HS_BINTERVAL */
+#ifndef CUSTOM_HID_KEY_HS_BINTERVAL
+#define CUSTOM_HID_KEY_HS_BINTERVAL                      0x05U
+#endif /* CUSTOM_HID_KEY_HS_BINTERVAL */
 
-#ifndef CUSTOM_HID_ALS_FS_BINTERVAL
-#define CUSTOM_HID_ALS_FS_BINTERVAL                      0x05U
-#endif /* CUSTOM_HID_ALS_FS_BINTERVAL */
+#ifndef CUSTOM_HID_KEY_FS_BINTERVAL
+#define CUSTOM_HID_KEY_FS_BINTERVAL                      0x05U
+#endif /* CUSTOM_HID_KEY_FS_BINTERVAL */
 
-  #ifndef USBD_CUSTOMHID_ALS_OUTREPORT_BUF_SIZE
-  #define USBD_CUSTOMHID_ALS_OUTREPORT_BUF_SIZE            0x02U
-  #endif /* USBD_CUSTOMHID_ALS_OUTREPORT_BUF_SIZE */
+#ifndef USBD_CUSTOMHID_KEY_OUTREPORT_BUF_SIZE
+#define USBD_CUSTOMHID_KEY_OUTREPORT_BUF_SIZE            0x10U
+#endif /* USBD_CUSTOMHID_KEY_OUTREPORT_BUF_SIZE */
 
-  #ifndef USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE
-  #define USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE             1892U
-  #endif /* USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE */
+#ifndef USBD_CUSTOM_HID_KEY_REPORT_DESC_SIZE
+#define USBD_CUSTOM_HID_KEY_REPORT_DESC_SIZE             65U
+#endif /* USBD_CUSTOM_HID_KEY_REPORT_DESC_SIZE */
 
-#define CUSTOM_HID_ALS_DESCRIPTOR_TYPE                   0x21U
-#define CUSTOM_HID_ALS_REPORT_DESC                       0x22U
+#define CUSTOM_HID_KEY_DESCRIPTOR_TYPE                   0x21U
+#define CUSTOM_HID_KEY_REPORT_DESC                       0x22U
 
-#define CUSTOM_HID_ALS_REQ_SET_PROTOCOL                  0x0BU
-#define CUSTOM_HID_ALS_REQ_GET_PROTOCOL                  0x03U
+#define CUSTOM_HID_KEY_REQ_SET_PROTOCOL                  0x0BU
+#define CUSTOM_HID_KEY_REQ_GET_PROTOCOL                  0x03U
 
-#define CUSTOM_HID_ALS_REQ_SET_IDLE                      0x0AU
-#define CUSTOM_HID_ALS_REQ_GET_IDLE                      0x02U
+#define CUSTOM_HID_KEY_REQ_SET_IDLE                      0x0AU
+#define CUSTOM_HID_KEY_REQ_GET_IDLE                      0x02U
 
-#define CUSTOM_HID_ALS_REQ_SET_REPORT                    0x09U
-#define CUSTOM_HID_ALS_REQ_GET_REPORT                    0x01U
+#define CUSTOM_HID_KEY_REQ_SET_REPORT                    0x09U
+#define CUSTOM_HID_KEY_REQ_GET_REPORT                    0x01U
 /**
   * @}
   */
@@ -95,13 +95,13 @@ extern "C" {
   */
 typedef struct
 {
-  uint8_t  Report_buf[USBD_CUSTOMHID_ALS_OUTREPORT_BUF_SIZE];
+  uint8_t  Report_buf[USBD_CUSTOMHID_KEY_OUTREPORT_BUF_SIZE];
   uint32_t Protocol;
   uint32_t IdleState;
   uint32_t AltSetting;
   uint32_t IsReportAvailable;
   CUSTOM_HID_StateTypeDef state;
-} USBD_CUSTOM_HID_ALS_HandleTypeDef;
+} USBD_CUSTOM_HID_KEY_HandleTypeDef;
 /**
   * @}
   */
@@ -120,8 +120,8 @@ typedef struct
   * @{
   */
 
-extern USBD_ClassTypeDef USBD_CUSTOM_HID_ALS;
-#define USBD_CUSTOM_HID_ALS_CLASS &USBD_CUSTOM_HID_ALS
+extern USBD_ClassTypeDef USBD_CUSTOM_HID_KEY;
+#define USBD_CUSTOM_HID_KEY_CLASS &USBD_CUSTOM_HID_KEY
 /**
   * @}
   */
@@ -129,13 +129,13 @@ extern USBD_ClassTypeDef USBD_CUSTOM_HID_ALS;
 /** @defgroup USB_CORE_Exported_Functions
   * @{
   */
-uint8_t USBD_CUSTOM_HID_ALS_SendReport(USBD_HandleTypeDef *pdev,
+uint8_t USBD_CUSTOM_HID_KEY_SendReport(USBD_HandleTypeDef *pdev,
                                    uint8_t *report, uint16_t len);
 
-uint8_t USBD_CUSTOM_HID_ALS_ReceivePacket(USBD_HandleTypeDef *pdev);
+uint8_t USBD_CUSTOM_HID_KEY_ReceivePacket(USBD_HandleTypeDef *pdev);
 
 
-uint8_t USBD_CUSTOM_HID_ALS_RegisterInterface(USBD_HandleTypeDef *pdev,
+uint8_t USBD_CUSTOM_HID_KEY_RegisterInterface(USBD_HandleTypeDef *pdev,
                                           USBD_CUSTOM_HID_ItfTypeDef *fops);
 
 /**
@@ -146,7 +146,7 @@ uint8_t USBD_CUSTOM_HID_ALS_RegisterInterface(USBD_HandleTypeDef *pdev,
 }
 #endif
 
-#endif  /* __USB_CUSTOMHID_ALS_H__4f0f80aa_43c6_11ed_99ef_67a4b22105ec_ */
+#endif  /* __USB_CUSTOMHID_KEY_H__4f0f80aa_43c6_11ed_99ef_67a4b22105ec_ */
 /**
   * @}
   */

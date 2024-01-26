@@ -69,7 +69,7 @@ typedef __PACKED_STRUCT _HID_Keyboard_ALS_Report {
 	uint32_t keys;
 } HID_Keyboard_ALS_Report;
 */
-typedef __PACKED_STRUCT _HID_Keyboard_ALS_Report {
+typedef __PACKED_STRUCT _HID_Keyboard_KEY_Report {
     uint8_t report_id;
     uint8_t modifier;
     uint8_t reserved;
@@ -79,7 +79,7 @@ typedef __PACKED_STRUCT _HID_Keyboard_ALS_Report {
     uint8_t key4;
     uint8_t key5;
     uint8_t key6;
-} HID_Keyboard_ALS_Report;
+} HID_Keyboard_KEY_Report;
 /* USER CODE END EXPORTED_TYPES */
 
 /**
@@ -92,7 +92,7 @@ typedef __PACKED_STRUCT _HID_Keyboard_ALS_Report {
   */
 
 /* USER CODE BEGIN EXPORTED_MACRO */
-int8_t USBD_CUSTOM_HID_ALS_SendReport_FS(uint8_t *report, uint16_t len);
+int8_t USBD_CUSTOM_HID_KEY_SendReport_FS(uint8_t *report, uint16_t len);
 /* USER CODE END EXPORTED_MACRO */
 
 /**
@@ -105,11 +105,11 @@ int8_t USBD_CUSTOM_HID_ALS_SendReport_FS(uint8_t *report, uint16_t len);
   */
 
 /** CUSTOMHID Interface callback. */
-extern USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_ALS_fops_FS;
+extern USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_KEY_fops_FS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-// keys for ALS
-extern HID_Keyboard_ALS_Report hid_keyboard_als_report;
+// keys for KEY
+extern HID_Keyboard_KEY_Report hid_keyboard_als_report;
 /* USER CODE END EXPORTED_VARIABLES */
 
 /**
@@ -122,7 +122,7 @@ extern HID_Keyboard_ALS_Report hid_keyboard_als_report;
   */
 
 /* USER CODE BEGIN EXPORTED_FUNCTIONS */
-int8_t USBD_CUSTOM_HID_ALS_SendReport_FS(uint8_t *report, uint16_t len);
+int8_t USBD_CUSTOM_HID_KEY_SendReport_FS(uint8_t *report, uint16_t len);
 /* USER CODE END EXPORTED_FUNCTIONS */
 
 /**

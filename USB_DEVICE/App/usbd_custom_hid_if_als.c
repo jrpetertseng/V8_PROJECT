@@ -1,148 +1,134 @@
-///* USER CODE BEGIN Header */
-///**
-//  ******************************************************************************
-//  * @file           : usbd_custom_hid_if_als.c
-//  * @version        : v1.0_Cube
-//  * @brief          : USB Device Custom HID interface file for ALS.
-//  ******************************************************************************
-//  * @attention
-//  *
-//  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
-//  * All rights reserved.</center></h2>
-//  *
-//  * This software component is licensed by ST under Ultimate Liberty license
-//  * SLA0044, the "License"; You may not use this file except in compliance with
-//  * the License. You may obtain a copy of the License at:
-//  *                             www.st.com/SLA0044
-//  *
-//  ******************************************************************************
-//  */
-///* USER CODE END Header */
-//
-///* Includes ------------------------------------------------------------------*/
-//#include "usbd_custom_hid_if_als.h"
-//
-///* USER CODE BEGIN INCLUDE */
-//#include "usbd_composite.h"
-///* USER CODE END INCLUDE */
-//
-///* Private typedef -----------------------------------------------------------*/
-///* Private define ------------------------------------------------------------*/
-///* Private macro -------------------------------------------------------------*/
-//
-///* USER CODE BEGIN PV */
-///* Private variables ---------------------------------------------------------*/
-//
-///* USER CODE END PV */
-//
-///** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
-//  * @brief Usb device.
-//  * @{
-//  */
-//
-///** @addtogroup USBD_CUSTOM_HID
-//  * @{
-//  */
-//
-///** @defgroup USBD_CUSTOM_HID_Private_TypesDefinitions USBD_CUSTOM_HID_Private_TypesDefinitions
-//  * @brief Private types.
-//  * @{
-//  */
-//
-///* USER CODE BEGIN PRIVATE_TYPES */
-//
-///* USER CODE END PRIVATE_TYPES */
-//
-///**
-//  * @}
-//  */
-//
-///** @defgroup USBD_CUSTOM_HID_Private_Defines USBD_CUSTOM_HID_Private_Defines
-//  * @brief Private defines.
-//  * @{
-//  */
-//
-///* USER CODE BEGIN PRIVATE_DEFINES */
-//
-///* USER CODE END PRIVATE_DEFINES */
-//
-///**
-//  * @}
-//  */
-//
-///** @defgroup USBD_CUSTOM_HID_Private_Macros USBD_CUSTOM_HID_Private_Macros
-//  * @brief Private macros.
-//  * @{
-//  */
-//
-///* USER CODE BEGIN PRIVATE_MACRO */
-//
-///* USER CODE END PRIVATE_MACRO */
-//
-///**
-//  * @}
-//  */
-//
-///** @defgroup USBD_CUSTOM_HID_Private_Variables USBD_CUSTOM_HID_Private_Variables
-//  * @brief Private variables.
-//  * @{
-//  */
-//
-///** Usb custom HID report descriptor. */
-//__ALIGN_BEGIN static uint8_t CUSTOM_HID_ALS_ReportDesc_FS[USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE] __ALIGN_END =
-//{
-/*
-//  0x05, 0x01,         // 使用頁面（通用桌面控制）
-//  0x09, 0x06,         // 使用（鍵盤）
-//  0xA1, 0x01,         // 集合（應用程序）
-//  0x85, 0x11,         // 報告 ID（17）
-//  0x05, 0x07,         // 使用頁面（鍵盤/鍵盤控制）
-//  0x19, 0xE0,         // 使用最小值（鍵盤左控制鍵）
-//  0x29, 0xE7,         // 使用最大值（鍵盤右 GUI 鍵）
-//  0x15, 0x00,         // 邏輯最小值（0）
-//  0x25, 0x01,         // 邏輯最大值（1）
-//  0x75, 0x01,         // 報告大小（1位元）
-//  0x95, 0x08,         // 報告計數（8）
-//  0x81, 0x02,         // 輸入（數據、可變、絕對）
-//  0x75, 0x08,         // 報告大小（8位元）
-//  0x95, 0x01,         // 報告計數（1）
-//  0x81, 0x01,         // 輸入（常量）
-//  0x05, 0x07,         // 使用頁面（鍵盤/鍵盤控制）
-//  0x19, 0x00,         // 使用最小值（沒有特定鍵）
-//  0x29, 0x65,         // 使用最大值（F13 鍵）
-//  0x15, 0x00,         // 邏輯最小值（0）
-//  0x25, 0x65,         // 邏輯最大值（101）
-//  0x75, 0x08,         // 報告大小（8位元）
-//  0x95, 0x05,         // 報告計數（5）
-//  0x81, 0x00,         // 輸入（數據、數組）
-//  0xC0,               // 結束集合
-//  0x05, 0x0C,         // 使用頁面（消費者裝置）
-//  0x09, 0x01,         // 使用（消費者控制）
-//  0xA1, 0x01,         // 集合（應用程序）
-//  0x85, 0x12,         // 報告 ID（18）
-//  0x19, 0x00,         // 使用最小值
-//  0x2A, 0x3C, 0x02,  // 使用最大值
-//  0x15, 0x00,         // 邏輯最小值
-//  0x26, 0x3C, 0x02,   // 邏輯最大值
-//  0x95, 0x01,         // 報告計數（1）
-//  0x75, 0x10,         // 報告大小（16位元）
-//  0x81, 0x00,         // 輸入
-//  0xC0,               // 結束集合
-//  0x05, 0x01,         // 使用頁面（通用桌面控制）
-//  0x09, 0x80,         // 使用（系統控制）
-//  0xA1, 0x01,         // 集合（應用程序）
-//  0x85, 0x13,         // 報告 ID（19）
-//  0x19, 0x81,         // 使用最小值（系統電源下）
-//  0x29, 0x83,         // 使用最大值（系統喚醒）
-//  0x15, 0x00,         // 邏輯最小值（0）
-//  0x25, 0x01,         // 邏輯最大值（1）
-//  0x75, 0x01,         // 報告大小（1位元）
-//  0x95, 0x03,         // 報告計數（3）
-//  0x81, 0x02,         // 輸入（數據、可變、絕對）
-//  0x95, 0x05,         // 報告計數（5）
-//  0x81, 0x01,         // 輸入（常量）
-//  0xC0,               // 結束集合
-*/
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : usbd_custom_hid_if_als.c
+  * @version        : v1.0_Cube
+  * @brief          : USB Device Custom HID interface file for ALS.
+  ******************************************************************************
+  * @attention
+  *
+  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
+  * All rights reserved.</center></h2>
+  *
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                             www.st.com/SLA0044
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Includes ------------------------------------------------------------------*/
+#include "usbd_custom_hid_if_als.h"
+
+/* USER CODE BEGIN INCLUDE */
+#include "usbd_composite.h"
+/* USER CODE END INCLUDE */
+
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+
+/* USER CODE BEGIN PV */
+/* Private variables ---------------------------------------------------------*/
+
+/* USER CODE END PV */
+
+/** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
+  * @brief Usb device.
+  * @{
+  */
+
+/** @addtogroup USBD_CUSTOM_HID
+  * @{
+  */
+
+/** @defgroup USBD_CUSTOM_HID_Private_TypesDefinitions USBD_CUSTOM_HID_Private_TypesDefinitions
+  * @brief Private types.
+  * @{
+  */
+
+/* USER CODE BEGIN PRIVATE_TYPES */
+
+/* USER CODE END PRIVATE_TYPES */
+
+/**
+  * @}
+  */
+
+/** @defgroup USBD_CUSTOM_HID_Private_Defines USBD_CUSTOM_HID_Private_Defines
+  * @brief Private defines.
+  * @{
+  */
+
+/* USER CODE BEGIN PRIVATE_DEFINES */
+
+/* USER CODE END PRIVATE_DEFINES */
+
+/**
+  * @}
+  */
+
+/** @defgroup USBD_CUSTOM_HID_Private_Macros USBD_CUSTOM_HID_Private_Macros
+  * @brief Private macros.
+  * @{
+  */
+
+/* USER CODE BEGIN PRIVATE_MACRO */
+
+/* USER CODE END PRIVATE_MACRO */
+
+/**
+  * @}
+  */
+
+/** @defgroup USBD_CUSTOM_HID_Private_Variables USBD_CUSTOM_HID_Private_Variables
+  * @brief Private variables.
+  * @{
+  */
+
+/** Usb custom HID report descriptor. */
+__ALIGN_BEGIN static uint8_t CUSTOM_HID_KEY_ReportDesc_FS[USBD_CUSTOM_HID_KEY_REPORT_DESC_SIZE] __ALIGN_END =
+{
+	    0x05, 0x01,                    // Usage Page (Generic Desktop)
+	    0x09, 0x06,                    // Usage (Keyboard)
+	    0xA1, 0x01,                    // Collection (Application)
+	    0x85, 0x11,                    //     Report ID (17)
+	    0x05, 0x07,                    //     Usage Page (Key Codes)
+	    0x19, 0xE0,                    //     Usage Minimum (224)
+	    0x29, 0xE7,                    //     Usage Maximum (231)
+	    0x15, 0x00,                    //     Logical Minimum (0)
+	    0x25, 0x01,                    //     Logical Maximum (1)
+	    0x75, 0x01,                    //     Report Size (1)
+	    0x95, 0x08,                    //     Report Count (8)
+	    0x81, 0x02,                    //     Input (Data, Variable, Absolute)
+
+	    0x95, 0x01,                    //     Report Count (1)
+	    0x75, 0x08,                    //     Report Size (8)
+	    0x81, 0x01,                    //     Input (Constant) reserved byte(1)
+
+	    0x95, 0x05,                    //     Report Count (5)
+	    0x75, 0x01,                    //     Report Size (1)
+	    0x05, 0x08,                    //     Usage Page (LEDs)
+	    0x19, 0x01,                    //     Usage Minimum (1)
+	    0x29, 0x05,                    //     Usage Maximum (5)
+	    0x91, 0x02,                    //     Output (Data, Variable, Absolute)
+
+	    0x95, 0x01,                    //     Report Count (1)
+	    0x75, 0x03,                    //     Report Size (3)
+	    0x91, 0x03,                    //     Output (Constant, Variable, Absolute)
+
+	    0x95, 0x06,                    //     Report Count (6)
+	    0x75, 0x08,                    //     Report Size (8)
+	    0x15, 0x00,                    //     Logical Minimum (0)
+	    0x25, 0x65,                    //     Logical Maximum (101)
+	    0x05, 0x07,                    //     Usage Page (Key Codes)
+	    0x19, 0x00,                    //     Usage Minimum (0)
+	    0x29, 0x65,                    //     Usage Maximum (101)
+	    0x81, 0x00,                    //     Input (Data, Array)
+	    0xC0                           // End Collection
+
 //0x05, 0x20,        // Usage Page (0x20)
 //0x09, 0x8E,        // Usage (0x8E)
 //0xA1, 0x00,        // Collection (Physical)
@@ -906,132 +892,132 @@
 //0x55, 0x00,        //   Unit Exponent (0)
 //0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
 //0xC0,              // End Collection
-//// 1892 bytes
-//};
-//
-///* USER CODE BEGIN PRIVATE_VARIABLES */
-//
-///* USER CODE END PRIVATE_VARIABLES */
-//
-///**
-//  * @}
-//  */
-//
-///** @defgroup USBD_CUSTOM_HID_Exported_Variables USBD_CUSTOM_HID_Exported_Variables
-//  * @brief Public variables.
-//  * @{
-//  */
-//
-//extern USBD_HandleTypeDef hUsbDeviceFS;
-//
-///* USER CODE BEGIN EXPORTED_VARIABLES */
-//HID_Keyboard_ALS_Report hid_keyboard_als_report = {0};
-///* USER CODE END EXPORTED_VARIABLES */
-///**
-//  * @}
-//  */
-//
-///** @defgroup USBD_CUSTOM_HID_Private_FunctionPrototypes USBD_CUSTOM_HID_Private_FunctionPrototypes
-//  * @brief Private functions declaration.
-//  * @{
-//  */
-//
-//static int8_t CUSTOM_HID_ALS_Init_FS(void);
-//static int8_t CUSTOM_HID_ALS_DeInit_FS(void);
-//static int8_t CUSTOM_HID_ALS_OutEvent_FS(uint8_t event_idx, uint8_t state);
-//
-///**
-//  * @}
-//  */
-//
-//USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_ALS_fops_FS =
-//{
-//  CUSTOM_HID_ALS_ReportDesc_FS,
-//  CUSTOM_HID_ALS_Init_FS,
-//  CUSTOM_HID_ALS_DeInit_FS,
-//  CUSTOM_HID_ALS_OutEvent_FS
-//};
-//
-///** @defgroup USBD_CUSTOM_HID_Private_Functions USBD_CUSTOM_HID_Private_Functions
-//  * @brief Private functions.
-//  * @{
-//  */
-//
-///* Private functions ---------------------------------------------------------*/
-//
-///**
-//  * @brief  Initializes the CUSTOM HID media low layer
-//  * @retval USBD_OK if all operations are OK else USBD_FAIL
-//  */
-//static int8_t CUSTOM_HID_ALS_Init_FS(void)
-//{
-//  /* USER CODE BEGIN 8 */
-//  return (USBD_OK);
-//  /* USER CODE END 8 */
-//}
-//
-///**
-//  * @brief  DeInitializes the CUSTOM HID media low layer
-//  * @retval USBD_OK if all operations are OK else USBD_FAIL
-//  */
-//static int8_t CUSTOM_HID_ALS_DeInit_FS(void)
-//{
-//  /* USER CODE BEGIN 9 */
-//  return (USBD_OK);
-//  /* USER CODE END 9 */
-//}
-//
-///**
-//  * @brief  Manage the CUSTOM HID class events
-//  * @param  event_idx: Event index
-//  * @param  state: Event state
-//  * @retval USBD_OK if all operations are OK else USBD_FAIL
-//  */
-//static int8_t CUSTOM_HID_ALS_OutEvent_FS(uint8_t event_idx, uint8_t state)
-//{
-//  /* USER CODE BEGIN 10 */
-//  UNUSED(event_idx);
-//  UNUSED(state);
-//
-//    /* Start next USB packet transfer once data processing is completed */
-//  USBD_CUSTOM_HID_ALS_ReceivePacket(&hUsbDeviceFS);
-//
-//  return (USBD_OK);
-//  /* USER CODE END 10 */
-//}
-//
-///* USER CODE BEGIN 11 */
-///**
-//  * @brief  Send the report to the Host
-//  * @param  report: The report to be sent
-//  * @param  len: The report length
-//  * @retval USBD_OK if all operations are OK else USBD_FAIL
-//  */
-//int8_t USBD_CUSTOM_HID_ALS_SendReport_FS(uint8_t *report, uint16_t len)
-//{
-//  /* NOTE:
-//   * We need manually switch the USB interface during the Tx data preparation
-//   * because this process is not part of operations in USBD_COMPOSITE.
-//   */
-//  USBD_Composite_Switch_Itf(&hUsbDeviceFS, USBD_CUSTOMHID_ALS_INTERFACE);
-//  return USBD_CUSTOM_HID_ALS_SendReport(&hUsbDeviceFS, report, len);
-//}
-///* USER CODE END 11 */
-//
-///* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
-//
-///* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
-///**
-//  * @}
-//  */
-//
-///**
-//  * @}
-//  */
-//
-///**
-//  * @}
-//  */
-//
-///************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
-//
+// 1892 bytes
+};
+
+/* USER CODE BEGIN PRIVATE_VARIABLES */
+
+/* USER CODE END PRIVATE_VARIABLES */
+
+/**
+  * @}
+  */
+
+/** @defgroup USBD_CUSTOM_HID_Exported_Variables USBD_CUSTOM_HID_Exported_Variables
+  * @brief Public variables.
+  * @{
+  */
+
+extern USBD_HandleTypeDef hUsbDeviceFS;
+
+/* USER CODE BEGIN EXPORTED_VARIABLES */
+HID_Keyboard_KEY_Report hid_keyboard_als_report = {0};
+/* USER CODE END EXPORTED_VARIABLES */
+/**
+  * @}
+  */
+
+/** @defgroup USBD_CUSTOM_HID_Private_FunctionPrototypes USBD_CUSTOM_HID_Private_FunctionPrototypes
+  * @brief Private functions declaration.
+  * @{
+  */
+
+static int8_t CUSTOM_HID_KEY_Init_FS(void);
+static int8_t CUSTOM_HID_KEY_DeInit_FS(void);
+static int8_t CUSTOM_HID_KEY_OutEvent_FS(uint8_t event_idx, uint8_t state);
+
+/**
+  * @}
+  */
+
+USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_KEY_fops_FS =
+{
+  CUSTOM_HID_KEY_ReportDesc_FS,
+  CUSTOM_HID_KEY_Init_FS,
+  CUSTOM_HID_KEY_DeInit_FS,
+  CUSTOM_HID_KEY_OutEvent_FS
+};
+
+/** @defgroup USBD_CUSTOM_HID_Private_Functions USBD_CUSTOM_HID_Private_Functions
+  * @brief Private functions.
+  * @{
+  */
+
+/* Private functions ---------------------------------------------------------*/
+
+/**
+  * @brief  Initializes the CUSTOM HID media low layer
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
+  */
+static int8_t CUSTOM_HID_KEY_Init_FS(void)
+{
+  /* USER CODE BEGIN 8 */
+  return (USBD_OK);
+  /* USER CODE END 8 */
+}
+
+/**
+  * @brief  DeInitializes the CUSTOM HID media low layer
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
+  */
+static int8_t CUSTOM_HID_KEY_DeInit_FS(void)
+{
+  /* USER CODE BEGIN 9 */
+  return (USBD_OK);
+  /* USER CODE END 9 */
+}
+
+/**
+  * @brief  Manage the CUSTOM HID class events
+  * @param  event_idx: Event index
+  * @param  state: Event state
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
+  */
+static int8_t CUSTOM_HID_KEY_OutEvent_FS(uint8_t event_idx, uint8_t state)
+{
+  /* USER CODE BEGIN 10 */
+  UNUSED(event_idx);
+  UNUSED(state);
+
+    /* Start next USB packet transfer once data processing is completed */
+  USBD_CUSTOM_HID_KEY_ReceivePacket(&hUsbDeviceFS);
+
+  return (USBD_OK);
+  /* USER CODE END 10 */
+}
+
+/* USER CODE BEGIN 11 */
+/**
+  * @brief  Send the report to the Host
+  * @param  report: The report to be sent
+  * @param  len: The report length
+  * @retval USBD_OK if all operations are OK else USBD_FAIL
+  */
+int8_t USBD_CUSTOM_HID_KEY_SendReport_FS(uint8_t *report, uint16_t len)
+{
+  /* NOTE:
+   * We need manually switch the USB interface during the Tx data preparation
+   * because this process is not part of operations in USBD_COMPOSITE.
+   */
+  USBD_Composite_Switch_Itf(&hUsbDeviceFS, USBD_CUSTOMHID_KEY_INTERFACE);
+  return USBD_CUSTOM_HID_KEY_SendReport(&hUsbDeviceFS, report, len);
+}
+/* USER CODE END 11 */
+
+/* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
+
+/* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/**
+  * @}
+  */
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+

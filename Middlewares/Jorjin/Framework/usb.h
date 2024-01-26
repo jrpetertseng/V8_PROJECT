@@ -7,7 +7,7 @@
 
 #include "usbd_customhid.h"
 #include "usbd_customhid_imu.h"
-//#include "usbd_customhid_als.h"
+#include "usbd_customhid_als.h"
 #include "config.h"
 #include "sensor_hid.h"
 #include "usbd_cdc.h"
@@ -24,8 +24,8 @@ enum MassageType {
 
     USB_HID_IMU_FEATURE_REPORT,
     USB_HID_IMU_INPUT_REPORT,
-    USB_HID_ALS_FEATURE_REPORT,
-    USB_HID_ALS_INPUT_REPORT,
+    USB_HID_KEY_FEATURE_REPORT,
+    USB_HID_KEY_INPUT_REPORT,
 
     USB_CDC_DEVCTLR_TX_COMPLETE_MSG,
     USB_CDC_DEVCTLR_RX_RECEIVE_MSG,
@@ -58,10 +58,10 @@ struct UsbHidImuReport {
     uint8_t report[CUSTOM_HID_IMU_EPIN_SIZE];
 };
 
-//struct UsbHidAlsReport {
-//    int len;
-//    uint8_t report[CUSTOM_HID_ALS_EPIN_SIZE];
-//};
+struct UsbHidKeyReport {
+    int len;
+    uint8_t report[CUSTOM_HID_KEY_EPIN_SIZE];
+};
 
 struct UsbCDCRx {
     int len;
@@ -76,7 +76,7 @@ typedef struct JQueueMessage {
         struct UsbToFMsg           ToFMsg;
         struct UsbHidInputReport   inputReport;
         struct UsbHidImuReport     imuReport;
-//        struct UsbHidAlsReport     alsReport;
+        struct UsbHidKeyReport     keyReport;
     } data;
 } JQueueMessage_t;
 
@@ -102,7 +102,7 @@ typedef struct _USB_TX_STAT
     
     int nTxHid;
     int nTxImu;
-    int nTxAls;
+    int nTxKey;
 } USB_TX_STAT_T;
 
 typedef struct JUsb
