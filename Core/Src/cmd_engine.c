@@ -829,7 +829,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
     case CE_SET_AUTO_BRIGHTNESS:
         if (!args_len) {
         	AutoBrightness = !AutoBrightness;
-            reply += sprintf(reply, "Set ADC DEBUG: %d", AutoBrightness);
+            reply += sprintf(reply, "Set AutoBrightness: %d", AutoBrightness);
         } else {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
