@@ -69,17 +69,10 @@ typedef __PACKED_STRUCT _HID_Keyboard_ALS_Report {
 	uint32_t keys;
 } HID_Keyboard_ALS_Report;
 */
-typedef __PACKED_STRUCT _HID_Keyboard_KEY_Report {
-    uint8_t report_id;
-    uint8_t modifier;
-    uint8_t reserved;
-    uint8_t key1;
-    uint8_t key2;
-    uint8_t key3;
-    uint8_t key4;
-    uint8_t key5;
-    uint8_t key6;
-} HID_Keyboard_KEY_Report;
+typedef __PACKED_STRUCT HID_Keypad_Report {
+    uint8_t reportId;   // Report ID, 1 byte
+    uint32_t keys;      // Key states, 4 bytes (32 bits)
+} HID_Keypad_Report;
 /* USER CODE END EXPORTED_TYPES */
 
 /**
@@ -109,7 +102,7 @@ extern USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_KEY_fops_FS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
 // keys for KEY
-extern HID_Keyboard_KEY_Report hid_keyboard_als_report;
+extern HID_Keypad_Report hid_keyboard_als_report;
 /* USER CODE END EXPORTED_VARIABLES */
 
 /**

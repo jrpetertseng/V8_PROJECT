@@ -37,10 +37,10 @@
 #include "usbd_cdc_devctlr.h"
 #include "usbd_customhid.h"
 #include "usbd_customhid_imu.h"
-//#include "usbd_customhid_als.h"
+#include "usbd_customhid_als.h"
 #include "usbd_custom_hid_if.h"
 #include "usbd_custom_hid_if_imu.h"
-//#include "usbd_custom_hid_if_als.h"
+#include "usbd_custom_hid_if_als.h"
 
 //#include "lt7911d.h"
 #include "al3010.h"
@@ -935,6 +935,26 @@ void MainTask(void * argument)
 #endif
     for(;;)
     {
+		// JQueueMessage_t keyReport;
+		// HID_Keypad_Report keypadReport;
+
+		// for(uint32_t i = 0; i < 26; i++)
+		// {
+		//     keypadReport.reportId = 0x11;
+		//     keypadReport.keys = (1 << i);
+
+		//     keyReport.type = USB_HID_KEY_INPUT_REPORT;
+		//     keyReport.data.keyReport.len = sizeof(HID_Keypad_Report);
+
+		//     memcpy(keyReport.data.keyReport.report, (void *)&keypadReport, sizeof(keypadReport));
+		//     usbSendMessage(&keyReport);
+		//     osDelay(20);
+
+		//     keypadReport.keys = 0x00000000;
+		//     memcpy(keyReport.data.keyReport.report, (void *)&keypadReport, sizeof(keypadReport));
+		//     usbSendMessage(&keyReport);
+		//     osDelay(100);
+		// }
 
     	osDelay(100);
 
