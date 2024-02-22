@@ -968,7 +968,11 @@ void PSensorTask(void * argument)
 
 void MainTask(void * argument)
 {
-
+#if ENABLE_HID_KEYBOARD_TEST
+    JQueueMessage_t keyReport;
+    HID_Keypad_Report keypadReport;
+    uint8_t test_times = 0;
+#endif
     //Move power on/off into usbTask
 //    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
 //    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
@@ -1106,6 +1110,26 @@ void MainTask(void * argument)
             ProcessButtonEvent(buttonEvent, &clickType, &currentMode, &displayType);
         }
         /**/
+#if ENABLE_HID_KEYBOARD_TEST
+        if (test_times < 5)
+        {
+             for(uint32_t i = 0; i < 29; i++)
+             {
+                 keypadReport.reportId = 0x11;
+                 keypadReport.keys = (1 << i);
+                 keyReport.type = USB_HID_KEY_INPUT_REPORT;
+                 keyReport.data.keyReport.len = sizeof(HID_Keypad_Report);
+                 memcpy(keyReport.data.keyReport.report, (void *)&keypadReport, sizeof(keypadReport));
+                 usbSendMessage(&keyReport);
+                 osDelay(20);
+                 keypadReport.keys = 0x00000000;
+                 memcpy(keyReport.data.keyReport.report, (void *)&keypadReport, sizeof(keypadReport));
+                 usbSendMessage(&keyReport);
+                 osDelay(100);
+             }
+             test_times += 1;
+        }
+#endif
 
 #if REDUCE_BRIGHTNESS_ON_HIGH_TEMP
         /* Reduce brightness by 1000 when panel exceeds 90 degrees. */

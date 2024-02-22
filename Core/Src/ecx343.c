@@ -716,20 +716,6 @@ void write_panel_registers(ECX343_DATA *data) {
     current_brightness[1] = data->uLCD_LUXL;
 }
 
-void adjustInversion(uint8_t inversion)
-{
-    ECX343EN_Inversion(inversion, PANEL_LEFT);
-    ECX343EN_Inversion(inversion, PANEL_RIGHT);
-}
-
-void switchMode(void)
-{
-    ecx343_current_data.uLCD_MODE = (flag_Freq & 0x01) + ((flag_2D3D<<1) & 0x02);
-    ECX343EN_PowerOff();
-    LT7911_Mode_Switch(ecx343_current_data.uLCD_MODE);
-    ECX343EN_PowerOn();
-}
-
 void adjustBrightness(void)
 {
     uint16_t newLuxL = (uint16_t)(ecx343_current_data.uLCD_LUXL);

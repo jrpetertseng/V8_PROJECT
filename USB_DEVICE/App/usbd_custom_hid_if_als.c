@@ -308,7 +308,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_KEY_ReportDesc_FS[USBD_CUSTOM_HID_KEY_RE
   * @{
   */
 
-extern USBD_HandleTypeDef hUsbDeviceFS;
+extern USBD_HandleTypeDef hUsbDeviceHS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
 HID_Keypad_Report hid_keyboard_als_report = {0};
@@ -380,7 +380,7 @@ static int8_t CUSTOM_HID_KEY_OutEvent_FS(uint8_t event_idx, uint8_t state)
   UNUSED(state);
 
     /* Start next USB packet transfer once data processing is completed */
-  USBD_CUSTOM_HID_KEY_ReceivePacket(&hUsbDeviceFS);
+  USBD_CUSTOM_HID_KEY_ReceivePacket(&hUsbDeviceHS);
 
   return (USBD_OK);
   /* USER CODE END 10 */
@@ -399,8 +399,8 @@ int8_t USBD_CUSTOM_HID_KEY_SendReport_FS(uint8_t *report, uint16_t len)
    * We need manually switch the USB interface during the Tx data preparation
    * because this process is not part of operations in USBD_COMPOSITE.
    */
-  USBD_Composite_Switch_Itf(&hUsbDeviceFS, USBD_CUSTOMHID_KEY_INTERFACE);
-  return USBD_CUSTOM_HID_KEY_SendReport(&hUsbDeviceFS, report, len);
+  USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CUSTOMHID_KEY_INTERFACE);
+  return USBD_CUSTOM_HID_KEY_SendReport(&hUsbDeviceHS, report, len);
 }
 /* USER CODE END 11 */
 

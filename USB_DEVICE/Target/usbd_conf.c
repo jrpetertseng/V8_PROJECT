@@ -31,6 +31,7 @@
 #include "usbd_cdc.h"
 #include "usbd_audio.h"
 #include "usbd_cdc_devctlr.h"
+#include "usbd_customhid_als.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -387,7 +388,7 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   // CUSTOM HID IMU
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_IMU_EPIN_ADDR & 0x7F), 0x80);
   //   CUSTOM HID KEY
-  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_FS, (CUSTOM_HID_KEY_EPIN_ADDR & 0x7F), 0x40);
+  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_KEY_EPIN_ADDR & 0x7F), 0x40);
 
   // CDC ACM Device Controller
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_CMD_EP & 0x7F), 0x80);

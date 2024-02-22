@@ -50,7 +50,7 @@
 //#endif
 // ckhsu
 #define USBD_HID_INTERFACE_IMU       2
-#define USBD_HID_INTERFACE_KEY       5
+#define USBD_HID_INTERFACE_KEY       7
 
 #define CDC_INDATA_NUM               (CDC_IN_EP & 0x0F)
 #define CDC_OUTDATA_NUM              (CDC_OUT_EP & 0x0F)

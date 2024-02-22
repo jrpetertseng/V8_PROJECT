@@ -30,6 +30,8 @@
 #define ENABLE_PANEL                    1
 
 #define ADD_HID_KEYBOARD                0
+#define ENABLE_HID_KEYBOARD_TEST        1
+
 #define ENABLE_CDC_CMD_PORT             1
 
 #define ENABLE_AUDIO_PROCESS            1
