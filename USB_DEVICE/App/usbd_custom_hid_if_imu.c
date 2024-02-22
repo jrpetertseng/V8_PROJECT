@@ -91,7 +91,7 @@
   */
 
 /** Usb custom HID report descriptor. */
-__ALIGN_BEGIN static uint8_t CUSTOM_HID_IMU_ReportDesc_FS[USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t CUSTOM_HID_IMU_ReportDesc_HS[USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE] __ALIGN_END =
 {
 0x05, 0x20,                     /*  Usage Page (20h),                   */
 0x09, 0x73,                     /*  Usage (73h),                        */
@@ -1085,7 +1085,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_IMU_ReportDesc_FS[USBD_CUSTOM_HID_IMU_RE
   * @{
   */
 
-extern USBD_HandleTypeDef hUsbDeviceFS;
+extern USBD_HandleTypeDef hUsbDeviceHS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
 
@@ -1099,20 +1099,20 @@ extern USBD_HandleTypeDef hUsbDeviceFS;
   * @{
   */
 
-static int8_t CUSTOM_HID_IMU_Init_FS(void);
-static int8_t CUSTOM_HID_IMU_DeInit_FS(void);
-static int8_t CUSTOM_HID_IMU_OutEvent_FS(uint8_t event_idx, uint8_t state);
+static int8_t CUSTOM_HID_IMU_Init_HS(void);
+static int8_t CUSTOM_HID_IMU_DeInit_HS(void);
+static int8_t CUSTOM_HID_IMU_OutEvent_HS(uint8_t event_idx, uint8_t state);
 
 /**
   * @}
   */
 
-USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_IMU_fops_FS =
+USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_IMU_fops_HS =
 {
-  CUSTOM_HID_IMU_ReportDesc_FS,
-  CUSTOM_HID_IMU_Init_FS,
-  CUSTOM_HID_IMU_DeInit_FS,
-  CUSTOM_HID_IMU_OutEvent_FS
+  CUSTOM_HID_IMU_ReportDesc_HS,
+  CUSTOM_HID_IMU_Init_HS,
+  CUSTOM_HID_IMU_DeInit_HS,
+  CUSTOM_HID_IMU_OutEvent_HS
 };
 
 /** @defgroup USBD_CUSTOM_HID_Private_Functions USBD_CUSTOM_HID_Private_Functions
@@ -1126,7 +1126,7 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_IMU_fops_FS =
   * @brief  Initializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_IMU_Init_FS(void)
+static int8_t CUSTOM_HID_IMU_Init_HS(void)
 {
   /* USER CODE BEGIN 8 */
   return (USBD_OK);
@@ -1137,7 +1137,7 @@ static int8_t CUSTOM_HID_IMU_Init_FS(void)
   * @brief  DeInitializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_IMU_DeInit_FS(void)
+static int8_t CUSTOM_HID_IMU_DeInit_HS(void)
 {
   /* USER CODE BEGIN 9 */
   return (USBD_OK);
@@ -1150,14 +1150,14 @@ static int8_t CUSTOM_HID_IMU_DeInit_FS(void)
   * @param  state: Event state
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_IMU_OutEvent_FS(uint8_t event_idx, uint8_t state)
+static int8_t CUSTOM_HID_IMU_OutEvent_HS(uint8_t event_idx, uint8_t state)
 {
   /* USER CODE BEGIN 10 */
   UNUSED(event_idx);
   UNUSED(state);
 
     /* Start next USB packet transfer once data processing is completed */
-  USBD_CUSTOM_HID_IMU_ReceivePacket(&hUsbDeviceFS);
+  USBD_CUSTOM_HID_IMU_ReceivePacket(&hUsbDeviceHS);
 
   return (USBD_OK);
   /* USER CODE END 10 */
@@ -1170,14 +1170,14 @@ static int8_t CUSTOM_HID_IMU_OutEvent_FS(uint8_t event_idx, uint8_t state)
   * @param  len: The report length
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-int8_t USBD_CUSTOM_HID_IMU_SendReport_FS(uint8_t *report, uint16_t len)
+int8_t USBD_CUSTOM_HID_IMU_SendReport_HS(uint8_t *report, uint16_t len)
 {
   /* NOTE:
    * We need manually switch the USB interface during the Tx data preparation
    * because this process is not part of operations in USBD_COMPOSITE.
    */
-  USBD_Composite_Switch_Itf(&hUsbDeviceFS, USBD_CUSTOMHID_IMU_INTERFACE);
-  return USBD_CUSTOM_HID_IMU_SendReport(&hUsbDeviceFS, report, len);
+  USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CUSTOMHID_IMU_INTERFACE);
+  return USBD_CUSTOM_HID_IMU_SendReport(&hUsbDeviceHS, report, len);
 }
 /* USER CODE END 11 */
 

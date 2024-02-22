@@ -45,9 +45,9 @@ extern "C" {
 #define NULL                                            0U
 #endif /* NULL */
 
-//#ifndef USBD_MAX_NUM_INTERFACES
-//#define USBD_MAX_NUM_INTERFACES                         8U
-//#endif /* USBD_MAX_NUM_CONFIGURATION */
+#ifndef USBD_MAX_NUM_INTERFACES
+#define USBD_MAX_NUM_INTERFACES                         1U
+#endif /* USBD_MAX_NUM_CONFIGURATION */
 
 #ifndef USBD_MAX_NUM_CONFIGURATION
 #define USBD_MAX_NUM_CONFIGURATION                      1U
@@ -64,6 +64,7 @@ extern "C" {
 #ifndef USBD_MAX_POWER
 #define USBD_MAX_POWER                                  0x32U /* 100 mA */
 #endif /* USBD_MAX_POWER */
+
 #ifndef USBD_SUPPORT_USER_STRING_DESC
 #define USBD_SUPPORT_USER_STRING_DESC                   0U
 #endif /* USBD_SUPPORT_USER_STRING_DESC */
@@ -161,7 +162,6 @@ extern "C" {
 
 #define USBD_EP_TYPE_AYNC                               ((0x01U)<<2)
 #define USBD_EP_TYPE_SYNC                               ((0x03U)<<2)
-
 /**
   * @}
   */
@@ -184,15 +184,13 @@ typedef struct
 {
   uint8_t   bLength;
   uint8_t   bDescriptorType;
-  uint8_t   wDescriptorLengthLow;
-  uint8_t   wDescriptorLengthHigh;
+  uint16_t  wTotalLength;
   uint8_t   bNumInterfaces;
   uint8_t   bConfigurationValue;
   uint8_t   iConfiguration;
   uint8_t   bmAttributes;
   uint8_t   bMaxPower;
 } USBD_ConfigDescTypedef;
-//uint16_t  wTotalLength;
 
 typedef struct
 {
@@ -419,6 +417,6 @@ __STATIC_INLINE uint16_t SWAPBYTE(uint8_t *addr)
   */
 
 /**
-* @}
-*/
+  * @}
+  */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

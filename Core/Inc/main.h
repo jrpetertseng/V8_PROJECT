@@ -72,6 +72,7 @@ extern void usb_printf(const char *format, ...);
 extern void boot_UserDFU(void);
 extern void isrToFTaskTrigger( void);
 extern void McuReset(void);
+bool ifReadOccupy(void **process_buf);
 
 // ref: https://stackoverflow.com/questions/49820288/stm32-printf-over-usb-cdc
 #ifdef __GNUC__

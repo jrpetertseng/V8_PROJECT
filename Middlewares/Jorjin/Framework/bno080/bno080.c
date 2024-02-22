@@ -32,6 +32,7 @@
 #include "sensor_hid.h"
 //#include "Framework/properties.h"
 #include "config.h"
+#include "debug_defs.h"
 
 //ckhsu for debug.
 int propertySendSensorWithCDC = 0;
@@ -114,7 +115,7 @@ void initSensor() {
 
   // Read and display BNO080 product ids
   //ckhsu
-  //vTaskDelay(2000);
+//  vTaskDelay(2000);
   reportProdIds();
 
   // Perform on-reset setup of BNO080
@@ -145,8 +146,82 @@ void sensorLoop()
 {
     sh2_SensorEvent_t event;
 
+    ACCEL3_INPUT_REPORT accel3;
+    MAG3_INPUT_REPORT tstMag3;
+    QUAT_INPUT_REPORT tstQuat;
+    JQueueMessage_t msg;
     // Process sensors forever
     while (1) {
+#if ENABLE_FAKE_DATA
+        accel3.ucReportId = REPORT_ID_ACCEL3_INPUT;
+        accel3.ucEventType = SENSOR_EVENT_DATA_UPDATED;
+        accel3.ucSensorState = SENSOR_STATE_READY;
+        accel3.sAccelXValue = (int32_t)(0.2*10204082);
+        accel3.sAccelYValue = (int32_t)(0.2*10204082);
+        accel3.sAccelZValue = (int32_t)(0.2*10204082);
+        msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
+        msg.data.inputReport.len = sizeof(ACCEL3_INPUT_REPORT);
+        memcpy(msg.data.inputReport.report,
+               (void *)&accel3,
+               msg.data.inputReport.len);
+        usbSendMessage(&msg);
+        vTaskDelay(10);
+        accel3.ucReportId = REPORT_ID_GYRO3_INPUT;
+        accel3.ucEventType = SENSOR_EVENT_DATA_UPDATED;
+        accel3.ucSensorState = SENSOR_STATE_READY;
+        accel3.sAccelXValue = (int32_t)(0.1*1000000);
+        accel3.sAccelYValue = (int32_t)(0.1*1000000);
+        accel3.sAccelZValue = (int32_t)(0.1*1000000);
+        msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
+        msg.data.inputReport.len = sizeof(ACCEL3_INPUT_REPORT);
+        memcpy(msg.data.inputReport.report,
+              (void *)&accel3,
+              msg.data.inputReport.len);
+        usbSendMessage(&msg);
+        vTaskDelay(10);
+        tstMag3.ucReportId = REPORT_ID_MAG3_INPUT;
+        tstMag3.ucEventType = SENSOR_EVENT_DATA_UPDATED;
+        tstMag3.ucSensorState = SENSOR_STATE_READY;
+        tstMag3.sMagXValue = (int32_t)(1*10000);
+        tstMag3.sMagYValue = (int32_t)(1*10000);
+        tstMag3.sMagZValue = (int32_t)(1*10000);
+        msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
+        msg.data.inputReport.len = sizeof(MAG3_INPUT_REPORT);
+        memcpy(msg.data.inputReport.report,
+              (void *)&tstMag3,
+              msg.data.inputReport.len);
+        usbSendMessage(&msg);
+        vTaskDelay(10);
+        tstQuat.ucReportId = REPORT_ID_QUAT_INPUT;
+        tstQuat.ucSensorState = SENSOR_STATE_READY;
+        tstQuat.ucEventType = SENSOR_EVENT_DATA_UPDATED;
+        tstQuat.sQuatIValue = (int32_t)(0*100000000);
+        tstQuat.sQuatJValue = (int32_t)(0*100000000);
+        tstQuat.sQuatKValue = (int32_t)(1*100000000);
+        tstQuat.sRawQuatReal = (int32_t)(1*100000000);
+        tstQuat.sQuatAccuracy = (uint8_t)1;
+        msg.type = USB_HID_IMU_INPUT_REPORT;
+        msg.data.inputReport.len = sizeof(QUAT_INPUT_REPORT);
+        memcpy(msg.data.inputReport.report, (void *)&tstQuat,
+                           msg.data.inputReport.len);
+        usbSendMessage(&msg);
+        vTaskDelay(10);
+        accel3.ucReportId = REPORT_ID_GRAV3_INPUT;
+        accel3.ucEventType = SENSOR_EVENT_DATA_UPDATED;
+        accel3.ucSensorState = SENSOR_STATE_READY;
+        accel3.sAccelXValue = (int32_t)(0*10204082);
+        accel3.sAccelYValue = (int32_t)(0*10204082);
+        accel3.sAccelZValue = (int32_t)(9.8*10204082);
+        msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
+        msg.data.inputReport.len = sizeof(ACCEL3_INPUT_REPORT);
+        memcpy(msg.data.inputReport.report,
+               (void *)&accel3,
+               msg.data.inputReport.len);
+        usbSendMessage(&msg);
+        vTaskDelay(10);
+
+#else
+
         // Wait until something happens
         xSemaphoreTake(ctx.wakeSensorTask, portMAX_DELAY);
 
@@ -158,6 +233,7 @@ void sensorLoop()
         if (ctx.resetPerformed) {
             onReset();
         }
+#endif
     }
 }
 
@@ -289,10 +365,10 @@ static void reportProdIds(void)
 
     // Report the results
     for (int n = 0; n < prodIds.numEntries; n++) {
-        printf("Part %ld : Version %d.%d.%d Build %ld\r\n",
-               prodIds.entry[n].swPartNumber,
-               prodIds.entry[n].swVersionMajor, prodIds.entry[n].swVersionMinor,
-               prodIds.entry[n].swVersionPatch, prodIds.entry[n].swBuildNumber);
+//        printf("Part %ld : Version %d.%d.%d Build %ld\r\n",
+//               prodIds.entry[n].swPartNumber,
+//               prodIds.entry[n].swVersionMajor, prodIds.entry[n].swVersionMinor,
+//               prodIds.entry[n].swVersionPatch, prodIds.entry[n].swBuildNumber);
     }
 }
 

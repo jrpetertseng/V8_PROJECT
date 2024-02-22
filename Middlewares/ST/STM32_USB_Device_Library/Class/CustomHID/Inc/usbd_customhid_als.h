@@ -26,9 +26,8 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "usbd_ioreq.h"
-#include "usbd_customhid.h"
-#include "sensor_hid_report_id.h"
+#include  "usbd_ioreq.h"
+#include  "usbd_customhid.h"
 
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
   * @{
@@ -46,13 +45,13 @@ extern "C" {
 #define CUSTOM_HID_ALS_EPIN_ADDR                         0x85U
 
 #ifndef CUSTOM_HID_ALS_EPIN_SIZE
-#define CUSTOM_HID_ALS_EPIN_SIZE                         0x40U
+#define CUSTOM_HID_ALS_EPIN_SIZE                         0x02U
 #endif
 
 #define CUSTOM_HID_ALS_EPOUT_ADDR                        0x05U
 
 #ifndef CUSTOM_HID_ALS_EPOUT_SIZE
-#define CUSTOM_HID_ALS_EPOUT_SIZE                        0x40U
+#define CUSTOM_HID_ALS_EPOUT_SIZE                        0x02U
 #endif
 
 #define USB_CUSTOM_HID_ALS_CONFIG_DESC_SIZ               41U
@@ -71,7 +70,7 @@ extern "C" {
   #endif /* USBD_CUSTOMHID_ALS_OUTREPORT_BUF_SIZE */
 
   #ifndef USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE
-  #define USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE             1892U
+  #define USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE             164U
   #endif /* USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE */
 
 #define CUSTOM_HID_ALS_DESCRIPTOR_TYPE                   0x21U

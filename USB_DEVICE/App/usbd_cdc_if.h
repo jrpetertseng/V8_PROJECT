@@ -49,7 +49,7 @@
   * @{
   */
 /* Define size for the receive and transmit buffer over CDC */
-#define APP_RX_DATA_SIZE  2048
+#define APP_RX_DATA_SIZE  128 //2048
 #define APP_TX_DATA_SIZE  2048
 /* USER CODE BEGIN EXPORTED_DEFINES */
 
@@ -94,7 +94,7 @@
 extern USBD_CDC_ItfTypeDef USBD_Interface_fops_FS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-extern uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
+//extern uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 extern bool CDC_Echo_Ctrl_Flag;
 /* USER CODE END EXPORTED_VARIABLES */
 
@@ -110,7 +110,11 @@ extern bool CDC_Echo_Ctrl_Flag;
 uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 
 /* USER CODE BEGIN EXPORTED_FUNCTIONS */
-
+//uint8_t CDC_CmdBuff_IsUpdated(void);
+//void CDC_Get_CmdBuff(uint8_t** pbuf, uint32_t *len);
+//void CDC_Update_CmdBuff(void);
+//void CDC_Clear_CmdBuff(void);
+//void CDC_EchoBack(void);
 /* USER CODE END EXPORTED_FUNCTIONS */
 
 /**

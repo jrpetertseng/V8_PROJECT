@@ -73,12 +73,15 @@
 #define configTOTAL_HEAP_SIZE                    ((size_t)65536)
 #define configMAX_TASK_NAME_LEN                  ( 16 )
 #if defined DEBUG
-#define configGENERATE_RUN_TIME_STATS            1
+  #define configGENERATE_RUN_TIME_STATS            1
+  #define configUSE_TRACE_FACILITY                 1
+  #define configUSE_STATS_FORMATTING_FUNCTIONS     1
 #else
-#define configGENERATE_RUN_TIME_STATS            0
+  #define configGENERATE_RUN_TIME_STATS            0
+  #define configUSE_TRACE_FACILITY                 0
+  #define configUSE_STATS_FORMATTING_FUNCTIONS     0
 #endif
-#define configUSE_TRACE_FACILITY                 1
-#define configUSE_STATS_FORMATTING_FUNCTIONS     1
+
 #define configUSE_16_BIT_TICKS                   0
 #define configUSE_MUTEXES                        1
 #define configQUEUE_REGISTRY_SIZE                8

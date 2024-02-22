@@ -97,6 +97,7 @@ extern I2C_HandleTypeDef hi2c1;
 // ********************************
 HAL_StatusTypeDef AL3010_Init(void);
 void ALS_SendReport_FS(void);
+void ALS_SendFAKE_FS(void);
 HAL_StatusTypeDef AL3010_ReadData(void);
 HAL_StatusTypeDef AL3010_ReadData_ISR(void);
 

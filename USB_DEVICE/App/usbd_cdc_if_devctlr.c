@@ -108,12 +108,13 @@ static int                nCdcDevCtlrRxIdx;
 /* Create buffer for reception and transmission           */
 /* It's up to user to redefine and/or remove those define */
 /** Received data over USB are stored in this buffer      */
-uint8_t DEVCTLR_UserRxBufferFS[DEVCTLR_APP_RX_DATA_SIZE];
+static uint8_t DEVCTLR_UserRxBufferFS[DEVCTLR_APP_RX_DATA_SIZE];
 
 /** Data to send over USB CDC are stored in this buffer   */
-uint8_t DEVCTLR_UserTxBufferFS[DEVCTLR_APP_TX_DATA_SIZE];
+static uint8_t DEVCTLR_UserTxBufferFS[DEVCTLR_APP_TX_DATA_SIZE];
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
+
 
 /** **/
 #if ENABLE_CDC_DEFAULT_ECHOBACK
@@ -164,8 +165,7 @@ static int8_t CDC_DEVCTLR_Receive_FS(uint8_t* pbuf, uint32_t *Len);
 static int8_t CDC_DEVCTLR_TransmitCplt_FS(uint8_t *pbuf, uint32_t *Len, uint8_t epnum);
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_DECLARATION */
-static int8_t CDC_DEVCTLR_EnableTransmit = 0x0;
-
+static int8_t CDC_DEVCTLR_EnableTransmit = 0x1;
 /* USER CODE END PRIVATE_FUNCTIONS_DECLARATION */
 
 /**
@@ -190,12 +190,9 @@ static int8_t CDC_DEVCTLR_Init_FS(void)
 {
   /* USER CODE BEGIN 3 */
   nCdcDevCtlrRxIdx = 0;
-  CDC_DEVCTLR_EnableTransmit = 0;
-
   /* Set Application Buffers */
   USBD_CDC_DEVCTLR_SetTxBuffer(&hUsbDeviceHS, DEVCTLR_UserTxBufferFS, 0);
   USBD_CDC_DEVCTLR_SetRxBuffer(&hUsbDeviceHS, DEVCTLR_UserRxBufferFS);
-
   return (USBD_OK);
   /* USER CODE END 3 */
 }
@@ -262,9 +259,9 @@ static int8_t CDC_DEVCTLR_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length
   /*******************************************************************************/
     case CDC_DEVCTLR_SET_LINE_CODING:
 
-        /* set the line coding from the host */
+    	/* set the line coding from the host */
         DEVCTLR_LineCoding.bitrate = (uint32_t)(pbuf[0] | (pbuf[1] << 8) |\
-                (pbuf[2] << 16) | (pbuf[3] << 24));
+        		(pbuf[2] << 16) | (pbuf[3] << 24));
         DEVCTLR_LineCoding.format = pbuf[4];
         DEVCTLR_LineCoding.paritytype = pbuf[5];
         DEVCTLR_LineCoding.datatype = pbuf[6];
@@ -275,7 +272,7 @@ static int8_t CDC_DEVCTLR_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length
 
     case CDC_DEVCTLR_GET_LINE_CODING:
 
-        /* report the current line coding to the host */
+    	/* report the current line coding to the host */
         pbuf[0] = (uint8_t)(DEVCTLR_LineCoding.bitrate);
         pbuf[1] = (uint8_t)(DEVCTLR_LineCoding.bitrate >> 8);
         pbuf[2] = (uint8_t)(DEVCTLR_LineCoding.bitrate >> 16);
@@ -319,6 +316,8 @@ static int8_t CDC_DEVCTLR_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length
 static int8_t CDC_DEVCTLR_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
+  // always swap the buffers in ISR
+//  CDC_DEVCTLR_GetLines_ISR(&Buf, Len);
   JISRQueueMessage_t *pMsg = &(cdcDevCtlrRxMsg[nCdcDevCtlrRxIdx]);
 
   nCdcDevCtlrRxIdx += 1;
@@ -335,6 +334,7 @@ static int8_t CDC_DEVCTLR_Receive_FS(uint8_t* Buf, uint32_t *Len)
 
   // start the next receive process
   USBD_CDC_DEVCTLR_SetRxBuffer(&hUsbDeviceHS, &Buf[0]);
+  //USBD_CDC_DEVCTLR_SetRxBuffer(&hUsbDeviceHS, &Buf[*Len]);
   USBD_CDC_DEVCTLR_ReceivePacket(&hUsbDeviceHS);
 
   #if ENABLE_CDC_DEBUG_HANDLER
@@ -372,14 +372,11 @@ uint8_t CDC_DEVCTLR_Transmit_FS(uint8_t* Buf, uint16_t Len)
   {
     return (USBD_OK);
   }
-
-  /* only transmit when we turn on debug. */
-
   /* NOTE:
    * We need manually switch the USB interface during the Tx data preparation
    * because this process is not part of operations in USBD_COMPOSITE.
    */
-  //USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CDC_DEVCTLR_INTERFACE);
+  USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CDC_DEVCTLR_INTERFACE);
   hcdc = (USBD_CDC_DEVCTLR_HandleTypeDef*)hUsbDeviceHS.pClassData;
   if (hcdc->TxState != 0){
     return USBD_BUSY;
@@ -417,25 +414,152 @@ uint8_t CDC_DEVCTLR_Transmit_FS(uint8_t* Buf, uint16_t Len)
   * @param  Len: Number of data received (in bytes)
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-
 static int8_t CDC_DEVCTLR_TransmitCplt_FS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
 {
   uint8_t result = USBD_OK;
   /* USER CODE BEGIN 13 */
-  static JISRQueueMessage_t cdcDevCtlrTxCpltMsg;
-
+//  static JISRQueueMessage_t cdcDevCtlrTxCpltMsg;
   UNUSED(Buf);
   UNUSED(Len);
   UNUSED(epnum);
-
-  cdcDevCtlrTxCpltMsg.type = USB_CDC_DEVCTLR_TX_COMPLETE_MSG;
-  usbSendMessageISR( &cdcDevCtlrTxCpltMsg);
-
   /* USER CODE END 13 */
   return result;
 }
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
+/*uint8_t CDC_DEVCTLR_CmdBuff_IsUpdated(void) { return DEVCTLR_CmdBuffIsUpdated; }
+
+void CDC_DEVCTLR_Get_CmdBuff(uint8_t** pbuf, uint32_t *len)
+{
+	*pbuf = (uint8_t*)DEVCTLR_CmdBuffer;
+	*len = DEVCTLR_CmdBuffLength;
+}
+
+void CDC_DEVCTLR_Update_CmdBuff(void) { DEVCTLR_RxBuffIsSwapped = DEVCTLR_CmdBuffIsUpdated = true; }
+
+void CDC_DEVCTLR_Clear_CmdBuff(void) {
+	DEVCTLR_CmdBuffIsUpdated = (DEVCTLR_PendingBuffLength > 0 &&
+			CDC_DEVCTLR_GetLines((uint8_t**)&DEVCTLR_PendingBuffer, (uint32_t*)&DEVCTLR_PendingBuffLength, false));
+}
+
+static void CDC_DEVCTLR_GetLines_ISR(uint8_t** pbuf, uint32_t *buf_len)
+{
+	if (*buf_len) {
+		if (CDC_DEVCTLR_CmdBuff_IsUpdated()) {
+			DEVCTLR_RxBuffLength += *buf_len;
+			// NOTE: PendingBuffer will be overwritten in CDC_Clear_CmdBuff()
+			DEVCTLR_PendingBuffLength += *buf_len;
+		} else
+			CDC_DEVCTLR_GetLines(pbuf, buf_len, true);
+	}
+}
+
+static bool CDC_DEVCTLR_GetLines(uint8_t** pbuf, uint32_t *buf_len, bool do_swap)
+{
+	uint32_t stashed_rx_len = DEVCTLR_RxBuffLength; // keep the entering rx buffer length
+	uint32_t checked_len = 0;
+	uint8_t *checked_buf = *pbuf;
+	static uint32_t DEVCTLR_buf_offset = 0;
+
+	while (*buf_len > checked_len) {
+		//
+		 // Windows sends 0x0D 0x0A while Linux sends 0x0A for new line
+		 // Besides, Putty by default sends only \r
+		 //   \r   - return
+		 //   \n   - newline
+		 //
+		if (*checked_buf == '\n' || *checked_buf++ == '\r') {
+			uint32_t residual_len = *pbuf + *buf_len - checked_buf;
+			uint8_t *next_rx_buf = (uint8_t*)DEVCTLR_CmdBuffer - DEVCTLR_buf_offset;
+			// find the next non-new-line character
+			while ((*checked_buf == '\n' || *checked_buf == '\r') && residual_len > 0) {
+				residual_len--;
+				checked_buf++;
+			}
+
+			if (do_swap) {
+				// calculate the buffer offset for the next non-swapped call
+				DEVCTLR_buf_offset = DEVCTLR_PendingBuffer - DEVCTLR_RxBuffer;
+				// point CmdBuffer to the unprocessed data (e.g., PendingBuffer)
+				DEVCTLR_CmdBuffer = DEVCTLR_PendingBuffer;
+				// calculate the total length
+				DEVCTLR_CmdBuffLength = *pbuf - DEVCTLR_CmdBuffer + checked_len;
+				// prepare the next Rx buffer
+				if (residual_len) memcpy(next_rx_buf, checked_buf, residual_len);
+				// update the Rx buffer and pointers
+				DEVCTLR_PendingBuffer = DEVCTLR_RxBuffer = *pbuf = next_rx_buf;
+				// update the buffer length
+				DEVCTLR_PendingBuffLength = DEVCTLR_RxBuffLength = *buf_len = residual_len;
+				// reset the echoed buffer length
+				DEVCTLR_EchoedRxBuffLength = 0;
+			} else {
+				// reset the buffer offset
+				DEVCTLR_buf_offset = 0;
+				// calculate the total length
+				DEVCTLR_CmdBuffLength = checked_len;
+				// prepare CmdBuffer
+				if (DEVCTLR_CmdBuffLength) memcpy((uint8_t*)DEVCTLR_CmdBuffer, *pbuf, DEVCTLR_CmdBuffLength);
+				// prepare the next DEVCTLR_PendingBuffer (e.g., pbuf)
+				*pbuf = checked_buf;
+				// update the DEVCTLR_PendingBuffer length (e.g., buf_len)
+				*buf_len = residual_len
+						// adjust the length with the current rx buffer length
+						+ (DEVCTLR_RxBuffLength - stashed_rx_len);
+			}
+			// add an ending character in CmdBuffer
+			DEVCTLR_CmdBuffer[DEVCTLR_CmdBuffLength] = 0;
+			// set the updated flag
+			CDC_DEVCTLR_Update_CmdBuff();
+			return true;
+		}
+		checked_len++;
+	}
+	if (do_swap) {
+		DEVCTLR_RxBuffLength += *buf_len;
+		DEVCTLR_PendingBuffLength += *buf_len;
+	}
+	return false;
+}
+
+void CDC_DEVCTLR_EchoBack(void)
+{
+	// use local variables to keep it thread safe
+	uint32_t target_len = DEVCTLR_RxBuffLength;
+	uint8_t* buf = (uint8_t*)DEVCTLR_RxBuffer;
+	uint32_t start_len = DEVCTLR_EchoedRxBuffLength;
+
+	bool line_mode;
+	uint32_t skip_len = 0;
+
+	// sanity check
+	if (start_len >= target_len) return;
+
+	// search for new line characters if the command buffer has been updated
+	if ((line_mode = CDC_DEVCTLR_CmdBuff_IsUpdated())) {
+		uint32_t idx;
+		for (idx=start_len; idx < target_len; idx++) {
+			if (*(buf+idx) == '\n' || *(buf+idx) == '\r') {
+				// try skipping the new line characters
+				for (skip_len=idx; skip_len < target_len &&
+						(*(buf+skip_len) == '\n' || *(buf+skip_len) == '\r'); skip_len++);
+				break;
+			}
+		}
+		// sanity check
+		if (idx == target_len) return;
+
+		target_len = idx;
+		skip_len -= target_len;
+	}
+
+	// send out the echo back characters
+	while (start_len == DEVCTLR_EchoedRxBuffLength && buf == DEVCTLR_RxBuffer &&
+			CDC_DEVCTLR_Transmit_FS(buf+start_len, target_len-start_len) != HAL_OK);
+
+	// update the echoed buffer length only when it hasn't been changed
+	if (start_len == DEVCTLR_EchoedRxBuffLength)
+		DEVCTLR_EchoedRxBuffLength = target_len + skip_len;
+}*/
 
 void usb_DEVCTLR_printf(const char *format, ...)
 {
@@ -469,7 +593,7 @@ void cdc_devctlr_cmd_handler(uint8_t* Buf, uint32_t len)
   #if ENABLE_CDC_ENGINEERING_TEST
     usb_DEVCTLR_printf("STM32 CDC_DEVCTLR recv: [%s]\n", Buf);
   #else
-    usb_DEVCTLR_printf("STM32 CDC_DEVCTLR recv: [%s]\n", Buf);
+	usb_DEVCTLR_printf("STM32 CDC_DEVCTLR recv: [%s]\n", Buf);
   #endif
 }
   #endif
@@ -485,7 +609,6 @@ void CDC_DEVCTLR_SetEnableTransmit( uint8_t bEnable)
         CDC_DEVCTLR_EnableTransmit = 0x0;
     }
 }
-
 /* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
 
 /**

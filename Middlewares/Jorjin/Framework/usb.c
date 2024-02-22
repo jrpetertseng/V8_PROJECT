@@ -34,7 +34,7 @@ extern uint32_t                 nExecs_IsrToF;
 
 typedef StaticTask_t osStaticThreadDef_t;
 
-uint32_t usbEscapeISRTaskBuffer[ 512 ];
+static uint32_t usbEscapeISRTaskBuffer[ 512 ]; //512
 osStaticThreadDef_t usbEscapeISRTaskControlBlock;
 const osThreadAttr_t usbEscapeISRTask_attributes = {
   .name = "usbEscapeISRTask",
@@ -199,7 +199,7 @@ void usbDebugChars(char *buf, int len) {
 static JQueueMessage_t msgEcho_ToF;
 static JQueueMessage_t msgEchoChars_ToF;
 
-static void usbEcho_Tof(char *fmt, ...)
+void usbEcho_Tof(char *fmt, ...)
 {
     int ret = 0;
 
@@ -260,7 +260,9 @@ void usbSendMessageISR(JISRQueueMessage_t *msg) {
 void usbLoop() {
     static JQueueMessage_t msg;
     uint8_t         ret;
+#if ENABLE_STACK_CHECK
     UBaseType_t uxHighWaterMark;
+#endif
     if (gCtx.queue == NULL) return;
     
     gCtx.bInited = 0x1;
@@ -275,7 +277,7 @@ void usbLoop() {
                 nIMUHIDUsbOuts = 0;
                 usbImu_TxBlock();
                 usbTx_inc_imu_report();
-                ret = USBD_CUSTOM_HID_IMU_SendReport_FS(msg.data.imuReport.report, msg.data.imuReport.len);
+                ret = USBD_CUSTOM_HID_IMU_SendReport_HS(msg.data.imuReport.report, msg.data.imuReport.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
@@ -313,7 +315,8 @@ void usbLoop() {
             case USB_DEBUG_MSG:
                 usbToF_TxBlock();
                 usbTx_inc_devctlr();
-                ret = CDC_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
+//                ret = CDC_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
+                ret = CDC_DEVCTLR_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
@@ -321,7 +324,7 @@ void usbLoop() {
 //                    usbTxUnblock();
                 }
 #if ENABLE_STACK_CHECK
-                osDelay(1000);
+//                osDelay(1000);
 #endif
                 usbTxUnblock();
                 break;

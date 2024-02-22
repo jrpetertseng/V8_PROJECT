@@ -88,11 +88,10 @@
   * @{
   */
 
-/** Usb HID report descriptor. */
-__ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DESC_SIZE] __ALIGN_END =
+/** Usb custom HID report descriptor. */
+__ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_HS[USBD_CUSTOM_HID_REPORT_DESC_SIZE] __ALIGN_END =
 {
-  /* USER CODE BEGIN 0 */
-  /* USER CODE END 0 */
+  /* USER CODE BEGIN 1 */
   // ref: see https://github.com/torvalds/linux/blob/master/drivers/hid/hid-input.c for the kernel code
   // ref: see https://source.android.com/devices/input/keyboard-devices for details
   /* Keypad */
@@ -216,7 +215,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DES
   0x95, 0x11,		// REPORT_COUNT (17)
   0x81, 0x03,		// Input (Cnst,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
   /* USER CODE END 1 */
-  0xC0    /*     END_COLLECTION             */
+   0xC0    /*     END_COLLECTION             */
 };
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
@@ -231,7 +230,8 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DES
   * @brief Public variables.
   * @{
   */
-extern USBD_HandleTypeDef hUsbDeviceFS;
+
+extern USBD_HandleTypeDef hUsbDeviceHS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
 HID_Keyboard_Ipnput_Report HID_Keyboard_Report = {0};
@@ -245,20 +245,20 @@ HID_Keyboard_Ipnput_Report HID_Keyboard_Report = {0};
   * @{
   */
 
-static int8_t CUSTOM_HID_Init_FS(void);
-static int8_t CUSTOM_HID_DeInit_FS(void);
-static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state);
+static int8_t CUSTOM_HID_Init_HS(void);
+static int8_t CUSTOM_HID_DeInit_HS(void);
+static int8_t CUSTOM_HID_OutEvent_HS(uint8_t event_idx, uint8_t state);
 
 /**
   * @}
   */
 
-USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_FS =
+USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_HS =
 {
-  CUSTOM_HID_ReportDesc_FS,
-  CUSTOM_HID_Init_FS,
-  CUSTOM_HID_DeInit_FS,
-  CUSTOM_HID_OutEvent_FS
+  CUSTOM_HID_ReportDesc_HS,
+  CUSTOM_HID_Init_HS,
+  CUSTOM_HID_DeInit_HS,
+  CUSTOM_HID_OutEvent_HS
 };
 
 /** @defgroup USBD_CUSTOM_HID_Private_Functions USBD_CUSTOM_HID_Private_Functions
@@ -272,22 +272,22 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_FS =
   * @brief  Initializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_Init_FS(void)
+static int8_t CUSTOM_HID_Init_HS(void)
 {
-  /* USER CODE BEGIN 4 */
+  /* USER CODE BEGIN 8 */
   return (USBD_OK);
-  /* USER CODE END 4 */
+  /* USER CODE END 8 */
 }
 
 /**
   * @brief  DeInitializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_DeInit_FS(void)
+static int8_t CUSTOM_HID_DeInit_HS(void)
 {
-  /* USER CODE BEGIN 5 */
+  /* USER CODE BEGIN 9 */
   return (USBD_OK);
-  /* USER CODE END 5 */
+  /* USER CODE END 9 */
 }
 
 /**
@@ -296,34 +296,36 @@ static int8_t CUSTOM_HID_DeInit_FS(void)
   * @param  state: Event state
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state)
+static int8_t CUSTOM_HID_OutEvent_HS(uint8_t event_idx, uint8_t state)
 {
-  /* USER CODE BEGIN 6 */
+  /* USER CODE BEGIN 10 */
   UNUSED(event_idx);
   UNUSED(state);
 
-  /* Start next USB packet transfer once data processing is completed */
-  USBD_CUSTOM_HID_ReceivePacket(&hUsbDeviceFS);
+    /* Start next USB packet transfer once data processing is completed */
+  USBD_CUSTOM_HID_ReceivePacket(&hUsbDeviceHS);
 
   return (USBD_OK);
-  /* USER CODE END 6 */
+  /* USER CODE END 10 */
 }
 
-/* USER CODE BEGIN 7 */
+/* USER CODE BEGIN 11 */
 /**
   * @brief  Send the report to the Host
   * @param  report: The report to be sent
   * @param  len: The report length
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-/*
-static int8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len)
+int8_t USBD_CUSTOM_HID_SendReport_HS(uint8_t *report, uint16_t len)
 {
-  //return USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report, len);
-  return (USBD_OK);
+  /* NOTE:
+   * We need manually switch the USB interface during the Tx data preparation
+   * because this process is not part of operations in USBD_COMPOSITE.
+   */
+//  USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CUSTOMHID_INTERFACE);
+  return USBD_CUSTOM_HID_SendReport(&hUsbDeviceHS, report, len);
 }
-*/
-/* USER CODE END 7 */
+/* USER CODE END 11 */
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
 

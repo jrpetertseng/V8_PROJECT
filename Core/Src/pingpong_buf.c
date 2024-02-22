@@ -57,13 +57,19 @@ void PingPongBuffer_SetReadDone(PingPongBuffer_t *ppbuf)
   * @param  pWriteBuf:  Pointer to the pointer to the buffer to be write
   * @retval None
   */
-void PingPongBuffer_GetWriteBuf(PingPongBuffer_t *ppbuf, void **pWriteBuf)
+bool PingPongBuffer_GetWriteBuf(PingPongBuffer_t *ppbuf, void **pWriteBuf)
 {
     if (ppbuf->writeIndex == ppbuf->readIndex)
     {
         ppbuf->writeIndex = !ppbuf->readIndex;
     }
+    else
+    {
+        *pWriteBuf = ppbuf->buffer[ppbuf->writeIndex];
+        return false;
+    }
     *pWriteBuf = ppbuf->buffer[ppbuf->writeIndex];
+    return true;
 }
 
 /**

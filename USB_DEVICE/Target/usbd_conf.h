@@ -34,8 +34,14 @@
 #include "main.h"
 #include "stm32f7xx.h"
 #include "stm32f7xx_hal.h"
-
+#include "debug_defs.h"
 /* USER CODE BEGIN INCLUDE */
+
+//#define USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE     64
+//#define USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE     335
+
+//#define USBD_CUSTOMHID_ALS_OUTREPORT_BUF_SIZE     2U
+//#define USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE     164U
 
 /* USER CODE END INCLUDE */
 
@@ -63,7 +69,7 @@
   */
 
 /*---------- -----------*/
-#define USBD_MAX_NUM_INTERFACES     5U
+#define USBD_MAX_NUM_INTERFACES     7U
 /*---------- -----------*/
 #define USBD_MAX_NUM_CONFIGURATION     1U
 /*---------- -----------*/
@@ -79,17 +85,18 @@
 /*---------- -----------*/
 #define USBD_CUSTOM_HID_REPORT_DESC_SIZE     164U
 /*---------- -----------*/
-#define CUSTOM_HID_FS_BINTERVAL     0x5U
-/*---------- -----------*/
-#define USBD_AUDIO_FREQ     16000U //16000U
-#define USBD_AUDIO_CHANNEL	1U
+#define CUSTOM_HID_HS_BINTERVAL     0x5U
+#define USBD_AUDIO_FREQ     16000U          //16000U
+#define USBD_AUDIO_CHANNEL  1U
 
 /* If we use UAC, this must be on */
-#define FS_OVER_HS_CTRL		1
+#define FS_OVER_HS_CTRL     1
+
 /****************************************/
 /* #define for FS and HS identification */
 #define DEVICE_FS 		0
 #define DEVICE_HS 		1
+
 
 /**
   * @}
@@ -103,10 +110,10 @@
 /* Memory management macros */
 
 /** Alias for memory allocation. */
-#define USBD_malloc         (void *)USBD_static_malloc //malloc
+#define USBD_malloc         (void *)USBD_static_malloc
 
 /** Alias for memory release. */
-#define USBD_free           USBD_static_free //free
+#define USBD_free           USBD_static_free
 
 /** Alias for memory set. */
 #define USBD_memset         memset
@@ -164,6 +171,7 @@
 /* Exported functions -------------------------------------------------------*/
 void *USBD_static_malloc(uint32_t size);
 void USBD_static_free(void *p);
+
 /**
   * @}
   */

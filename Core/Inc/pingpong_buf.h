@@ -21,7 +21,7 @@ typedef struct
 void PingPongBuffer_Init(PingPongBuffer_t *ppbuf, void *buf0, void *buf1);
 bool PingPongBuffer_GetReadBuf(PingPongBuffer_t *ppbuf, void **pReadBuf);
 void PingPongBuffer_SetReadDone(PingPongBuffer_t *ppbuf);
-void PingPongBuffer_GetWriteBuf(PingPongBuffer_t *ppbuf, void **pWriteBuf);
+bool PingPongBuffer_GetWriteBuf(PingPongBuffer_t *ppbuf, void **pWriteBuf);
 void PingPongBuffer_SetWriteDone(PingPongBuffer_t *ppbuf);
 
 #endif /* INC_PINGPONG_BUF_H_ */

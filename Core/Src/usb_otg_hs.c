@@ -24,7 +24,7 @@
 
 /* USER CODE END 0 */
 
-PCD_HandleTypeDef hpcd_USB_OTG_HS;
+//PCD_HandleTypeDef hpcd_USB_OTG_HS;
 
 /* USB_OTG_HS init function */
 

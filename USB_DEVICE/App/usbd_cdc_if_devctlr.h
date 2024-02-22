@@ -49,8 +49,8 @@
   * @{
   */
 /* Define size for the receive and transmit buffer over CDC */
-#define DEVCTLR_APP_RX_DATA_SIZE  2048
-#define DEVCTLR_APP_TX_DATA_SIZE  2048
+#define DEVCTLR_APP_RX_DATA_SIZE  128   //2048
+#define DEVCTLR_APP_TX_DATA_SIZE  512   //2048
 /* USER CODE BEGIN EXPORTED_DEFINES */
 
 /* USER CODE END EXPORTED_DEFINES */
@@ -94,7 +94,7 @@
 extern USBD_CDC_ItfTypeDef USBD_Interface_fops_DEVCTLR_FS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-extern uint8_t DEVCTLR_UserTxBufferFS[DEVCTLR_APP_TX_DATA_SIZE];
+//extern uint8_t DEVCTLR_UserTxBufferFS[DEVCTLR_APP_TX_DATA_SIZE];
 extern bool CDC_DEVCTLR_Echo_Ctrl_Flag;
 /* USER CODE END EXPORTED_VARIABLES */
 

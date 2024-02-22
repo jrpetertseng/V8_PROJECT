@@ -1,6 +1,4 @@
-.settings
-.vscode
-Debug
-Release
-*.launch
-backup
+/.settings
+/Debug
+/Release
+/.vscode

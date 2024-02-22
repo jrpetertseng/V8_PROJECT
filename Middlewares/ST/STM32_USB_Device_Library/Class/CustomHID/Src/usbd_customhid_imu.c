@@ -49,7 +49,6 @@ EndBSPDependencies */
 #include "sensor_hid.h"
 #include "usb.h"
 
-//USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
   * @{
   */
@@ -357,6 +356,8 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_DeviceQualifierDesc[USB_LEN_DEV
   * @retval status
   */
 static USBD_CUSTOM_HID_IMU_HandleTypeDef hhidImu;
+//static uint32_t nFeature_01_SetCount;
+//static uint32_t nFeature_09_SetCount;
 
 static uint8_t USBD_CUSTOM_HID_IMU_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 {
@@ -364,6 +365,9 @@ static uint8_t USBD_CUSTOM_HID_IMU_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx
   USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
 
   hhid = &hhidImu;
+
+  //nFeature_01_SetCount = 0x0;
+  //nFeature_09_SetCount = 0x0;
 
   pdev->pClassData = (void *)hhid;
 
@@ -444,19 +448,19 @@ static uint8_t USBD_CUSTOM_HID_IMU_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgi
 
 static char seiko_feature_report_response[SEIKO_FEATURE_REPORT_LENGTH] =
 {
-    0x01, 0x02, 0x00, 0x06, 0x02, 0x02, 0x00, 0x00,
+    0x01, 0x02, 0x00, 0x06, 0x02, 0x05, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 static char seiko_feature_report_response_01[SEIKO_FEATURE_REPORT_LENGTH] =
 {
-    0x01, 0x02, 0x00, 0x06, 0x02, 0x02, 0x00, 0x00,
+    0x01, 0x02, 0x00, 0x06, 0x02, 0x05, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 static char seiko_feature_report_response_09[SEIKO_FEATURE_REPORT_LENGTH] =
 {
-    0x09, 0x02, 0x00, 0x06, 0x02, 0x02, 0x00, 0x00,
+    0x09, 0x02, 0x00, 0x06, 0x02, 0x05, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
@@ -473,6 +477,7 @@ static char seiko_input_report_response[SEIKO_INPUT_REPORT_LENGTH_MAX] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00
 };
+
 
 static uint8_t USBD_CUSTOM_HID_IMU_Setup(USBD_HandleTypeDef *pdev,
                                      USBD_SetupReqTypedef *req)
@@ -513,6 +518,65 @@ static uint8_t USBD_CUSTOM_HID_IMU_Setup(USBD_HandleTypeDef *pdev,
           break;
 
         case CUSTOM_HID_REQ_SET_REPORT:
+ /*         report_type = req->wValue >> 8;
+          report_id = req->wValue & 0xFF;
+          if(HID_REPORT_TYPE_FEATURE == report_type)
+          {
+              switch(report_id)
+              {
+              case SEIKO_FEATURE_REPORT_ID_01:
+                  nFeature_01_SetCount += 1;
+                  if(1 == nFeature_01_SetCount)
+                  {
+					  seiko_feature_report_response_01[3] = 0x03;
+				  }
+                  else if(2 == nFeature_01_SetCount)
+                  {
+					  seiko_feature_report_response_01[3] = 0x06;
+				  }
+                  else if(3 == nFeature_01_SetCount)
+                  {
+					  seiko_feature_report_response_01[3] = 0x03;
+				  }
+                  else if(4 == nFeature_01_SetCount)
+                  {
+					  seiko_feature_report_response_01[3] = 0x06;
+				  }
+                  else if(5 == nFeature_01_SetCount)
+                  {
+					  seiko_feature_report_response_01[3] = 0x02;
+				  }
+                  else
+                  {
+					  seiko_feature_report_response_01[3] = 0x06;
+				  }
+				  break;
+              case SEIKO_FEATURE_REPORT_ID_09:
+                  nFeature_09_SetCount += 1;
+                  if(1 == nFeature_09_SetCount)
+                  {
+					  seiko_feature_report_response_09[3] = 0x03;
+				  }
+				  else if(2 == nFeature_09_SetCount)
+				  {
+					  seiko_feature_report_response_09[3] = 0x06;
+				  }
+                  else if(3 == nFeature_09_SetCount)
+                  {
+					  seiko_feature_report_response_09[3] = 0x03;
+				  }
+                  else if(4 == nFeature_09_SetCount)
+                  {
+					  seiko_feature_report_response_09[3] = 0x06;
+				  }
+				  else
+				  {
+					  seiko_feature_report_response_09[3] = 0x02;
+				  }
+                  break;
+              }
+          }*/
+
           hhid->IsReportAvailable = 1U;
           (void)USBD_CtlPrepareRx(pdev, hhid->Report_buf, req->wLength);
           break;
@@ -725,8 +789,6 @@ uint8_t USBD_CUSTOM_HID_IMU_SendReport(USBD_HandleTypeDef *pdev,
 
   if (pdev->dev_state == USBD_STATE_CONFIGURED)
   {
-    if (hhid->state > 0x01)
-        hhid->state = CUSTOM_HID_IDLE;
     if (hhid->state == CUSTOM_HID_IDLE)
     {
       hhid->state = CUSTOM_HID_BUSY;
@@ -734,7 +796,6 @@ uint8_t USBD_CUSTOM_HID_IMU_SendReport(USBD_HandleTypeDef *pdev,
     }
     else
     {
-//      hhid->state = CUSTOM_HID_IDLE;
       return (uint8_t)USBD_BUSY;
     }
   }
@@ -864,15 +925,13 @@ static uint8_t USBD_CUSTOM_HID_IMU_EP0_RxReady(USBD_HandleTypeDef *pdev)
 {
   USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid = (USBD_CUSTOM_HID_IMU_HandleTypeDef *)pdev->pClassData;
   uint8_t report_type, report_id;
-  // This msg is used to configure the IMU/ALS sensor if we want to set.
-  //static JISRQueueMessage_t imuFeatureMsg;
 
   if (hhid == NULL)
   {
     return (uint8_t)USBD_FAIL;
   }
 
-  report_type = pdev->request.wValue >> 8;
+  report_type = pdev-> request.wValue >> 8;
   report_id = pdev->request.wValue & 0xFF;
 
   if (hhid->IsReportAvailable == 1U)
@@ -904,18 +963,21 @@ static uint8_t USBD_CUSTOM_HID_IMU_EP0_RxReady(USBD_HandleTypeDef *pdev)
 	    	interval = accel3FeatureReport.ulReportInterval*1000;
 	    }
 		
-	    //JISRQueueMessage_t msg;
-	    //msg.type = USB_HID_FEATURE_REPORT;
-	    //msg.data.featureReport.id = report_id;
-	    //msg.data.featureReport.interval = interval;
-	    //usbSendMessageISR(&msg);
+//    case REPORT_ID_ALS_FEATURE:
+//            memcpy((void *)&alsFeatureReport,
+//            hhid->Report_buf,
+//            sizeof(ALS_FEATURE_REPORT));
+//            interval = 0;
+//            if (alsFeatureReport.ucPowerState != SENSOR_POWER_STATE_D4_POWER_OFF) {
+//                interval = alsFeatureReport.ulReportInterval*100;
+//            }
+//            break;
 	    break;
 	  default:
 	  	break;
 	  }
 	}
   #endif
-
 
     ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->OutEvent(hhid->Report_buf[0],
                                                               hhid->Report_buf[1]);
