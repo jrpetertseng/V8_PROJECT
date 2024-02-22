@@ -44,6 +44,24 @@ typedef struct scale
 //ALS_CONF
 #define AL3010_ALS_CONF                         0x10
 #define AL3010_ALS_CONF_DEFAULT_VALUE           0x13
+/*
+	ALS Configuration Register (0x10)
+	Default value: 0x00
+
+	Bits 6:4 - Gain (Ambient light detectable range)
+	Default: 000 (0 ~ 77806 lux)
+	000: 0 ~ 77806 lux (Default)
+	001: 0 ~ 19452 lux <----------
+	010: 0 ~ 4863 lux
+	011: 0 ~ 1216 lux
+
+	Bits 1:0 - Interrupt Filter (ALS Interrupt trigger condition)
+	Default: 00 (1 conversion time)
+	00: 1 conversion time (Default)
+	01: 4 conversion times
+	10: 8 conversion times
+	11: 16 conversion times <----------
+*/
 
 #define GAIN_OFFSET                             4
 #define GAIN_LEN                                3

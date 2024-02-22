@@ -92,82 +92,207 @@
 __ALIGN_BEGIN static uint8_t CUSTOM_HID_KEY_ReportDesc_FS[USBD_CUSTOM_HID_KEY_REPORT_DESC_SIZE] __ALIGN_END =
 {
 	/* USER CODE BEGIN 0 */
+	// ref: see https://github.com/torvalds/linux/blob/master/drivers/hid/hid-input.c for the kernel code
+	// ref: see https://source.android.com/devices/input/keyboard-devices for details
 	/* Keypad */
-	0x05, 0x01,  // USAGE_PAGE (Generic Desktop)
-	0x09, 0x07,  // USAGE (Keypad)
-	0xA1, 0x01,  // COLLECTION (Application)
-	0x85, 0x11,    // REPORT_ID (1)
-	0x05, 0x07,    // USAGE_PAGE (Keyboard)
-	0x75, 0x01,    // REPORT_SIZE (1)
-	0x95, 0x1A,    // REPORT_COUNT (26)
-	0x09, 0x04,    // USAGE (Keyboard a)
-	0x09, 0x07,    // USAGE (Keyboard d)
-	0x09, 0x0E,    // USAGE (Keyboard k)
-	0x09, 0x0F,    // USAGE (Keyboard l)
-	0x09, 0x16,    // USAGE (Keyboard s)
-	0x09, 0x1A,    // USAGE (Keyboard w)
-	0x19, 0x1E,    // USAGE_MINIMUM (Keyboard 1)
-	0x29, 0x28,    // USAGE_MAXIMUM (Keyboard Return)
-	0x09, 0x46,    // USAGE (Keyboard PrintScreen)
-	0x19, 0x4F,    // USAGE_MINIMUM (Keyboard RightArrow)
-	0x29, 0x52,    // USAGE_MAXIMUM (Keyboard UpArrow)
-	0x09, 0x65,    // USAGE (Keyboard Application)
-	0x09, 0x66,    // USAGE (Keyboard Power)
-	0x09, 0x7F,    // USAGE (Keyboard Mute)
-	0x09, 0xF1,    // USAGE (Keyboard Back)
-	0x15, 0x00,    // LOGICAL_MINIMUM (0)
-	0x25, 0x01,    // LOGICAL_MAXIMUM (1)
-	0x81, 0x02,    // INPUT (Data,Var,Abs)
-	0x95, 0x06,    // REPORT_COUNT (6)
-	0x81, 0x03,    // INPUT (Cnst,Var,Abs)
-	0xC0,          // END_COLLECTION
-	/* Consumer Control */
-	0x05, 0x0C,    // USAGE_PAGE (Consumer)
-	0x09, 0x01,    // USAGE (Consumer Control)
-	0xA1, 0x01,    // COLLECTION (Application)
-	0x85, 0x12,    // REPORT_ID (2)
-	0x05, 0x0C,    // USAGE_PAGE (Consumer)
-	0x75, 0x01,    // REPORT_SIZE (1)
-	0x95, 0x05,    // REPORT_COUNT (5)
-	0x09, 0x61,    // USAGE (Consumer CC Config)
-	0x19, 0xB2,    // USAGE_MINIMUM (Consumer Record)
-	0x29, 0xB4,    // USAGE_MAXIMUM (Consumer Rewind)
-	0x09, 0xE2,    // USAGE (Consumer Mute)
-	0x15, 0x00,    // LOGICAL_MINIMUM (0)
-	0x25, 0x01,    // LOGICAL_MAXIMUM (1)
-	0x81, 0x06,    // INPUT (Data,Var,Rel)
-	0x95, 0x0B,    // REPORT_COUNT (11)
-	0x09, 0x8C,    // USAGE (Consumer Selection)
-	0x19, 0xB5,    // USAGE_MINIMUM (Consumer Scan Next Track)
-	0x29, 0xB7,    // USAGE_MAXIMUM (Consumer Stop)
-	0x09, 0xCD,    // USAGE (Consumer Play/Pause)
-	0x0A, 0x73, 0x01, // USAGE (Consumer AL Consumer Control Configuration)
-	0x0A, 0xB6, 0x01, // USAGE (Consumer AL Email Reader)
-	0x1A, 0x23, 0x02, // USAGE_MINIMUM (AC Home)
-	0x2A, 0x26, 0x02, // USAGE_MAXIMUM (AC Stop)
-	0x15, 0x00,    // LOGICAL_MINIMUM (0)
-	0x25, 0x01,    // LOGICAL_MAXIMUM (1)
-	0x81, 0x02,    // INPUT (Data,Var,Abs)
-	0x95, 0x10,    // REPORT_COUNT (16)
-	0x81, 0x03,    // INPUT (Cnst,Var,Abs)
-	0xC0,          // END_COLLECTION
-	/* Gamepad */
-	0x05, 0x01,    // USAGE_PAGE (Generic Desktop)
-	0x09, 0x05,    // USAGE (Game Pad)
-	0xA1, 0x01,    // COLLECTION (Application)
-	0x85, 0x13,    // REPORT_ID (3)
-	0x05, 0x09,    // USAGE_PAGE (Button)
-	0x75, 0x01,    // REPORT_SIZE (1)
-	0x95, 0x0F,    // REPORT_COUNT (15)
-	0x19, 0x01,    // USAGE_MINIMUM (Button 1)
-	0x29, 0x0F,    // USAGE_MAXIMUM (Button 15)
-	0x15, 0x00,    // LOGICAL_MINIMUM (0)
-	0x25, 0x01,    // LOGICAL_MAXIMUM (1)
-	0x81, 0x02,    // INPUT (Data,Var,Abs)
-	0x95, 0x11,    // REPORT_COUNT (17)
-	0x81, 0x03,    // INPUT (Cnst,Var,Abs)
-	0xC0,          // END_COLLECTION
+	0x05, 0x01,	// USAGE_PAGE (Generic Desktop)
+	0x09, 0x07,	// USAGE (Keypad)
+	0xa1, 0x01,	// COLLECTION (Application)
+	0x85, 0x11,		// REPORT ID (1)
+	0x05, 0x07,		// USAGE_PAGE (Keyboard)
+	0x75, 0x01,		// REPORT_SIZE (1)
+	0x95, 0x1D,		// REPORT_COUNT (29)
+	0x09, 0x04,		// USAGE keyboard a
+	0x09, 0x07,		// USAGE keyboard d
+	0x09, 0x0E,		// USAGE keyboard k
+	0x09, 0x0F,		// USAGE keyboard l
+	0x09, 0x16,		// USAGE keyboard s
+	0x09, 0x1A,		// USAGE keyboard w
+	0x19, 0x1E,		// USAGE_MINUMUM (1)
+	0x29, 0x28,		// USAGE_MAXIMUM (return)
+	//	0x1E:			// USAGE keyboard 1
+	//	0x1F:			// USAGE keyboard 2
+	//	0x20:			// USAGE keyboard 3
+	//	0x21:			// USAGE keyboard 4
+	//	0x22:			// USAGE keyboard 5
+	//	0x23:			// USAGE keyboard 6
+	//	0x24:			// USAGE keyboard 7
+	//	0x25:			// USAGE keyboard 8
+	//	0x26:			// USAGE keyboard 9
+	//	0x27:			// USAGE keyboard 0
+	//    0x28:			// USAGE keyboard return
+	//0x09, 0x2B,		// USAGE keyboard tab
+	0x09, 0x46,		// USAGE keyboard print screen
+	0x09, 0x47,		// USAGE keyboard scroll lock
+	0x09, 0x4B,		// USAGE keyboard page up
+	0x19, 0x4E,		// USAGE_MINUMUM (page down)
+	0x29, 0x52,		// USAGE_MAXIMUM (up arrow)
+	//	0x4F:			// USAGE keyboard right arrow
+	//	0x50:			// USAGE keyboard left arrow
+	//	0x51:			// USAGE keyboard down arrow
+	//	0x52:			// USAGE keyboard up arrow
+	0x09, 0x65,		// USAGE keyboard application
+	0x09, 0x66,		// USAGE keyboard power
+	0x09, 0x7F,		// USAGE keyboard mute
+	//0x09, 0xE8,		// USAGE keyboard play/pause (not defined in HID Usage Tables)
+	//0x09, 0xEA,		// USAGE keyboard previous song (not defined in HID Usage Tables)
+	//0x09, 0xEB,		// USAGE keyboard next song (not defined in HID Usage Tables)
+	0x09, 0xF1,		// USAGE keyboard back (not defined in HID Usage Tables)
+	0x15, 0x00,		// LOGICAL_MINIMUM (0)
+	0x25, 0x01,		// LOGICAL_MAXIMUM (1)
+	0x81, 0x02,		// Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+	0x95, 0x03,		// REPORT_COUNT (3)
+	0x81, 0x03,		// Input (Cnst,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+	0xC0,			// END_COLLECTION
+	/* consumer keys */
+	0x05, 0x0C,	// USAGE_PAGE (Consumer)
+	0x09, 0x01,	// USAGE (Consumer Control)
+	0xA1, 0x01,	// COLLECTION (Application)
+	0x85, 0x12,		// Report ID (2)
+	0x05, 0x0C,		// USAGE_PAGE (Consumer)
+	0x75, 0x01,		// REPORT_SIZE (1)
+	0x95, 0x13,		// REPORT_COUNT (19)
+	0x09, 0x61,		// USAGE closed caption (OOC)
+	0x19, 0x69,		// USAGE_MINUMUM (red)
+	0x29, 0x6C,		// USAGE_MAXIMUM (yellow)
+	//	0x69:			// USAGE red (MC)
+	//	0x6A:			// USAGE green (MC)
+	//	0x6B:			// USAGE blue (MC)
+	//	0x6C:			// USAGE yellow (MC)
+	0x09, 0x6F,		// USAGE brightness increment (RTC)
+	0x09, 0x70,		// USAGE brightness decrement (RTC)
+	//0x09, 0x8C,		// USAGE telephone (Sel)
+	0x19, 0xB2,		// USAGE_MINUMUM (record)
+	0x29, 0xB4,		// USAGE_MAXIMUM (rewind)
+	//	0xB2:			// USAGE record (OOC)
+	//	0xB3:			// USAGE fast forward (OOC)
+	//	0xB4:			// USAGE rewind (OOC)
+	0x09, 0xE2,		// USAGE mute (OOC)
+	0x09, 0xE9,		// USAGE volume increment (RTC)
+	0x09, 0xEA,		// USAGE volume decrement (RTC)
+	//0x0A, 0xB6, 0x01,	// USAGE AL image browser (HEADSETHOOK in Android) (Sel)
+	0x0A, 0xCB, 0x01,	// USAGE AL assistant (Sel)
+	0x0A, 0x21, 0x02,	// USAGE search (Sel)
+	0x1A, 0x23, 0x02,	// USAGE_MINUMUM (AC home)
+	0x2A, 0x26, 0x02,	// USAGE_MAXIMUM (AC stop)
+	//	0x0223:			// USAGE AC home (Sel)
+	//	0x0224:			// USAGE AC back (Sel)
+	//	0x0225:			// USAGE AC forward (Sel)
+	//	0x0226:			// USAGE AC stop (Sel)
+	0x15, 0x00,		// LOGICAL_MINIMUM (0)
+	0x25, 0x01,		// LOGICAL_MAXIMUM (1)
+	0x81, 0x06,		// Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null Position)
+	0x95, 0x06,		// REPORT_COUNT (6)
+	0x19, 0xB5,		// USAGE_MINUMUM (scan next track)
+	0x29, 0xB7,		// USAGE_MAXIMUM (stop)
+	//	0xB5:			// USAGE scan next track (OSC)
+	//	0xB6:			// USAGE scan previous track (OSC)
+	//	0xB7:			// USAGE stop (OSC)
+	0x09, 0xCD,		// USAGE play/pause (OSC)
+	0x09, 0xCF,		// USAGE voice command (OSC)
+	0x0A, 0x73, 0x01,	// USAGE alternate audio increment (OSC)
+	0x15, 0x00,		// LOGICAL_MINIMUM (0)
+	0x25, 0x01,		// LOGICAL_MAXIMUM (1)
+	0x81, 0x02,		// Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+	0x95, 0x07,		// REPORT_COUNT (7)
+	0x81, 0x03,		// Input (Cnst,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+	0xC0,			// END_COLLECTION
+	/* gamepad */
+	0x05, 0x01,	// USAGE_PAGE (Generic Desktop)
+	0x09, 0x05,	// USAGE (Gamepad)
+	0xA1, 0x01,	// COLLECTION (Application)
+	0x85, 0x13,		// Report ID (3)
+	0x05, 0x09,		// USAGE_PAGE (Button)
+	0x75, 0x01,		// REPORT_SIZE (1)
+	0x95, 0x0F,		// REPORT_COUNT (15)
+	/* 15 buttons (BtnA, BtnB, BtnC, BtnX, BtnY, BtnZ, BtnTL, BtnTR,
+	*             BtnTL2, BtnTR2, BtnSelect, BtnStart, BtnMode, BtnThumbL, BtnThumbR) */
+	0x19, 0x01,		// USAGE_MINUMUM (Button 1)
+	0x29, 0x0F,		// USAGE_MAXIMUM (Button 15)
+	0x15, 0x00,		// LOGICAL_MINIMUM (0)
+	0x25, 0x01,		// LOGICAL_MAXIMUM (1)
+	0x81, 0x02,		// Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+	0x95, 0x11,		// REPORT_COUNT (17)
+	0x81, 0x03,		// Input (Cnst,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
 	/* USER CODE END 0 */
+	0xC0    /*     END_COLLECTION	             */
+//	/* USER CODE BEGIN 0 */
+//	/* Keypad */
+//	0x05, 0x01,  // USAGE_PAGE (Generic Desktop)
+//	0x09, 0x07,  // USAGE (Keypad)
+//	0xA1, 0x01,  // COLLECTION (Application)
+//	0x85, 0x11,    // REPORT_ID (1)
+//	0x05, 0x07,    // USAGE_PAGE (Keyboard)
+//	0x75, 0x01,    // REPORT_SIZE (1)
+//	0x95, 0x1A,    // REPORT_COUNT (26)
+//	0x09, 0x04,    // USAGE (Keyboard a)
+//	0x09, 0x07,    // USAGE (Keyboard d)
+//	0x09, 0x0E,    // USAGE (Keyboard k)
+//	0x09, 0x0F,    // USAGE (Keyboard l)
+//	0x09, 0x16,    // USAGE (Keyboard s)
+//	0x09, 0x1A,    // USAGE (Keyboard w)
+//	0x19, 0x1E,    // USAGE_MINIMUM (Keyboard 1)
+//	0x29, 0x28,    // USAGE_MAXIMUM (Keyboard Return)
+//	0x09, 0x46,    // USAGE (Keyboard PrintScreen)
+//	0x19, 0x4F,    // USAGE_MINIMUM (Keyboard RightArrow)
+//	0x29, 0x52,    // USAGE_MAXIMUM (Keyboard UpArrow)
+//	0x09, 0x65,    // USAGE (Keyboard Application)
+//	0x09, 0x66,    // USAGE (Keyboard Power)
+//	0x09, 0x7F,    // USAGE (Keyboard Mute)
+//	0x09, 0xF1,    // USAGE (Keyboard Back)
+//	0x15, 0x00,    // LOGICAL_MINIMUM (0)
+//	0x25, 0x01,    // LOGICAL_MAXIMUM (1)
+//	0x81, 0x02,    // INPUT (Data,Var,Abs)
+//	0x95, 0x06,    // REPORT_COUNT (6)
+//	0x81, 0x03,    // INPUT (Cnst,Var,Abs)
+//	0xC0,          // END_COLLECTION
+//	/* Consumer Control */
+//	0x05, 0x0C,    // USAGE_PAGE (Consumer)
+//	0x09, 0x01,    // USAGE (Consumer Control)
+//	0xA1, 0x01,    // COLLECTION (Application)
+//	0x85, 0x12,    // REPORT_ID (2)
+//	0x05, 0x0C,    // USAGE_PAGE (Consumer)
+//	0x75, 0x01,    // REPORT_SIZE (1)
+//	0x95, 0x05,    // REPORT_COUNT (5)
+//	0x09, 0x61,    // USAGE (Consumer CC Config)
+//	0x19, 0xB2,    // USAGE_MINIMUM (Consumer Record)
+//	0x29, 0xB4,    // USAGE_MAXIMUM (Consumer Rewind)
+//	0x09, 0xE2,    // USAGE (Consumer Mute)
+//	0x15, 0x00,    // LOGICAL_MINIMUM (0)
+//	0x25, 0x01,    // LOGICAL_MAXIMUM (1)
+//	0x81, 0x06,    // INPUT (Data,Var,Rel)
+//	0x95, 0x0B,    // REPORT_COUNT (11)
+//	0x09, 0x8C,    // USAGE (Consumer Selection)
+//	0x19, 0xB5,    // USAGE_MINIMUM (Consumer Scan Next Track)
+//	0x29, 0xB7,    // USAGE_MAXIMUM (Consumer Stop)
+//	0x09, 0xCD,    // USAGE (Consumer Play/Pause)
+//	0x0A, 0x73, 0x01, // USAGE (Consumer AL Consumer Control Configuration)
+//	0x0A, 0xB6, 0x01, // USAGE (Consumer AL Email Reader)
+//	0x1A, 0x23, 0x02, // USAGE_MINIMUM (AC Home)
+//	0x2A, 0x26, 0x02, // USAGE_MAXIMUM (AC Stop)
+//	0x15, 0x00,    // LOGICAL_MINIMUM (0)
+//	0x25, 0x01,    // LOGICAL_MAXIMUM (1)
+//	0x81, 0x02,    // INPUT (Data,Var,Abs)
+//	0x95, 0x10,    // REPORT_COUNT (16)
+//	0x81, 0x03,    // INPUT (Cnst,Var,Abs)
+//	0xC0,          // END_COLLECTION
+//	/* Gamepad */
+//	0x05, 0x01,    // USAGE_PAGE (Generic Desktop)
+//	0x09, 0x05,    // USAGE (Game Pad)
+//	0xA1, 0x01,    // COLLECTION (Application)
+//	0x85, 0x13,    // REPORT_ID (3)
+//	0x05, 0x09,    // USAGE_PAGE (Button)
+//	0x75, 0x01,    // REPORT_SIZE (1)
+//	0x95, 0x0F,    // REPORT_COUNT (15)
+//	0x19, 0x01,    // USAGE_MINIMUM (Button 1)
+//	0x29, 0x0F,    // USAGE_MAXIMUM (Button 15)
+//	0x15, 0x00,    // LOGICAL_MINIMUM (0)
+//	0x25, 0x01,    // LOGICAL_MAXIMUM (1)
+//	0x81, 0x02,    // INPUT (Data,Var,Abs)
+//	0x95, 0x11,    // REPORT_COUNT (17)
+//	0x81, 0x03,    // INPUT (Cnst,Var,Abs)
+//	0xC0,          // END_COLLECTION
+//	/* USER CODE END 0 */
 };
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
