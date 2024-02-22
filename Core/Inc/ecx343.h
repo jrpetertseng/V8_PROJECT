@@ -427,5 +427,6 @@ void adjustBrightness(void);
 void switchMode(void);
 void adjustInversion(uint8_t inversion);
 uint8_t CheckPanelState(void);
+void switchMode(void);
 #endif /* INC_ECX343_H_ */
 

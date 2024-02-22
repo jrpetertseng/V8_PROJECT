@@ -57,6 +57,7 @@
 #include "ecx343.h"
 #include "rpr0521.h"
 #include "al3010.h"
+#include "ring_buffer.h"
 
 /* USER CODE END Includes */
 
@@ -79,23 +80,32 @@
 /* USER CODE BEGIN PV */
 extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c3;
-extern USBD_HandleTypeDef hUsbDeviceFS;
+extern USBD_HandleTypeDef hUsbDeviceHS;
 extern osThreadId_t ALSensorTaskHandle;
 extern osThreadId_t PSTaskHandle;
 uint32_t nBno08xGpioInts;
 uint32_t nAlsGpioInts;
+
 uint32_t nPsGpioInts;
 uint32_t nIMUHIDUsbOuts;
 uint32_t nDMAAudioInts;
+uint32_t nTofGpioInts_1;
 uint32_t nTaskAudioInts;
+uint8_t interruptTofEnable = 0;
 extern uint16_t p_threshold;
-extern int16_t data_i2s[AUDIO_IN_PACKET*_PACK_SIZE];
+extern int16_t data_i2s[AUDIO_IN_PACKET*_DMA_SIZE]; //1ms data x 10 = 10ms
+//extern int16_t data_i2s[AUDIO_IN_PACKET]; //1ms data x 10 = 10ms
 
 /*new PingPong Buffer*/
-int16_t pingpong_1[AUDIO_IN_PACKET/2];
-int16_t pingpong_2[AUDIO_IN_PACKET/2];
-PingPongBuffer_t pingPong;
+//int16_t pingpong_1[AUDIO_IN_PACKET/2*_PACK_SIZE];
+//int16_t pingpong_2[AUDIO_IN_PACKET/2*_PACK_SIZE];
+//PingPongBuffer_t pingPong;
 
+/*new Ring Buffer*/
+RingBuffer rb;
+RingBuffer reSample_rb;
+int16_t rb_buf[RING_BUFFER_SIZE];
+int16_t reSample_buf[RESAMPLE_BUFFER_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,9 +120,9 @@ static void MPU_Config(void);
 
 void boot_UserDFU(void)
 {
-    USBD_Stop(&hUsbDeviceFS);
+    USBD_Stop(&hUsbDeviceHS);
     HAL_Delay(100);
-    USBD_DeInit(&hUsbDeviceFS);
+    USBD_DeInit(&hUsbDeviceHS);
     HAL_Delay(100);
 
     SCB_DisableICache();
@@ -128,14 +138,40 @@ void boot_UserDFU(void)
     /* Should never reach!!! */
     while(1);
 }
-
-bool ADC_to_MIC(void **process_buf)
+void McuReset(void)
 {
-    if(PingPongBuffer_GetReadBuf(&pingPong, process_buf))
-    {
-        return true;
-    }else return false;
+    USBD_Stop(&hUsbDeviceHS);
+    HAL_Delay(100);
+    USBD_DeInit(&hUsbDeviceHS);
+    HAL_Delay(100);
+
+    SCB_DisableICache();
+    SCB_DisableDCache();
+    __DSB();
+    __ISB();
+
+    __DSB();
+
+    NVIC_SystemReset();
+    /* Should never reach!!! */
+    while(1);
 }
+
+//bool ADC_to_MIC(void **process_buf)
+//{
+//    if(PingPongBuffer_GetReadBuf(&pingPong, process_buf))
+//    {
+//        return true;
+//    }else return false;
+//}
+//
+//bool ifReadOccupy(void **process_buf)
+//{
+//    if(PingPongBuffer_GetWriteBuf(&pingPong, process_buf))
+//    {
+//        return true;
+//    }else return false;
+//}
 
 /* ENABLE_CDC_ENGINEERING_TEST */
 
@@ -184,7 +220,9 @@ int main(void)
   MX_SPI1_Init();
   MX_SPI2_Init();
   MX_SPI4_Init();
+#if defined DEBUG
   MX_TIM13_Init();
+#endif
   MX_ADC1_Init();
   MX_ADC2_Init();
 //  MX_USB_OTG_HS_PCD_Init();
@@ -197,7 +235,9 @@ int main(void)
 
   /* Calculate the step of our sin wave */
 #if ENABLE_MIS
-  PingPongBuffer_Init(&pingPong, pingpong_1, pingpong_2);
+//  PingPongBuffer_Init(&pingPong, pingpong_1, pingpong_2);
+  RingBuffer_Init(&rb, rb_buf);
+  RingBuffer_Init(&reSample_rb, reSample_buf);
   if (HAL_I2S_Receive_DMA(&hi2s3, (uint16_t *)data_i2s, sizeof(data_i2s)/2) != HAL_OK) {
        Error_Handler();
   }
@@ -308,7 +348,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     if(IMU_INTN_Pin == GPIO_Pin)
     {
         SH2_GPIO_EXTI_Callback( GPIO_Pin);
-        nBno08xGpioInts += 1;
+//        nBno08xGpioInts += 1;
+        nBno08xGpioInts = 0;
     }
 #if ENABLE_ALS
     else if(ALS_INT_Pin == GPIO_Pin)
@@ -327,7 +368,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 #if ENABLE_TOF
     else if(GPIO_Pin == TOF_INT_Pin)
     {
-//        nTofGpioInts_1 += 1;
+        nTofGpioInts_1 = 0;
         isrToFTaskTrigger();
     }
 #endif

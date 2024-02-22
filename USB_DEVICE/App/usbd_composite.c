@@ -3,21 +3,29 @@
 #include "usbd_customhid.h"
 #include "usbd_customhid_imu.h"
 #include "usbd_customhid_als.h"
+#include "usbd_cdc_devctlr.h"
+#include "usbd_audio_if.h"
+#include "debug_defs.h"
 #include "usbd_audio.h"
 
+
 static USBD_CDC_HandleTypeDef            *pCDCData_Tof;
+//static USBD_CUSTOM_HID_HandleTypeDef     *pHIDData;
 static USBD_CUSTOM_HID_IMU_HandleTypeDef *pHIDData_IMU;
+//static USBD_CUSTOM_HID_ALS_HandleTypeDef *pHIDData_ALS;
+static USBD_CDC_DEVCTLR_HandleTypeDef    *pCDCData_Devctlr;
+
 static USBD_AUDIO_HandleTypeDef          *pAUDData_MIC;
 #define AUDIO_SAMPLE_FREQ(frq)         (uint8_t)(frq), (uint8_t)((frq >> 8)), (uint8_t)((frq >> 16))
 
 #define AUDIO_PACKET_SZE(frq)          (uint8_t)(((frq * 2U * 2U)/1000U) & 0xFFU), \
-								   (uint8_t)((((frq * 2U * 2U)/1000U) >> 8) & 0xFFU)
+                                   (uint8_t)((((frq * 2U * 2U)/1000U) >> 8) & 0xFFU)
 #if UAC_USE_PCM
 #define MIC_PACKET_SZE(frq)            (uint8_t)(((frq * 1U * 2U)/(1000U/AUDIO_FS_BINTERVAL)) & 0xFFU), \
-								   (uint8_t)((((frq * 1U * 2U)/(1000U/AUDIO_FS_BINTERVAL)) >> 8) & 0xFFU)
+                                   (uint8_t)((((frq * 1U * 2U)/(1000U/AUDIO_FS_BINTERVAL)) >> 8) & 0xFFU)
 #else
 #define MIC_PACKET_SZE(frq)            (uint8_t)(((frq * 1U * 1U)/(1000U/AUDIO_FS_BINTERVAL)) & 0xFFU), \
-								   (uint8_t)((((frq * 1U * 1U)/(1000U/AUDIO_FS_BINTERVAL)) >> 8) & 0xFFU)
+                                   (uint8_t)((((frq * 1U * 1U)/(1000U/AUDIO_FS_BINTERVAL)) >> 8) & 0xFFU)
 #endif
 
 static USBD_CUSTOM_HID_KEY_HandleTypeDef *pHIDData_KEY;
@@ -459,6 +467,113 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE]  __ALIG
   #endif
   0x00,                                       /* bInterval: ignore for Bulk transfer */
 
+#if ENABLE_CDC_CMD_PORT
+/****************************CDC Device Controller************************************/
+
+  /* Interface Association Descriptor */
+  USBD_IAD_DESC_SIZE,                         // bLength
+  USBD_IAD_DESCRIPTOR_TYPE,                   // bDescriptorType
+  USBD_CDC_DEVCTLR_FIRST_INTERFACE,           // bFirstInterface
+  USBD_CDC_DEVCTLR_INTERFACE_NUM,             // bInterfaceCount
+  0x02,                                       // bFunctionClass
+  0x02,                                       // bFunctionSubClass
+  0x01,                                       // bInterfaceProtocol
+  0x00,                                       // iFunction
+
+  /* **********
+   *    NOTE
+   * **********
+   * The following contents are from the USBD_CDC_CfgFSDesc array in usbd_cdc.c
+   */
+  /* Interface Descriptor */
+  0x09,                                       /* bLength: Interface Descriptor size */
+  USB_DESC_TYPE_INTERFACE,                    /* bDescriptorType: Interface */
+                                              /* Interface descriptor type */
+  USBD_CDC_DEVCTLR_CMD_INTERFACE,             /* bInterfaceNumber: Number of Interface */
+  0x00,                                       /* bAlternateSetting: Alternate setting */
+  0x01,                                       /* bNumEndpoints: One endpoints used */
+  0x02,                                       /* bInterfaceClass: Communication Interface Class */
+  0x02,                                       /* bInterfaceSubClass: Abstract Control Model */
+  0x01,                                       /* bInterfaceProtocol: Common AT commands */
+  0x00,                                       /* iInterface: */
+
+  /* Header Functional Descriptor */
+  0x05,                                       /* bLength: Endpoint Descriptor size */
+  0x24,                                       /* bDescriptorType: CS_INTERFACE */
+  0x00,                                       /* bDescriptorSubtype: Header Func Desc */
+  0x10,                                       /* bcdCDC: spec release number */
+  0x01,
+
+  /* Call Management Functional Descriptor */
+  0x05,                                       /* bFunctionLength */
+  0x24,                                       /* bDescriptorType: CS_INTERFACE */
+  0x01,                                       /* bDescriptorSubtype: Call Management Func Desc */
+  0x00,                                       /* bmCapabilities: D0+D1 */
+  USBD_CDC_DEVCTLR_DATA_INTERFACE,            /* bDataInterface: 6 */
+  
+  /* ACM Functional Descriptor */
+  0x04,                                       /* bFunctionLength */
+  0x24,                                       /* bDescriptorType: CS_INTERFACE */
+  0x02,                                       /* bDescriptorSubtype: Abstract Control Management desc */
+  0x02,                                       /* bmCapabilities */
+
+  /* Union Functional Descriptor */
+  0x05,                                       /* bFunctionLength */
+  0x24,                                       /* bDescriptorType: CS_INTERFACE */
+  0x06,                                       /* bDescriptorSubtype: Union func desc */
+  USBD_CDC_DEVCTLR_CMD_INTERFACE,             /* bMasterInterface: Communication class interface */
+  USBD_CDC_DEVCTLR_DATA_INTERFACE,            /* bSlaveInterface0: Data Class Interface */
+  
+  /* Endpoint 2 Descriptor */
+  0x07,                                       /* bLength: Endpoint Descriptor size */
+  USB_DESC_TYPE_ENDPOINT,                     /* bDescriptorType: Endpoint */
+  CDC_DEVCTLR_CMD_EP,                         /* bEndpointAddress */
+  0x03,                                       /* bmAttributes: Interrupt */
+  LOBYTE(CDC_DEVCTLR_CMD_PACKET_SIZE),        /* wMaxPacketSize: */
+  HIBYTE(CDC_DEVCTLR_CMD_PACKET_SIZE),
+  CDC_DEVCTLR_FS_BINTERVAL,                   /* bInterval: */
+  /*---------------------------------------------------------------------------*/
+  
+  /* Data class interface descriptor */
+  0x09,                                       /* bLength: Endpoint Descriptor size */
+  USB_DESC_TYPE_INTERFACE,                    /* bDescriptorType: */
+  USBD_CDC_DEVCTLR_DATA_INTERFACE,            /* bInterfaceNumber: Number of Interface */
+  0x00,                                       /* bAlternateSetting: Alternate setting */
+  0x02,                                       /* bNumEndpoints: Two endpoints used */
+  0x0A,                                       /* bInterfaceClass: CDC */
+  0x00,                                       /* bInterfaceSubClass: */
+  0x00,                                       /* bInterfaceProtocol: */
+  0x00,                                       /* iInterface: */
+
+  /* Endpoint OUT Descriptor */
+  0x07,                                       /* bLength: Endpoint Descriptor size */
+  USB_DESC_TYPE_ENDPOINT,                     /* bDescriptorType: Endpoint */
+  CDC_DEVCTLR_OUT_EP,                         /* bEndpointAddress */
+  0x02,                                       /* bmAttributes: Bulk */
+#if FS_OVER_HS_CTRL
+  LOBYTE(CDC_DEVCTLR_DATA_FS_MAX_PACKET_SIZE),        /* wMaxPacketSize: */
+  HIBYTE(CDC_DEVCTLR_DATA_FS_MAX_PACKET_SIZE),
+#else
+  LOBYTE(CDC_DEVCTLR_DATA_HS_MAX_PACKET_SIZE),        /* wMaxPacketSize: */
+  HIBYTE(CDC_DEVCTLR_DATA_HS_MAX_PACKET_SIZE),
+#endif
+  0x00,                                       /* bInterval: ignore for Bulk transfer */
+  
+  /* Endpoint IN Descriptor */
+  0x07,                                       /* bLength: Endpoint Descriptor size */
+  USB_DESC_TYPE_ENDPOINT,                     /* bDescriptorType: Endpoint */
+  CDC_DEVCTLR_IN_EP,                          /* bEndpointAddress */
+  0x02,                                       /* bmAttributes: Bulk */
+#if FS_OVER_HS_CTRL
+  LOBYTE(CDC_DEVCTLR_DATA_FS_MAX_PACKET_SIZE),        /* wMaxPacketSize: */
+  HIBYTE(CDC_DEVCTLR_DATA_FS_MAX_PACKET_SIZE),
+#else
+  LOBYTE(CDC_DEVCTLR_DATA_HS_MAX_PACKET_SIZE),        /* wMaxPacketSize: */
+  HIBYTE(CDC_DEVCTLR_DATA_HS_MAX_PACKET_SIZE),
+#endif
+  0x00,                                       /* bInterval: ignore for Bulk transfer */
+#endif
+
 };
 
 
@@ -478,6 +593,9 @@ __ALIGN_BEGIN  uint8_t USBD_Composite_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_
 };
 
 
+
+
+
 /**
   * @brief  USBD_Composite_Init
   *         Initialize the Composite interface
@@ -494,7 +612,15 @@ static uint8_t  USBD_Composite_Init (USBD_HandleTypeDef *pdev,
   res +=  USBD_AUDIO.Init(pdev,cfgidx);
   pAUDData_MIC = pdev->pClassData;
 
-  pdev->pUserData = &USBD_CustomHID_IMU_fops_FS;
+  pdev->pUserData = &USBD_Interface_fops_FS;
+  res +=  USBD_CDC.Init(pdev,cfgidx);
+  pCDCData_Tof = pdev->pClassData;
+  
+//  pdev->pUserData = &USBD_CustomHID_fops_HS;
+//  res +=  USBD_CUSTOM_HID.Init(pdev,cfgidx);
+//  pHIDData = pdev->pClassData;
+  
+  pdev->pUserData = &USBD_CustomHID_IMU_fops_HS;
   res +=  USBD_CUSTOM_HID_IMU.Init(pdev,cfgidx);
   pHIDData_IMU = pdev->pClassData;
 
@@ -502,9 +628,10 @@ static uint8_t  USBD_Composite_Init (USBD_HandleTypeDef *pdev,
   res +=  USBD_CUSTOM_HID_KEY.Init(pdev,cfgidx);
   pHIDData_KEY = pdev->pClassData;
   
-  pdev->pUserData = &USBD_Interface_fops_FS;
-  res +=  USBD_CDC.Init(pdev,cfgidx);
-  pCDCData_Tof = pdev->pClassData;
+  pdev->pUserData = &USBD_Interface_fops_DEVCTLR_FS;
+  res +=  USBD_CDC_DEVCTLR.Init(pdev,cfgidx);
+  pCDCData_Devctlr = pdev->pClassData;
+  
   
   return res;
 }
@@ -525,17 +652,25 @@ static uint8_t  USBD_Composite_DeInit (USBD_HandleTypeDef *pdev,
     pdev->pUserData = &USBD_AUDIO_fops_FS;
     res +=  USBD_AUDIO.DeInit(pdev,cfgidx);
 
+    pdev->pClassData = pCDCData_Tof;
+    pdev->pUserData = &USBD_Interface_fops_FS;
+    res +=  USBD_CDC.DeInit(pdev,cfgidx);
+
+//    pdev->pClassData = pHIDData;
+//    pdev->pUserData = &USBD_CustomHID_fops_HS;
+//    res +=  USBD_CUSTOM_HID.DeInit(pdev,cfgidx);
+
     pdev->pClassData = pHIDData_IMU;
-    pdev->pUserData = &USBD_CustomHID_IMU_fops_FS;
+    pdev->pUserData = &USBD_CustomHID_IMU_fops_HS;
     res +=  USBD_CUSTOM_HID_IMU.DeInit(pdev,cfgidx);
 
     pdev->pClassData = pHIDData_KEY;
     pdev->pUserData = &USBD_CustomHID_KEY_fops_FS;
     res +=  USBD_CUSTOM_HID_KEY.DeInit(pdev,cfgidx);
 
-    pdev->pClassData = pCDCData_Tof;
-    pdev->pUserData = &USBD_Interface_fops_FS;
-    res +=  USBD_CDC.DeInit(pdev,cfgidx);
+    pdev->pClassData = pCDCData_Devctlr;
+    pdev->pUserData = &USBD_Interface_fops_DEVCTLR_FS;
+    res +=  USBD_CDC_DEVCTLR.DeInit(pdev,cfgidx);
 
     return res;
 }
@@ -543,29 +678,38 @@ static uint8_t  USBD_Composite_DeInit (USBD_HandleTypeDef *pdev,
 
 static uint8_t  USBD_Composite_EP0_RxReady(USBD_HandleTypeDef *pdev)
 {
-	switch(LOBYTE(pdev->request.wIndex))
-	{
+	switch(pdev->request.wIndex) {
 	    case USBD_AUD_INTERFACE_MIC_CONTROL:
 	    case USBD_AUD_INTERFACE_MIC_STREAMING:
 	        pdev->pClassData = pAUDData_MIC;
 	        pdev->pUserData =  &USBD_AUDIO_fops_FS;
 	        return(USBD_AUDIO.EP0_RxReady (pdev));
-
 	    case USBD_CDC_DATA_INTERFACE:
 	    case USBD_CDC_CMD_INTERFACE:
 	        pdev->pClassData = pCDCData_Tof;
 	        pdev->pUserData =  &USBD_Interface_fops_FS;
 	        return(USBD_CDC.EP0_RxReady(pdev));
 
+//	    case USBD_HID_INTERFACE:
+//	        pdev->pClassData = pHIDData;
+//	        pdev->pUserData =  &USBD_CustomHID_fops_HS;
+//	        return(USBD_CUSTOM_HID.EP0_RxReady (pdev));
+
 	    case USBD_HID_INTERFACE_IMU:
 	        pdev->pClassData = pHIDData_IMU;
-	        pdev->pUserData =  &USBD_CustomHID_IMU_fops_FS;
+	        pdev->pUserData =  &USBD_CustomHID_IMU_fops_HS;
 	        return(USBD_CUSTOM_HID_IMU.EP0_RxReady (pdev));
+
+	    case USBD_CDC_DEVCTLR_CMD_INTERFACE:
+	    case USBD_CDC_DEVCTLR_DATA_INTERFACE:
+	        pdev->pClassData = pCDCData_Devctlr;
+	        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+	        return(USBD_CDC_DEVCTLR.EP0_RxReady(pdev));
 
 	    case USBD_HID_INTERFACE_KEY:
 	        pdev->pClassData = pHIDData_KEY;
 	        pdev->pUserData =  &USBD_CustomHID_KEY_fops_FS;
-	        return(USBD_CUSTOM_HID_KEY.EP0_RxReady (pdev));
+	        return(USBD_CUSTOM_HID_KEY.EP0_RxReady (pdev));          
 
 	    default:
 	        break;
@@ -588,30 +732,37 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
   switch (req->bmRequest & USB_REQ_RECIPIENT_MASK)
   {
    case USB_REQ_RECIPIENT_INTERFACE:
-     // ckhsu, LOBYTE should be interface number, not whole 
      //switch(req->wIndex)
      switch(LOBYTE(req->wIndex))
       {
-	     case USBD_AUD_INTERFACE_MIC_CONTROL:
+         case USBD_AUD_INTERFACE_MIC_CONTROL:
 	     case USBD_AUD_INTERFACE_MIC_STREAMING:
              pdev->pClassData = pAUDData_MIC;
              pdev->pUserData =  &USBD_AUDIO_fops_FS;
            return(USBD_AUDIO.Setup (pdev, req));
-
          case USBD_CDC_DATA_INTERFACE:
          case USBD_CDC_CMD_INTERFACE:
              pdev->pClassData = pCDCData_Tof;
              pdev->pUserData =  &USBD_Interface_fops_FS;
            return(USBD_CDC.Setup(pdev, req));
 
+//         case USBD_HID_INTERFACE:
+//             pdev->pClassData = pHIDData;
+//             pdev->pUserData =  &USBD_CustomHID_fops_HS;
+//           return(USBD_CUSTOM_HID.Setup (pdev, req));
 		 case USBD_HID_INTERFACE_IMU:
              pdev->pClassData = pHIDData_IMU;
-             pdev->pUserData =  &USBD_CustomHID_IMU_fops_FS;
+             pdev->pUserData =  &USBD_CustomHID_IMU_fops_HS;
            return(USBD_CUSTOM_HID_IMU.Setup (pdev, req));
+         case USBD_CDC_DEVCTLR_DATA_INTERFACE:
+         case USBD_CDC_DEVCTLR_CMD_INTERFACE:
+             pdev->pClassData = pCDCData_Devctlr;
+             pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+           return(USBD_CDC_DEVCTLR.Setup (pdev, req));
 		 case USBD_HID_INTERFACE_KEY:
              pdev->pClassData = pHIDData_KEY;
              pdev->pUserData =  &USBD_CustomHID_KEY_fops_FS;
-           return(USBD_CUSTOM_HID_KEY.Setup (pdev, req));
+           return(USBD_CUSTOM_HID_KEY.Setup (pdev, req));           
          default:
             break;
      }
@@ -633,12 +784,24 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
              pdev->pUserData =  &USBD_Interface_fops_FS;
            return(USBD_CDC.Setup(pdev, req));
 
+//         case CUSTOM_HID_EPIN_ADDR:
+//         case CUSTOM_HID_EPOUT_ADDR:
+//             pdev->pClassData = pHIDData;
+//             pdev->pUserData =  &USBD_CustomHID_fops_HS;
+//           return(USBD_CUSTOM_HID.Setup (pdev, req));
+
          case CUSTOM_HID_IMU_EPIN_ADDR:
          case CUSTOM_HID_IMU_EPOUT_ADDR:
              pdev->pClassData = pHIDData_IMU;
-             pdev->pUserData =  &USBD_CustomHID_IMU_fops_FS;
+             pdev->pUserData =  &USBD_CustomHID_IMU_fops_HS;
            return(USBD_CUSTOM_HID_IMU.Setup (pdev, req));
 
+         case CDC_DEVCTLR_IN_EP:
+         case CDC_DEVCTLR_OUT_EP:
+         case CDC_DEVCTLR_CMD_EP:
+             pdev->pClassData = pCDCData_Devctlr;
+             pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+           return(USBD_CDC_DEVCTLR.Setup(pdev, req));
          case CUSTOM_HID_KEY_EPIN_ADDR:
          case CUSTOM_HID_KEY_EPOUT_ADDR:
              pdev->pClassData = pHIDData_KEY;
@@ -672,17 +835,25 @@ uint8_t  USBD_Composite_DataIn (USBD_HandleTypeDef *pdev,
              pdev->pClassData = pAUDData_MIC;
              pdev->pUserData =  &USBD_AUDIO_fops_FS;
          return(USBD_AUDIO.DataIn(pdev,epnum));
-
       case CDC_INDATA_NUM:
         pdev->pClassData = pCDCData_Tof;
         pdev->pUserData =  &USBD_Interface_fops_FS;
          return(USBD_CDC.DataIn(pdev,epnum));
 
+//      case HID_INDATA_NUM:
+//             pdev->pClassData = pHIDData;
+//             pdev->pUserData =  &USBD_CustomHID_fops_HS;
+//         return(USBD_CUSTOM_HID.DataIn(pdev,epnum));
+
       case HID_IMU_INDATA_NUM:
              pdev->pClassData = pHIDData_IMU;
-             pdev->pUserData =  &USBD_CustomHID_IMU_fops_FS;
+             pdev->pUserData =  &USBD_CustomHID_IMU_fops_HS;
          return(USBD_CUSTOM_HID_IMU.DataIn(pdev,epnum));
 
+      case CDC_DEVCTLR_INDATA_NUM:
+        pdev->pClassData = pCDCData_Devctlr;
+        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+         return(USBD_CDC_DEVCTLR.DataIn(pdev,epnum));
       case HID_KEY_INDATA_NUM:
              pdev->pClassData = pHIDData_KEY;
              pdev->pUserData =  &USBD_CustomHID_KEY_fops_FS;
@@ -712,18 +883,27 @@ uint8_t  USBD_Composite_DataOut (USBD_HandleTypeDef *pdev,
              pdev->pClassData = pAUDData_MIC;
              pdev->pUserData =  &USBD_AUDIO_fops_FS;
          return(USBD_AUDIO.DataOut(pdev,epnum));
-
       case CDC_OUTDATA_NUM:
       case CDC_OUTCMD_NUM:
         pdev->pClassData = pCDCData_Tof;
         pdev->pUserData =  &USBD_Interface_fops_FS;
          return(USBD_CDC.DataOut(pdev,epnum));
 
+//      case HID_OUTDATA_NUM:
+//             pdev->pClassData = pHIDData;
+//             pdev->pUserData =  &USBD_CustomHID_fops_HS;
+//         return(USBD_CUSTOM_HID.DataOut(pdev,epnum));
+
       case HID_IMU_OUTDATA_NUM:
              pdev->pClassData = pHIDData_IMU;
-             pdev->pUserData =  &USBD_CustomHID_IMU_fops_FS;
+             pdev->pUserData =  &USBD_CustomHID_IMU_fops_HS;
          return(USBD_CUSTOM_HID_IMU.DataOut(pdev,epnum));
 
+      case CDC_DEVCTLR_OUTDATA_NUM:
+      case CDC_DEVCTLR_OUTCMD_NUM:
+        pdev->pClassData = pCDCData_Devctlr;
+        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+         return(USBD_CDC_DEVCTLR.DataOut(pdev,epnum));
       case HID_KEY_OUTDATA_NUM:
              pdev->pClassData = pHIDData_KEY;
              pdev->pUserData =  &USBD_CustomHID_KEY_fops_FS;
@@ -731,6 +911,7 @@ uint8_t  USBD_Composite_DataOut (USBD_HandleTypeDef *pdev,
 
       default:
          break;
+
   }
   return USBD_FAIL;
 }
@@ -768,22 +949,29 @@ uint8_t  *USBD_Composite_GetDeviceQualifierDescriptor (uint16_t *length)
 
 void USBD_Composite_Switch_Itf(USBD_HandleTypeDef *pdev, USBD_COMPOSITE_ItfTypeDef interface)
 {
-  if (!pdev || !pCDCData_Tof || !pAUDData_MIC || !pHIDData_IMU || !pHIDData_KEY) return;
-//	if (!pdev || !pCDCData_Tof || !pAUDData_MIC || !pHIDData_IMU) return;
+  //if (!pdev || !pCDCData_Tof || !pHIDData || !pHIDData_IMU || !pHIDData_ALS) return;
+if (!pdev || !pCDCData_Tof || !pAUDData_MIC || !pHIDData_IMU || !pCDCData_Devctlr|| !pHIDData_KEY) return;
   switch (interface)
   {
   case USBD_AUD_MIC_INTERFACE:
       pdev->pClassData = pAUDData_MIC;
       pdev->pUserData = &USBD_AUDIO_fops_FS;
       break;
-
   case USBD_CDC_INTERFACE:
       pdev->pClassData = pCDCData_Tof;
       pdev->pUserData =  &USBD_Interface_fops_FS;
       break;
+//  case USBD_CUSTOMHID_INTERFACE:
+//      pdev->pClassData = pHIDData;
+//      pdev->pUserData = &USBD_CustomHID_fops_HS;
+//      break;
   case USBD_CUSTOMHID_IMU_INTERFACE:
       pdev->pClassData = pHIDData_IMU;
-      pdev->pUserData = &USBD_CustomHID_IMU_fops_FS;
+      pdev->pUserData = &USBD_CustomHID_IMU_fops_HS;
+      break;
+  case USBD_CDC_DEVCTLR_INTERFACE:
+      pdev->pClassData = pCDCData_Devctlr;
+      pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
       break;
   case USBD_CUSTOMHID_KEY_INTERFACE:
       pdev->pClassData = pHIDData_KEY;
@@ -809,6 +997,11 @@ USBD_COMPOSITE_ItfTypeDef USBD_Composite_Get_Current_Itf(USBD_HandleTypeDef *pde
   {
 	  return USBD_CUSTOMHID_IMU_INTERFACE;
   }
+  else if(pdev->pClassData == pCDCData_Devctlr)
+  {
+	  return USBD_CDC_DEVCTLR_INTERFACE;
+  }
+  
   else if(pdev->pClassData == pHIDData_KEY)
   {
 	  return USBD_CUSTOMHID_KEY_INTERFACE;

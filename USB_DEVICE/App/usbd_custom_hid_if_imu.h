@@ -89,7 +89,7 @@
   */
 
 /** CUSTOMHID Interface callback. */
-extern USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_IMU_fops_FS;
+extern USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_IMU_fops_HS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
 
@@ -105,7 +105,7 @@ extern USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_IMU_fops_FS;
   */
 
 /* USER CODE BEGIN EXPORTED_FUNCTIONS */
-int8_t USBD_CUSTOM_HID_IMU_SendReport_FS(uint8_t *report, uint16_t len);
+int8_t USBD_CUSTOM_HID_IMU_SendReport_HS(uint8_t *report, uint16_t len);
 /* USER CODE END EXPORTED_FUNCTIONS */
 
 /**

@@ -189,11 +189,11 @@ typedef struct
   uint16_t wr_ptr;
   /* mic */
 #if UAC_USE_PCM
-//  int16_t in_buffer[AUDIO_IN_PACKET];
+  int16_t in_buffer[AUDIO_IN_PACKET/2];
 #else
   int8_t  in_buffer[AUDIO_IN_PACKET];
 #endif
-//  uint8_t in_buffer_half;
+  uint8_t in_buffer_half;
   /* control */
   USBD_AUDIO_ControlTypeDef control;
 } USBD_AUDIO_HandleTypeDef;
@@ -229,6 +229,8 @@ typedef struct
 
 extern USBD_ClassTypeDef USBD_AUDIO;
 #define USBD_AUDIO_CLASS &USBD_AUDIO
+
+extern uint8_t buffer_updated;
 /**
   * @}
   */

@@ -23,6 +23,8 @@ extern int8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len);
 
 static void UsbEscapeISRTask(void * argument);
 
+extern uint32_t                 nExecs_IsrToF;
+
 #if (0x20001U == osCMSIS)
 
 #include "FreeRTOS.h"
@@ -32,7 +34,7 @@ static void UsbEscapeISRTask(void * argument);
 
 typedef StaticTask_t osStaticThreadDef_t;
 
-uint32_t usbEscapeISRTaskBuffer[ 512 ];
+static uint32_t usbEscapeISRTaskBuffer[ 512 ]; //512
 osStaticThreadDef_t usbEscapeISRTaskControlBlock;
 const osThreadAttr_t usbEscapeISRTask_attributes = {
   .name = "usbEscapeISRTask",
@@ -197,7 +199,7 @@ void usbDebugChars(char *buf, int len) {
 static JQueueMessage_t msgEcho_ToF;
 static JQueueMessage_t msgEchoChars_ToF;
 
-static void usbEcho_Tof(char *fmt, ...)
+void usbEcho_Tof(char *fmt, ...)
 {
     int ret = 0;
 
@@ -256,9 +258,11 @@ void usbSendMessageISR(JISRQueueMessage_t *msg) {
 }
 
 void usbLoop() {
-    JQueueMessage_t msg;
+    static JQueueMessage_t msg;
     uint8_t         ret;
-	
+#if ENABLE_STACK_CHECK
+    UBaseType_t uxHighWaterMark;
+#endif
     if (gCtx.queue == NULL) return;
     
     gCtx.bInited = 0x1;
@@ -269,16 +273,15 @@ void usbLoop() {
             case USB_HID_INPUT_REPORT:
                 break;
             case USB_HID_IMU_INPUT_REPORT:
-                nIMUHIDUsbOuts += 1;
+//                nIMUHIDUsbOuts += 1;
+                nIMUHIDUsbOuts = 0;
                 usbImu_TxBlock();
                 usbTx_inc_imu_report();
-                //ret = USBD_OK;
-                ret = USBD_CUSTOM_HID_IMU_SendReport_FS(msg.data.imuReport.report, msg.data.imuReport.len);
-//                ret = USBD_CUSTOM_HID_IMU_SendReport_FS((uint8_t*)&test_buf, 15);
+                ret = USBD_CUSTOM_HID_IMU_SendReport_HS(msg.data.imuReport.report, msg.data.imuReport.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
-                    //usbTxUnblock();
+                    usbTxUnblock();
                 }
                 /* Success, release the lock. */
                 usbTxUnblock();
@@ -297,8 +300,9 @@ void usbLoop() {
 				usbTxUnblock();
                break;
             case USB_CDC_TOF_DATA:
-//                usbToF_TxBlock();
-                usbTx_inc_tof();
+                usbToF_TxBlock();
+//                nTofGpioInts_1 += 1;
+//                usbTx_inc_tof();
                 ret = CDC_Transmit_FS((uint8_t *)msg.data.ToFMsg.p, msg.data.ToFMsg.len);
                 if(USBD_OK != ret)
                 {
@@ -306,21 +310,36 @@ void usbLoop() {
                     usbTx_inc_tof_error();
 //                    usbTxUnblock();
                 }
+                usbTxUnblock();
                 break;
             case USB_DEBUG_MSG:
-//                usbToF_TxBlock();
+                usbToF_TxBlock();
                 usbTx_inc_devctlr();
-                ret = CDC_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
+//                ret = CDC_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
+                ret = CDC_DEVCTLR_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
                     usbTx_inc_devctlr_error();
 //                    usbTxUnblock();
                 }
+#if ENABLE_STACK_CHECK
+//                osDelay(1000);
+#endif
+                usbTxUnblock();
                 break;
             default:
                 break;
             }
+#if ENABLE_STACK_CHECK
+            //test: check high water
+            if(nExecs_IsrToF%100==0 && nExecs_IsrToF!=0)
+            {
+                uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+                usbDebug("USB_task free stack：%lu\n", uxHighWaterMark);
+            }
+#endif
+
         }
     }
 }

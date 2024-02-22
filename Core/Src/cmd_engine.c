@@ -27,6 +27,7 @@
 #define TOF_DATA_SUFFIX 0x0a0d4445 /* "ED\r\n" */
 static uint8_t tofNumOfTargets[MAX_TOF_DATA_COUNT];
 uint8_t TofRangePacket[TOF_8X8_DATA_PACKET_SIZE];
+uint16_t tofResetCount = 0;
 
 bool bPresenceSent = false;
 bool bGestureEnabled = false;
@@ -36,6 +37,7 @@ bool bRangePacketUpdated = false;
 
 extern uint8_t DebugSwitch;
 extern uint8_t AutoBrightness;
+uint8_t tof_resetFlag = 0;
 
 ECX343_DATA ecx343_data;
 ECX343_DATA ecx343_current_data;
@@ -148,7 +150,7 @@ void usbcdc_sendData( uint8_t *p, int nLength)
 
 void usbcmd_sendData( uint8_t *p, int nLength)
 {
-    cdcData.type            = USB_CDC_TOF_DATA;
+    cdcData.type            = USB_CDC_TOF_DATA; //USB_CDC_TOF_DATA
     cdcData.data.ToFMsg.len = nLength;
     memcpy( cdcData.data.ToFMsg.p, p, nLength);
     // It is better to confirm the pass in pointer is in static address.
@@ -192,8 +194,29 @@ void CE_Parse_ToF_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len) {
 
         meta_data = get_data(buf, len);
         cmd = string_to_command((char*)meta_data.CmdData, meta_data.CmdLength);
-        CE_Execute_Command(cmd.Cmd, cmd.Args, cmd.ArgsLength);
+        if (cmd.Cmd < 0x100U || cmd.Cmd >= 0x200U)
+            CE_Execute_Command(cmd.Cmd, cmd.Args, cmd.ArgsLength);
+        else
+            usbEcho_Tof("NG %d", CE_ERR_COMMAND);
+        buf = meta_data.ResidualData;
+        len = meta_data.ResidualLength;
+    } while (buf && len);
+}
 
+void CE_Parse_Devctlr_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len) {
+    Meta_Data meta_data;
+    uint8_t* buf = cmd_buf;
+    uint32_t len = cmd_buf_len;
+
+    do {
+        Command cmd;
+
+        meta_data = get_data(buf, len);
+        cmd = string_to_command((char*)meta_data.CmdData, meta_data.CmdLength);
+        if (cmd.Cmd > 0x100U && cmd.Cmd < 0x200U)
+            CE_Execute_Command(cmd.Cmd, cmd.Args, cmd.ArgsLength);
+        else
+            usbDebug("NG %d", CE_ERR_COMMAND);
         buf = meta_data.ResidualData;
         len = meta_data.ResidualLength;
     } while (buf && len);
@@ -632,13 +655,33 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         }
         break;
     case CE_SET_TOF_PWR:
-        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+//        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        value = strtol(data, &data, 10);
+        if (value == 0 && *(data-1) != '0') {
+            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        } else if (value == 0) {
+            HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+            interruptTofEnable = 0;
+            usbDebug("tofResetCount: %d \r\n", tofResetCount);
+            reply += sprintf(reply, "OK");
+        } else if (value == 2) {
+            tof_resetFlag = 1;
+            reply += sprintf(reply, "OK");
+        }
+        else {
+            reply += sprintf(reply, "OK");
+        }
         break;
     case CE_SET_TOF_MODE:
-        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+//        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        reply += sprintf(reply, "OK");
         break;
     case CE_SET_TOF_CONF:
-        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        //reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        reply += sprintf(reply, "OK");
+        HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
+        HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+        interruptTofEnable = 1;
         break;
     case CE_SET_TOF_KEY:
         reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
@@ -858,7 +901,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         break;
     case CE_GET_FW_VER:
         if (!args_len)
-            reply += sprintf(reply, "%d.%d.%d %s", V_MAJOR, V_MINOR, V_PATCH, MODEL_SUFFIX);
+//            reply += sprintf(reply, "%d.%d.%d %s", V_MAJOR, V_MINOR, V_PATCH, MODEL_SUFFIX);
+            reply += sprintf(reply, "%d.%d.%d %s", 1, 1, 0, MODEL_SUFFIX);
         else
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         break;
@@ -1055,8 +1099,14 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
     reply += sprintf(reply, "%s", (CDC_Echo_Ctrl_Flag)? "\r\n\r\n" : "\r\n");
     // send out the reply
 
-    usbcmd_sendData( CeCmdRespTxBuffer, strlen( (char *)CeCmdRespTxBuffer));
-
+    //Tof output
+    if (cmd < 0x100U || cmd >= 0x200U)
+        usbEcho_Tof((char *)CeCmdRespTxBuffer);
+    //Devctlr output
+    else
+        usbDebug((char *)CeCmdRespTxBuffer);
+//    usbcmd_sendData( CeCmdRespTxBuffer, strlen( (char *)CeCmdRespTxBuffer));
+//    usbDebug((char *)CeCmdRespTxBuffer);
     // send sync key if needed
     if (cmd >= CE_HID_MIN && cmd <= CE_HID_MAX) {
         HID_Keyboard_Report.keys = 0;
@@ -1139,6 +1189,78 @@ uint8_t LcdVorbit(int value) {
 }
 
 #if ENABLE_TOF
+#if ENABLE_FAKE_DATA
+void tof_fake_data(uint32_t timeStamp)
+{
+    uint8_t *ptr = TofRangePacket,zone_idx;
+    uint32_t checksum = 0;
+    uint16_t target_idx;
+    uint8_t data_count = MAX_TOF_DATA_COUNT;
+
+    // add the "DATA" prefix
+    *((uint32_t *)ptr) = TOF_DATA_PREFIX;
+    ptr+=4;
+    // add the number of zone
+    *(ptr++) = data_count;
+    // add the silicon temperature (degree Celsius)
+    *(ptr++) = (int8_t)20;
+    // add the timestamp
+    *((uint32_t *)ptr) = timeStamp;
+    ptr+=4;
+    // add per zone/target data
+    for (target_idx=0, zone_idx=0;
+            target_idx < data_count*N_TARGETS_PER_ZONE;
+            target_idx+=N_TARGETS_PER_ZONE, zone_idx++) {
+        uint8_t offset = 0;
+        // add the number of targets
+        if (target_idx % 4 == 0)
+            *ptr = (uint8_t)1;
+        else
+            *ptr = (uint8_t)0;
+//        tofNumOfTargets[zone_idx] = *ptr;
+        // pick the strongest signal for output if there're multiple targets
+
+        checksum += *(ptr++);
+        // add the peak signal rate (kcps/SPAD)
+        if (target_idx % 4 == 0)
+            *((int32_t*)ptr) = (uint32_t)300;
+        else
+            *((int32_t*)ptr) = (uint32_t)20;
+//        tofPeakRate[zone_idx] = *((int32_t*)ptr);
+        checksum += *((uint32_t*)ptr);
+        ptr+=4;
+        // add the median range (mm)
+        if (target_idx % 4 == 0)
+            *((int16_t*)ptr) = (int16_t)500;
+        else
+            *((int16_t*)ptr) = (int16_t)4000;
+//        tofMedianRange[zone_idx] =
+//                ((tofPeakRate[zone_idx]<MIN_SIGNAL_RATE) || tofNumOfTargets[zone_idx] == 0)?
+//                        -1 : *((int16_t*)ptr);
+        checksum += *((uint16_t*)ptr);
+        ptr+=2;
+        // add the reflectance (%)
+        if (target_idx % 4 == 0)
+            *ptr = (uint8_t)50;
+        else
+            *ptr = (uint8_t)10;
+//        *ptr = range_data->reflectance[target_idx+offset];
+        checksum += *(ptr++);
+        // add the target status
+        *ptr = (uint8_t)5;
+        checksum += *(ptr++);
+    }
+    // add checksum
+    *((uint32_t *)ptr) = checksum;
+    // add the "ED\r\n" suffix
+    *((uint32_t *)(ptr+4)) = TOF_DATA_SUFFIX;
+    // set the updated flag
+    bRangePacketUpdated = true;
+    usbcdc_sendData( TofRangePacket, TOF_8X8_DATA_PACKET_SIZE);
+
+    return;
+}
+#else
 void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp) {
 
     uint8_t *ptr = TofRangePacket,zone_idx;
@@ -1209,8 +1331,9 @@ void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp) 
     *((uint32_t *)(ptr+4)) = TOF_DATA_SUFFIX;
     // set the updated flag
     bRangePacketUpdated = true;
-//    usbcdc_sendData( TofRangePacket, TOF_8X8_DATA_PACKET_SIZE);
+    usbcdc_sendData( TofRangePacket, TOF_8X8_DATA_PACKET_SIZE);
 
     return;
 }
+#endif
 #endif

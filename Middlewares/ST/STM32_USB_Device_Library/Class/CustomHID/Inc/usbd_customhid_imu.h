@@ -26,9 +26,8 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "usbd_ioreq.h"
-#include "usbd_customhid.h"
-#include "sensor_hid_report_id.h"
+#include  "usbd_ioreq.h"
+#include  "usbd_customhid.h"
 
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
   * @{
@@ -63,16 +62,18 @@ extern "C" {
 #endif /* CUSTOM_HID_IMU_HS_BINTERVAL */
 
 #ifndef CUSTOM_HID_IMU_FS_BINTERVAL
-#define CUSTOM_HID_IMU_FS_BINTERVAL                      0x01U  //0x05U
+//#define CUSTOM_HID_IMU_FS_BINTERVAL                      0x05U
+#define CUSTOM_HID_IMU_FS_BINTERVAL                      0x01U
 #endif /* CUSTOM_HID_IMU_FS_BINTERVAL */
 
-#ifndef USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE
-#define USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE            64U
-#endif /* USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE */
+  #ifndef USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE
+  #define USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE            64U
+  #endif /* USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE */
 
-#ifndef USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE
-#define USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE             2061U
-#endif /* USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE */
+  #ifndef USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE
+  //#define USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE             335U
+  #define USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE             2061U //2061U //2408U
+  #endif /* USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE */
 
 #define CUSTOM_HID_IMU_DESCRIPTOR_TYPE                   0x21U
 #define CUSTOM_HID_IMU_REPORT_DESC                       0x22U
@@ -88,6 +89,25 @@ extern "C" {
 /**
   * @}
   */
+/* ckhsu, from Raito's capture of Seiko Epson response */
+#define SEIKO_FEATURE_REPORT_ID_01      0x01
+#define SEIKO_FEATURE_REPORT_ID_03      0x03
+#define SEIKO_FEATURE_REPORT_ID_09      0x09
+#define SEIKO_FEATURE_REPORT_ID_05      0x05
+#define SEIKO_FEATURE_REPORT_ID_0B      0x0B
+#define SEIKO_FEATURE_REPORT_ID_0F      0x0F
+#define SEIKO_FEATURE_REPORT_ID_07      0x07
+#define SEIKO_FEATURE_REPORT_ID_0D      0x0D
+#define SEIKO_FEATURE_REPORT_ID_13      0x13
+#define SEIKO_FEATURE_REPORT_ID_17      0x17
+#define SEIKO_FEATURE_REPORT_ID_11      0x11
+#define SEIKO_FEATURE_REPORT_ID_15      0x15
+
+#define SEIKO_INPUT_REPORT_ID_14        0x14
+#define SEIKO_INPUT_REPORT_ID_18        0x18
+#define SEIKO_INPUT_REPORT_ID_12        0x12
+#define SEIKO_INPUT_REPORT_ID_16        0x16
+
 
 /** @defgroup USBD_CORE_Exported_TypesDefinitions
   * @{

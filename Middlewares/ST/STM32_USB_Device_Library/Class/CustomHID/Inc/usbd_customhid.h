@@ -42,10 +42,13 @@ extern "C" {
   * @{
   */
 #define CUSTOM_HID_EPIN_ADDR                         0x81U
+
 #ifndef CUSTOM_HID_EPIN_SIZE
 #define CUSTOM_HID_EPIN_SIZE                         0x02U
 #endif
+
 #define CUSTOM_HID_EPOUT_ADDR                        0x01U
+
 #ifndef CUSTOM_HID_EPOUT_SIZE
 #define CUSTOM_HID_EPOUT_SIZE                        0x02U
 #endif
@@ -127,6 +130,7 @@ typedef struct
 #define HID_REPORT_TYPE_INPUT       1      ///< Input
 #define HID_REPORT_TYPE_OUTPUT      2      ///< Output
 #define HID_REPORT_TYPE_FEATURE     3      ///< Feature
+
 /**
   * @}
   */

@@ -144,6 +144,18 @@ void ALS_SendReport_FS(void)
     usbSendMessage( &imuReport);
 }
 
+void ALS_SendFAKE_FS(void)
+{
+    imuReport.type               = USB_HID_IMU_INPUT_REPORT;
+    imuReport.data.imuReport.len = ALS_REPORT_LENGTH;
+
+//    memcpy( seiko_als_STREAM_1+3, 100, sizeof(int32_t));
+    seiko_als_STREAM_1[3] = 0x64;
+    memcpy( imuReport.data.imuReport.report, seiko_als_STREAM_1,
+            imuReport.data.imuReport.len);
+    usbSendMessage( &imuReport);
+}
+
 static HAL_StatusTypeDef AL3010_WriteRegister(uint16_t reg, uint8_t *data)
 {
     uint8_t ret;

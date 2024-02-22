@@ -19,7 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "i2s.h"
-
+#include "debug_defs.h"
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
@@ -42,8 +42,12 @@ void MX_I2S3_Init(void)
   hi2s3.Init.Mode = I2S_MODE_MASTER_RX;
   hi2s3.Init.Standard = I2S_STANDARD_PHILIPS;
   hi2s3.Init.DataFormat = I2S_DATAFORMAT_16B_EXTENDED;
-  hi2s3.Init.MCLKOutput = I2S_MCLKOUTPUT_DISABLE;
+  hi2s3.Init.MCLKOutput = I2S_MCLKOUTPUT_DISABLE;   //I2S_MCLKOUTPUT_DISABLE
+#if MIC_DOWNSAMPLING
+  hi2s3.Init.AudioFreq = 16044U;     //I2S_AUDIOFREQ_16K Increase this if UAC lost packages.
+#else
   hi2s3.Init.AudioFreq = I2S_AUDIOFREQ_16K;
+#endif
   hi2s3.Init.CPOL = I2S_CPOL_LOW;
   hi2s3.Init.ClockSource = I2S_CLOCK_PLL;
   if (HAL_I2S_Init(&hi2s3) != HAL_OK)
@@ -75,17 +79,24 @@ void HAL_I2S_MspInit(I2S_HandleTypeDef* i2sHandle)
     PA15     ------> I2S3_WS
     PB5     ------> I2S3_SD
     */
-    GPIO_InitStruct.Pin = MIC_CK_Pin|MIC_SD_Pin;
+    GPIO_InitStruct.Pin = MIC_CK_Pin; //MIC_CK_Pin|MIC_SD_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; //GPIO_SPEED_FREQ_LOW
+    GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = MIC_SD_Pin; //MIC_CK_Pin|MIC_SD_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; //GPIO_SPEED_FREQ_LOW
     GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     GPIO_InitStruct.Pin = MIC_WS_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; //GPIO_SPEED_FREQ_LOW
     GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
     HAL_GPIO_Init(MIC_WS_GPIO_Port, &GPIO_InitStruct);
 
@@ -101,6 +112,8 @@ void HAL_I2S_MspInit(I2S_HandleTypeDef* i2sHandle)
     hdma_spi3_rx.Init.Mode = DMA_CIRCULAR;
     hdma_spi3_rx.Init.Priority = DMA_PRIORITY_LOW;
     hdma_spi3_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+//    hdma_spi3_rx.Init.Priority = DMA_PRIORITY_HIGH; //new test
+
     if (HAL_DMA_Init(&hdma_spi3_rx) != HAL_OK)
     {
       Error_Handler();

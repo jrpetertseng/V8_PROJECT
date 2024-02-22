@@ -21,7 +21,7 @@
 #include "i2c.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "debug_defs.h"
 /* USER CODE END 0 */
 
 I2C_HandleTypeDef hi2c1;
@@ -39,7 +39,11 @@ void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
+#if ENABLE_TOF_15HZ
+  hi2c1.Init.Timing = 0x00200922; //0x6000030D //0x00200922 (1M)
+#else
   hi2c1.Init.Timing = 0x6000030D;
+#endif
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -139,7 +143,7 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef* i2cHandle)
     __HAL_RCC_I2C1_CLK_ENABLE();
 
     /* I2C1 interrupt Init */
-    HAL_NVIC_SetPriority(I2C1_EV_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(I2C1_EV_IRQn, 5, 0); //5 ,modify into 4(highest) to test if still crash.
     HAL_NVIC_EnableIRQ(I2C1_EV_IRQn);
   /* USER CODE BEGIN I2C1_MspInit 1 */
 
@@ -197,6 +201,30 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
 
     HAL_GPIO_DeInit(PS_ALS_SCL_GPIO_Port, PS_ALS_SCL_Pin);
 
+//    GPIO_InitTypeDef GPIO_InitStruct = {0};
+//    GPIO_InitStruct.Pin = PS_ALS_SDA_Pin | PS_ALS_SCL_Pin;
+//    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;  // 開漏輸出
+//    GPIO_InitStruct.Pull = GPIO_NOPULL;
+//    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+//    HAL_GPIO_Init(PS_ALS_SCL_GPIO_Port, &GPIO_InitStruct);
+//
+//    for (int i = 0; i < 10; i++) {
+////        HAL_GPIO_WritePin(PS_ALS_SCL_GPIO_Port, PS_ALS_SDA_Pin, GPIO_PIN_SET);
+//        HAL_GPIO_WritePin(PS_ALS_SCL_GPIO_Port, PS_ALS_SCL_Pin, GPIO_PIN_SET);
+//        osDelay(1);
+////        HAL_GPIO_WritePin(PS_ALS_SCL_GPIO_Port, PS_ALS_SDA_Pin, GPIO_PIN_RESET);
+//        HAL_GPIO_WritePin(PS_ALS_SCL_GPIO_Port, PS_ALS_SCL_Pin, GPIO_PIN_RESET);
+//        osDelay(1);
+//    }
+//
+//    // 將管腳恢復為I2C功能
+//    GPIO_InitStruct.Pin = PS_ALS_SDA_Pin | PS_ALS_SCL_Pin;
+//    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+//    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;  // 根據實際使用的I2C號碼調整
+//    HAL_GPIO_Init(PS_ALS_SCL_GPIO_Port, &GPIO_InitStruct);
+//
+//    HAL_GPIO_DeInit(PS_ALS_SDA_GPIO_Port, PS_ALS_SDA_Pin);
+//    HAL_GPIO_DeInit(PS_ALS_SCL_GPIO_Port, PS_ALS_SCL_Pin);
     /* I2C1 interrupt Deinit */
     HAL_NVIC_DisableIRQ(I2C1_EV_IRQn);
   /* USER CODE BEGIN I2C1_MspDeInit 1 */
@@ -226,5 +254,34 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
 }
 
 /* USER CODE BEGIN 1 */
+void I2C1_SoftwareReset(void) {
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
 
+    // 將I2C管腳配置為GPIO
+    HAL_GPIO_DeInit(PS_ALS_SDA_GPIO_Port, PS_ALS_SDA_Pin | PS_ALS_SCL_Pin);  // 假設I2C使用的是GPIOB的PIN6(SCL)和PIN7(SDA)
+
+    GPIO_InitStruct.Pin = PS_ALS_SDA_Pin | PS_ALS_SCL_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;  // 開漏輸出
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(PS_ALS_SDA_GPIO_Port, &GPIO_InitStruct);
+
+    // 生成I2C時鐘脈衝
+    for (int i = 0; i < 10; i++) {
+        HAL_GPIO_WritePin(PS_ALS_SDA_GPIO_Port, PS_ALS_SCL_Pin, GPIO_PIN_SET);
+        HAL_Delay(1);
+        HAL_GPIO_WritePin(PS_ALS_SDA_GPIO_Port, PS_ALS_SCL_Pin, GPIO_PIN_RESET);
+        HAL_Delay(1);
+    }
+
+    // 將管腳恢復為I2C功能
+    GPIO_InitStruct.Pin = PS_ALS_SDA_Pin | PS_ALS_SCL_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;  // 根據實際使用的I2C號碼調整
+    HAL_GPIO_Init(PS_ALS_SDA_GPIO_Port, &GPIO_InitStruct);
+
+    // 重新初始化I2C
+    HAL_I2C_DeInit(&hi2c1);  // 假設使用的是hi2c1
+    HAL_I2C_Init(&hi2c1);
+}
 /* USER CODE END 1 */

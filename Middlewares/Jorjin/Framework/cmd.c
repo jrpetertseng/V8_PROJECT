@@ -71,8 +71,8 @@ struct Command {
         },
 };
 
-static int supportCommandSize =
-        sizeof(supportCommands)/sizeof(struct Command);
+//static int supportCommandSize =
+//        sizeof(supportCommands)/sizeof(struct Command);
 
 typedef struct _CommandBuf
 {
@@ -123,8 +123,12 @@ int copyToBuffer_devCtlr(char *buf, int len)
         >= USB_COMMAND_BUF_MAX_SIZE) return -1;
 
     memcpy(cmdBuf_devCtlr.buf+cmdBuf_devCtlr.len, buf, len);
-    cmdBuf_devCtlr.len += len;
-
+//    cmdBuf_devCtlr.len += len;
+//
+//    cmdBuf_devCtlr.buf[cmdBuf_devCtlr.len] = '\0';
+    cmdBuf_devCtlr.len += (len+2);
+    cmdBuf_devCtlr.buf[cmdBuf_devCtlr.len-2] = '\r';
+    cmdBuf_devCtlr.buf[cmdBuf_devCtlr.len-1] = '\n';
     cmdBuf_devCtlr.buf[cmdBuf_devCtlr.len] = '\0';
 
     return 0;
@@ -136,8 +140,10 @@ int copyToBuffer_ToF(char *buf, int len)
         >= USB_COMMAND_BUF_MAX_SIZE) return -1;
 
     memcpy(cmdBuf_ToF.buf+cmdBuf_ToF.len, buf, len);
-    cmdBuf_ToF.len += len;
-
+//    cmdBuf_ToF.len += len;
+    cmdBuf_ToF.len += (len+2);
+    cmdBuf_ToF.buf[cmdBuf_ToF.len-2] = '\r';
+    cmdBuf_ToF.buf[cmdBuf_ToF.len-1] = '\n';
     cmdBuf_ToF.buf[cmdBuf_ToF.len] = '\0';
 
     return 0;
@@ -226,7 +232,6 @@ static int findLineEnd(char *buf, int pos, int len)
            (buf[pos] != '\n')) {
         pos++;
     }
-
     if (pos < len) return pos;
     else return -1;
 }
@@ -242,84 +247,84 @@ static int skipLineEnd(char *buf, int pos, int len)
     return pos;
 }
 
-static int parseArgs(char *buf, int len)
-{
-    int argv = 0;
-    int start = 0;
-    int pos = 0;
+//static int parseArgs(char *buf, int len)
+//{
+//    int argv = 0;
+//    int start = 0;
+//    int pos = 0;
+//
+//    if (!len) return 0;
+//    if (buf[0] != ' ') return -1;
+//
+//    while ((pos < len) &&
+//           (buf[pos] == ' ')) {
+//        pos++;
+//    }
+//    start = pos;
+//
+//    while (pos < len) {
+//        if ((buf[pos] == ' ')  ||
+//            (buf[pos] == '\r') ||
+//            (buf[pos] == '\n')) {
+//            argc[argv].ptr = &buf[start];
+//            argc[argv].len = pos - start;
+//            argv++;
+//
+//            while ((pos < len) &&
+//                   (buf[pos] == ' ')) {
+//                pos++;
+//            }
+//            start = pos;
+//        }
+//        else pos++;
+//    }
+//
+//    if (start != pos) {
+//        argc[argv].ptr = &buf[start];
+//        argc[argv].len = pos - start;
+//        argv++;
+//    }
+//
+//    return argv;
+//}
 
-    if (!len) return 0;
-    if (buf[0] != ' ') return -1;
-
-    while ((pos < len) &&
-           (buf[pos] == ' ')) {
-        pos++;
-    }
-    start = pos;
-
-    while (pos < len) {
-        if ((buf[pos] == ' ')  ||
-            (buf[pos] == '\r') ||
-            (buf[pos] == '\n')) {
-            argc[argv].ptr = &buf[start];
-            argc[argv].len = pos - start;
-            argv++;
-
-            while ((pos < len) &&
-                   (buf[pos] == ' ')) {
-                pos++;
-            }
-            start = pos;
-        }
-        else pos++;
-    }
-
-    if (start != pos) {
-        argc[argv].ptr = &buf[start];
-        argc[argv].len = pos - start;
-        argv++;
-    }
-
-    return argv;
-}
-
-static void executeCommands(char *cmd, int len)
-{
-    int i;
-    if (!len) return;
-
-    //usbDebug("Execute: ");
-    //usbDebugChars(cmd, len);
-    //usbDebug("\r\n");
-
-    for (i=0;i<supportCommandSize;i++) {
-        struct Command *support = &supportCommands[i];
-
-        if (len <
-            (support->categorySize +
-             support->nameSize)) {
-            continue;
-        }
-
-        if (!strncmp(cmd, support->category, support->categorySize)) {
-            if (!strncmp(cmd+support->categorySize, support->name, support->nameSize)) {
-                int argv = -1;
-                if (support->argSize) {
-                    argv = parseArgs(cmd+support->categorySize+support->nameSize,
-                              len-support->categorySize-support->nameSize);
-                    if (argv != support->argSize) {
-                        continue;
-                    }
-                }
-                support->func(argc, argv);
-                break;
-            }
-        }
-    }
-
-    // output an error message if no command has been executed
-    if (i == supportCommandSize) usbDebug("NG 0\r\n\r\n");
-}
+//static void executeCommands(char *cmd, int len)
+//{
+//    int i;
+//    if (!len) return;
+//
+//    //usbDebug("Execute: ");
+//    //usbDebugChars(cmd, len);
+//    //usbDebug("\r\n");
+//
+//    for (i=0;i<supportCommandSize;i++) {
+//        struct Command *support = &supportCommands[i];
+//
+//        if (len <
+//            (support->categorySize +
+//             support->nameSize)) {
+//            continue;
+//        }
+//
+//        if (!strncmp(cmd, support->category, support->categorySize)) {
+//            if (!strncmp(cmd+support->categorySize, support->name, support->nameSize)) {
+//                int argv = -1;
+//                if (support->argSize) {
+//                    argv = parseArgs(cmd+support->categorySize+support->nameSize,
+//                              len-support->categorySize-support->nameSize);
+//                    if (argv != support->argSize) {
+//                        continue;
+//                    }
+//                }
+//                support->func(argc, argv);
+//                break;
+//            }
+//        }
+//    }
+//
+//    // output an error message if no command has been executed
+//    if (i == supportCommandSize) usbDebug("NG 0\r\n\r\n");
+//}
 
 void processCommands_devCtlr( void)
 {
@@ -328,11 +333,12 @@ void processCommands_devCtlr( void)
     int lineEnd = 0;
 
     if (!isUpdatedBuffer_devCtlr()) return;
-
     while (1) {
         lineEnd = findLineEnd(cmdBuf_devCtlr.buf, pos, cmdBuf_devCtlr.len);
         if (lineEnd < 0) break;
-        executeCommands(cmdBuf_devCtlr.buf+pos-cmdBuf_devCtlr.pos, lineEnd - (pos-cmdBuf_devCtlr.pos));
+//        executeCommands(cmdBuf_devCtlr.buf+pos-cmdBuf_devCtlr.pos, lineEnd - (pos-cmdBuf_devCtlr.pos));
+        CE_Parse_Devctlr_Cmd_Data( (uint8_t *)(cmdBuf_devCtlr.buf+pos-cmdBuf_devCtlr.pos),
+                                       (lineEnd - (pos-cmdBuf_devCtlr.pos)));
         pos = skipLineEnd(cmdBuf_devCtlr.buf, lineEnd+1, cmdBuf_devCtlr.len);
         used = pos;
     }

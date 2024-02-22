@@ -120,6 +120,7 @@ typedef struct JUsb
 int  usbInit( void);
 void usbDataInit( void);
 void usbDebug(char *fmt, ...);
+void usbEcho_Tof(char *fmt, ...);
 void usbDebugChars(char *buf, int len);
 void usbSendMessage(JQueueMessage_t *msg);
 void usbSendMessageISR(JISRQueueMessage_t *msg);

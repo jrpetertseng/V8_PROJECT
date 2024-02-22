@@ -26,9 +26,8 @@ extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "usbd_ioreq.h"
-#include "usbd_customhid.h"
-#include "sensor_hid_report_id.h"
+#include  "usbd_ioreq.h"
+#include  "usbd_customhid.h"
 
 /** @addtogroup STM32_USB_DEVICE_LIBRARY
   * @{

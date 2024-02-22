@@ -12,39 +12,50 @@
 
 typedef enum {
     CE_INVALID_CMD      = 0x0U,
-    /* Set Command Set */
-    CE_SET_ECHO         = 0x1U,
-    CE_SET_TOF_PWR      = 0x2U,
-    CE_SET_TOF_MODE     = 0x3U,
-    CE_SET_TOF_CONF     = 0x4U,
-    CE_SET_TOF_CALDATA  = 0x5U,
-    CE_SET_TOF_KEY      = 0x6U,
-    CE_SET_LCD_INVL     = 0x7U,
-    CE_SET_LCD_INVR     = 0x8U,
-    CE_SET_LCD_LUXL     = 0x9U,
-    CE_SET_LCD_LUXR     = 0x10U,
-    CE_SET_LCD_HORL     = 0x11U,
-    CE_SET_LCD_HORR     = 0x12U,
-    CE_SET_LCD_VORL     = 0x13U,
-    CE_SET_LCD_VORR     = 0x14U,
-    CE_SET_LCD_CLEAR    = 0x15U,
-    CE_SET_LCD_DEFAULT  = 0x16U,
-    CE_SET_LCD_DEVICEL  = 0x17U,
-    CE_SET_LCD_DEVICER  = 0x18U,
-    CE_SET_LCD_MODE     = 0x19U,
-	CE_SET_ADC_DEBUG    = 0x1AU,
-	CE_SET_AUTO_BRIGHTNESS = 0x1BU,
-    /* Get Command Set */
-    CE_GET_ECHO         = 0x101U,
-    CE_GET_TOF_PWR      = 0x102U,
-    CE_GET_TOF_MODE     = 0x103U,
-    CE_GET_TOF_KEYCODE  = 0x104U,
-    CE_GET_TOF_CONF     = 0x105U,
-    CE_GET_TOF_CALDATA  = 0x106U,
-    CE_GET_FW_VER       = 0x107U,
-    CE_GET_MCU_SN       = 0x108U,
-    CE_GET_LCD_VALUE    = 0x109U,
-    CE_GET_BRG_FW       = 0x10AU,
+    /* ToF Commands */
+    //Set
+    CE_SET_ECHO             = 0x1U,
+    CE_SET_TOF_PWR          = 0x2U,
+    CE_SET_TOF_MODE         = 0x3U,
+    CE_SET_TOF_CONF         = 0x4U,
+    CE_SET_TOF_CALDATA      = 0x5U,
+    CE_SET_TOF_KEY          = 0x6U,
+    //Get
+    CE_GET_TOF_PWR          = 0x7U,
+    CE_GET_TOF_MODE         = 0x8U,
+    CE_GET_TOF_KEYCODE      = 0x9U,
+    CE_GET_TOF_CONF         = 0x10U,
+    CE_GET_TOF_CALDATA      = 0x11U,
+
+    /* Devctlr Commands */
+    //Set
+    CE_SET_LCD_INVL         = 0x101U,
+    CE_SET_LCD_INVR         = 0x102U,
+    CE_SET_LCD_LUXL         = 0x103U,
+    CE_SET_LCD_LUXR         = 0x104U,
+    CE_SET_LCD_HORL         = 0x105U,
+    CE_SET_LCD_HORR         = 0x106U,
+    CE_SET_LCD_VORL         = 0x107U,
+    CE_SET_LCD_VORR         = 0x108U,
+    CE_SET_LCD_CLEAR        = 0x109U,
+    CE_SET_LCD_DEFAULT      = 0x10AU,
+    CE_SET_LCD_DEVICEL      = 0x10BU,
+    CE_SET_LCD_DEVICER      = 0x10CU,
+    CE_SET_LCD_MODE         = 0x10DU,
+    CE_SET_ADC_DEBUG        = 0x10EU,
+    CE_SET_AUTO_BRIGHTNESS  = 0x10FU,
+    //Get
+    CE_GET_ECHO             = 0x150U,
+    CE_GET_FW_VER           = 0x151U,
+    CE_GET_MCU_SN           = 0x152U,
+    CE_GET_LCD_VALUE        = 0x153U,
+    CE_GET_BRG_FW           = 0x154U,
+    // Enter ST Bootloader
+    CE_ENTER_BOOTLOADER     = 0x170U,
+    // Flash RW
+    CE_FLASH_WRITE          = 0x171U,   //CE_ENTER_WFLASH
+    CE_FLASH_READ           = 0x172U,   //CE_ENTER_RFLASH
+
     /* Trigger HID Keyboard Event */
     CE_HID_MIN          = 0x200U,
     CE_KEY_BASE         = 0x200U,
@@ -129,17 +140,14 @@ typedef enum {
     CE_GPAD_BTN15       = CE_GPAD_BASE+14U, // TR; BTN_THUMBR
     CE_KEY_NONE         = 0x2FFU,
     CE_HID_MAX          = 0x2FFU,
-    /* Enter ST Bootloader */
-    CE_ENTER_BOOTLOADER = 0x300U,
-    /* Flash RW */
-    CE_FLASH_WRITE     = 0x400U,   //CE_ENTER_WFLASH
-    CE_FLASH_READ     = 0x401U,   //CE_ENTER_RFLASH
+
 } CE_CmdTypeDef;
 
 
 void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len);
 void CE_Routine(void);
 void CE_Parse_ToF_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len);
+void CE_Parse_Devctlr_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len);
 void Ecx343_data_init_default(void);
 uint32_t Cal_Ecx343_data_checksum(ECX343_DATA data);
 int Check_Ecx343_data_checksum(ECX343_DATA data);
@@ -149,7 +157,12 @@ uint8_t LcdVorbit(int value);
 
 #if ENABLE_TOF
 extern bool bRangePacketUpdated;
+#if ENABLE_FAKE_DATA
+void tof_fake_data(uint32_t timeStamp);
+#else
 void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp);
+#endif
+extern uint8_t tof_resetFlag;
 #endif
 
 #endif /* __CMD_ENGINE_H */
