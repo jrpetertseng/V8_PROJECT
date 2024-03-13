@@ -79,6 +79,8 @@ typedef StaticTask_t osStaticThreadDef_t;
 #define SPK_TICK            9000
 #define PROXIMITY_THRESHOLD 10
 #define BRIGHTNESS_CHANGE_THRESHOLD  10
+#define OFF_DEBOUNCE_THRESHOLD pdMS_TO_TICKS(5000)
+#define ON_DEBOUNCE_THRESHOLD pdMS_TO_TICKS(1000)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -111,8 +113,8 @@ extern float smoothed_right;
 extern uint16_t current_brightness[2];
 
 extern uint32_t nTofGpioInts_1;
-
-enum PowerState current_state = POWER_OFF;
+uint8_t on_flag = 0;
+uint8_t p_flag = 0;
 uint8_t DebugSwitch = 0;
 uint8_t AutoBrightness = 0;
 //uint16_t p_threshold = 1;
@@ -902,7 +904,11 @@ void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s) //Get last 10ms data = 5ms
 
 void ALSensorTask(void * argument)
 {
-    static int previous_brightness = 0;
+    static int current_lux = 0;
+    static int target_brightness = 0;
+    static int lux_index  = -3;
+    static int previous_lux_index = -3;
+    static uint8_t adjustment_in_progress = 0;
 
     for(;;)
     {
@@ -912,20 +918,36 @@ void ALSensorTask(void * argument)
                 AL3010_ReadData();
                 i2c1TxUnblock();
                 ALS_SendReport_FS();
-                if (AutoBrightness) {
-                   int current_lux = light;
-                   int new_brightness = map_lux_to_internal_brightness(current_lux);
+                if(AutoBrightness) {
+                	if (light != current_lux)
+        			{
+                		current_lux = light;
+        			}
+                    target_brightness = mapLuxToPanelBrightness(current_lux, &lux_index);
 
-                   if ((abs(new_brightness - previous_brightness) >= BRIGHTNESS_CHANGE_THRESHOLD)) {
-                       while (current_brightness[PANEL_RIGHT] != new_brightness || current_brightness[PANEL_LEFT] != new_brightness)
-                       {
-                           smoothly_change_brightness(new_brightness, PANEL_RIGHT);
-                           smoothly_change_brightness(new_brightness, PANEL_LEFT);
-                       }
-                       previous_brightness = new_brightness;
-                       ecx343_current_data.uLCD_LUXL = current_brightness[PANEL_LEFT];
-                       ecx343_current_data.uLCD_LUXR = current_brightness[PANEL_RIGHT];
-                   }
+                    if (previous_lux_index != lux_index) {
+                    	usbDebug("Interval: %d\n", lux_index);
+                    	previous_lux_index = lux_index;
+                    }
+
+                    if (!adjustment_in_progress ||
+                        abs(currentBrightness[PANEL_LEFT] - target_brightness) >= BRIGHTNESS_CHANGE_THRESHOLD ||
+                        abs(currentBrightness[PANEL_RIGHT] - target_brightness) >= BRIGHTNESS_CHANGE_THRESHOLD) {
+                        adjustment_in_progress = 1;
+                    }
+
+                    if (adjustment_in_progress) {
+                    	smoothlyChangeBrightness(PANEL_LEFT, target_brightness);
+                    	smoothlyChangeBrightness(PANEL_RIGHT, target_brightness);
+
+                        if (currentBrightness[PANEL_LEFT] == target_brightness &&
+                            currentBrightness[PANEL_RIGHT] == target_brightness) {
+                            adjustment_in_progress = 0;
+                        }
+
+                        ecx343_current_data.uLCD_LUXL = currentBrightness[PANEL_LEFT];
+                        ecx343_current_data.uLCD_LUXR = currentBrightness[PANEL_RIGHT];
+                    }
                 }
                 osThreadFlagsClear(0x02);
             }
@@ -937,9 +959,8 @@ void ALSensorTask(void * argument)
 #if ENABLE_PS
 void PSensorTask(void * argument)
 {
-    uint8_t thresholdCount = 0;
     uint16_t p_threshold = 0;
-
+    static TickType_t lastTransitionTick = 0;
     for(;;)
     {
         uint32_t thread_flag = osThreadFlagsWait(0x01, osFlagsNoClear, osWaitForever); //osFlagsWaitAny
@@ -947,16 +968,19 @@ void PSensorTask(void * argument)
             if (xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE) {
                 p_threshold = RPR0521_ReadPS();
                 i2c1TxUnblock();
-                if ((p_threshold > PROXIMITY_THRESHOLD) != (current_state == POWER_ON)) {
-                    thresholdCount++;
-                    if (thresholdCount > 5) {
-                        current_state = (current_state == POWER_OFF) ? POWER_ON : POWER_OFF;
-                        power_control_functions[current_state]();
-                        thresholdCount = 0;
-                    }
-                } else {
-                    thresholdCount = 0;
-                }
+                p_flag = (p_threshold > PROXIMITY_THRESHOLD) ? true : false; 
+            	if (p_flag != on_flag) {
+            	    TickType_t currentTick = xTaskGetTickCount();
+            	    TickType_t debounceThreshold = on_flag ? OFF_DEBOUNCE_THRESHOLD : ON_DEBOUNCE_THRESHOLD;
+
+            	    if ((currentTick - lastTransitionTick) >= debounceThreshold) {
+            	        on_flag = !on_flag;
+            	        on_flag ? Panel_PowerOn(PANEL_BOTH) : Panel_PowerOff(PANEL_BOTH); // On 110 Tick : Off 138 Tick
+            	        lastTransitionTick = currentTick;
+            	    }
+            	} else {
+            	    lastTransitionTick = xTaskGetTickCount(); // Reset the timer if the condition is no longer met
+            	}
                 osThreadFlagsClear(0x01);
 //                usbDebug("p_threshold: %d@\r\n", p_threshold);
             }
@@ -1027,9 +1051,9 @@ void MainTask(void * argument)
 
 
 #if ENABLE_PANEL
-    ECX343EN_PowerOn();
+  	Panel_PowerOn(PANEL_BOTH);
     osDelay(10);
-    current_state = 1;
+    on_flag = 1;
     // CheckPanelState();
     // panel_reg_write(0, 0x80, 0x01, 0);
     // panel_reg_write(0, 0x80, 0x01, 1);
@@ -1082,7 +1106,7 @@ void MainTask(void * argument)
 #endif
 
 
-    	if (!current_state) continue;
+    	if (!on_flag) continue;
 
         if (command_flag)
         {
@@ -1157,16 +1181,16 @@ void ADCTask(void *argument)
 {
     for (;;)
     {
-        if (current_state)
+        if (on_flag)
         {
         	if(DebugSwitch)
         	{
-        		usbDebug("LeftOrigTemperature: %.2f\r\nRightOrigTemperature: %.2f\r\n", temperatureLeft, temperatureRight);
+        		usbDebug("LeftOrigTemperature: %.2f\r\nRightOrigTemperature: %.2f\r\n", g_temperatureLeftRaw, g_temperatureRightRaw);
         	}
         	updatePanelTemperature();
         	if(DebugSwitch)
         	{
-        		usbDebug("LeftTemperature: %.2f\r\nRightTemperature: %.2f\r\n", smoothed_left, smoothed_right);
+        		usbDebug("LeftTemperature: %.2f\r\nRightTemperature: %.2f\r\n", g_temperatureLeftSmoothed, g_temperatureRightSmoothed);
         	}
         }
         vTaskDelay(pdMS_TO_TICKS(1000));

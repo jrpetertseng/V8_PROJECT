@@ -15,22 +15,19 @@
 #define ECX343EN_R_SPI_ENABLE()                 HAL_GPIO_WritePin(PNL_R_NSS_GPIO_Port, PNL_R_NSS_Pin, GPIO_PIN_RESET);
 #define ECX343EN_R_SPI_DISABLE()                HAL_GPIO_WritePin(PNL_R_NSS_GPIO_Port, PNL_R_NSS_Pin, GPIO_PIN_SET);
 
-#define ECX343EN_120HZ_ENABLE()                 HAL_GPIO_WritePin(SW_BRG_2D3D_GPIO_Port, SW_BRG_2D3D_Pin, GPIO_PIN_SET);
-#define ECX343EN_120HZ_DISABLE()                HAL_GPIO_WritePin(SW_BRG_2D3D_GPIO_Port, SW_BRG_2D3D_Pin, GPIO_PIN_RESET);
-
 #define ECX343EN_1V8_ENABLE()                   HAL_GPIO_WritePin(PNL_1V8_EN_GPIO_Port, PNL_1V8_EN_Pin, GPIO_PIN_SET);
 #define ECX343EN_3V3_ENABLE()                   HAL_GPIO_WritePin(PNL_3V3_EN_GPIO_Port, PNL_3V3_EN_Pin, GPIO_PIN_SET);
 #define ECX343EN_6V6_N_ENABLE()                 HAL_GPIO_WritePin(PNL_6V6_N_EN_GPIO_Port, PNL_6V6_N_EN_Pin, GPIO_PIN_SET);
 #define ECX343EN_L_XCLR_ENABLE()                HAL_GPIO_WritePin(PNL_L_XCLR_GPIO_Port, PNL_L_XCLR_Pin, GPIO_PIN_SET);
 #define ECX343EN_R_XCLR_ENABLE()                HAL_GPIO_WritePin(PNL_R_XCLR_GPIO_Port, PNL_R_XCLR_Pin, GPIO_PIN_SET);
-#define ECX343EN_LVDS_ENABLE()  				(HAL_GPIO_ReadPin(LT7911_INT_GPIO_Port, LT7911_INT_Pin) == GPIO_PIN_SET)
+//#define ECX343EN_LVDS_ENABLE()                  (HAL_GPIO_ReadPin(LT7911_INT_GPIO_Port, LT7911_INT_Pin) == GPIO_PIN_SET)
 
 #define ECX343EN_1V8_DISABLE()                  HAL_GPIO_WritePin(PNL_1V8_EN_GPIO_Port, PNL_1V8_EN_Pin, GPIO_PIN_RESET);
 #define ECX343EN_3V3_DISABLE()                  HAL_GPIO_WritePin(PNL_3V3_EN_GPIO_Port, PNL_3V3_EN_Pin, GPIO_PIN_RESET);
 #define ECX343EN_6V6_N_DISABLE()                HAL_GPIO_WritePin(PNL_6V6_N_EN_GPIO_Port, PNL_6V6_N_EN_Pin, GPIO_PIN_RESET);
 #define ECX343EN_L_XCLR_DISABLE()               HAL_GPIO_WritePin(PNL_L_XCLR_GPIO_Port, PNL_L_XCLR_Pin, GPIO_PIN_RESET);
 #define ECX343EN_R_XCLR_DISABLE()               HAL_GPIO_WritePin(PNL_R_XCLR_GPIO_Port, PNL_R_XCLR_Pin, GPIO_PIN_RESET);
-#define ECX343EN_LVDS_DISABLE()                 (HAL_GPIO_ReadPin(LT7911_INT_GPIO_Port, LT7911_INT_Pin) == GPIO_PIN_RESET)
+//#define ECX343EN_LVDS_DISABLE()                 (HAL_GPIO_ReadPin(LT7911_INT_GPIO_Port, LT7911_INT_Pin) == GPIO_PIN_RESET)
 
 
 //power on sequence number
@@ -38,11 +35,11 @@
 #define POW_ON_SEQ_PNL_1V8                      1
 #define POW_ON_SEQ_PNL_3V3                      2
 #define POW_ON_SEQ_PNL_6V6_N                    3
-#define POW_ON_SEQ_P_XCLR                       4
-#define POW_ON_SEQ_PANEL_REG_SETTING            5
-#define POW_ON_SEQ_PANEL_LUMINANCE_SETTING      6
-#define POW_ON_SEQ_LVDS_EN                      7
-#define POW_ON_SEQ_PS_OFF_SETTING               8
+#define POW_ON_SEQ_P_XCLR                       1 // 4
+#define POW_ON_SEQ_PANEL_REG_SETTING            2 // 5
+#define POW_ON_SEQ_PANEL_LUMINANCE_SETTING      3 // 6
+#define POW_ON_SEQ_LVDS_EN                      4 // 7
+#define POW_ON_SEQ_PS_OFF_SETTING               5 // 8
 
 //power off sequence number
 #define POW_OFF_SEQ_NONE                        0
@@ -360,73 +357,91 @@ typedef enum {
     PANEL_REG_CONTINUE = 0x02,
 } PanelRegStatus;
 
-typedef enum
-{
-    setInversion    = 0x02,
-    setOrbitH       = 0x05,
-    setOrbitV       = 0x06,
-    setPreLum       = 0x07,
-    setLum          = 0x10,
-    setArLumH       = 0x12,
-    setArLumL       = 0x13,
-
-} setECXFunc ;
+typedef enum {
+    PANEL_LEFT,
+    PANEL_RIGHT,
+	PANEL_BOTH
+} PanelSide;
 
 typedef enum {
-    PANEL_RIGHT,
-    PANEL_LEFT,
-} PanelSelect;
+    MODE_2D_60HZ =  0,
+    MODE_2D_120HZ = 1,
+    MODE_3D_60HZ =  2,
+    MODE_3D_120HZ = 3,
+} PanelMode;
 
-enum PowerState {
-    POWER_OFF,
-    POWER_ON,
-};
-
-typedef void (*PowerControlFn)();
-
-extern PowerControlFn power_control_functions[];
+typedef enum {
+    PANEL_STATUS_OK = 0,
+    PANEL_STATUS_ERROR,
+} PanelStatus;
 
 #define PANEL_WRITE_LENGTH                   (uint16_t)2
 #define PANEL_REG_RW_TIMEOUT                 (uint32_t)1000
-
-#define PANEL_TEMP_VOLT1					 0x20
-#define PANEL_TEMP_VOLT2					 0x30
 
 #define SCAN_MODE                            0x02
 #define ORBIT_HORIZONTAL                     0x05
 #define ORBIT_VERTICAL                       0x06
 #define PRESET_LUMINANCE_VALUE               0x07
-#define PANEL_TEMPERATURE_DETECTION          0x09
+#define PANEL_TEMP_DETECTION          		 0x09
 #define LUMINANCE_MODE_SETTING               0x10
 #define ARBITRARY_LUMINANCE_VALUE_HIGH       0x12
 #define ARBITRARY_LUMINANCE_VALUE_LOW        0x13
+#define PANEL_TEMP_VOLT1					 0x20
+#define PANEL_TEMP_VOLT2					 0x30
 
-PanelRegStatus panel_reg_read(uint8_t map, uint8_t addr, uint8_t *value, uint8_t pnl_select);
-PanelRegStatus panel_reg_write(uint8_t map, uint8_t addr, uint8_t value, uint8_t pnl_select);
+#define MIN_BRIGHTNESS 			0x64
+#define MAX_BRIGHTNESS 			0x1F4
+
+#define VREF                 	1.8f
+#define ADC_RESOLUTION       	((1 << 12) - 1)
+#define MAX_BUFFER_SIZE      	20
+#define SOME_THRESHOLD       	5
+#define ALPHA                	0.1f
+#define MIN_TEMPERATURE      	-65.0f
+#define MAX_TEMPERATURE      	115.0f
+#define TEMPERATURE_THRESHOLD 	10.0f
+
+typedef struct {
+    float buffer[MAX_BUFFER_SIZE];
+    int head;
+    int size;
+    int temperatureCount;
+    float smoothedTemperature;
+    int invalidTemperatureCount;
+} CircularBuffer;
+
+// Global variables
+extern PanelMode currentPanelMode;
+extern uint16_t currentBrightness[2];
+extern float g_temperatureLeftRaw;
+extern float g_temperatureRightRaw;
+extern float g_temperatureLeftSmoothed;
+extern float g_temperatureRightSmoothed;
+
+// Initialization and power control
 void ECX343EN_Init(void);
-void ECX343EN_Run(void);
-void ECX343EN_PowerOn(void);
-void ECX343EN_PowerOff(void);
-void ECX343EN_PowerSaving(uint8_t type);
-void ECX343EN_Inversion(uint8_t value, uint8_t pnl_select);
-void ECX343EN_LuminanceModeSetting(uint8_t value, uint8_t pnl_select);
-void ECX343EN_ArbitraryLuminanceH(uint8_t value, uint8_t pnl_select);
-void ECX343EN_ArbitraryLuminanceL(uint8_t value, uint8_t pnl_select);
-void ECX343EN_PresetLuminanceValue(uint8_t value, uint8_t pnl_select);
-void ECX343EN_OrbitH(uint8_t H_value, uint8_t pnl_select);
-void ECX343EN_OrbitV(uint8_t V_value, uint8_t pnl_select);
-void ECX343EN_TempDetect(uint8_t value, uint8_t pnl_select);
-extern uint8_t flag_Freq, flag_2D3D;
-extern void write_panel_registers(ECX343_DATA *data);
-void ECX343EN_SetLuminance(uint16_t luminance, uint8_t pnl_select);
-int map_lux_to_internal_brightness(int lux);
-void smoothly_change_brightness(int target_brightness, uint8_t panel);
-void ECX343EN_CalculateTemperatures(float *temperatureResult);
-void updatePanelTemperature(void);
+void Panel_PowerOn(PanelSide side);
+void Panel_PowerOff(PanelSide side);
+void ECX343EN_WriteRegisters(ECX343_DATA *data);
+
+// Panel configuration and control
+void ECX343EN_Inversion(PanelSide side, uint8_t value);
+void ECX343EN_LuminanceModeSetting(PanelSide side, uint8_t value);
+void ECX343EN_Luminance(PanelSide side, uint16_t brightness);
+void ECX343EN_PresetLuminanceValue(PanelSide side, uint8_t value);
+void ECX343EN_OrbitH(PanelSide side, uint8_t h_value);
+void ECX343EN_OrbitV(PanelSide side, uint8_t v_value);
+void ECX343EN_TempDetect(PanelSide side, uint8_t value);
+void CheckPanelState(void);
 void adjustBrightness(void);
 void switchMode(void);
-void adjustInversion(uint8_t inversion);
-uint8_t CheckPanelState(void);
-void switchMode(void);
+
+// Temperature processing
+void updatePanelTemperature(void);
+
+// Brightness adjustment based on ambient light
+int mapLuxToPanelBrightness(int lux, int *currentIndex);
+void smoothlyChangeBrightness(PanelSide side, uint16_t targetBrightness);
+
 #endif /* INC_ECX343_H_ */
 

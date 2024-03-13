@@ -721,8 +721,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         } else {
             // Valid value processing
             value /= 10;
-            ECX343EN_ArbitraryLuminanceL((uint8_t)(value & 0xFF), PANEL_LEFT);
-            ECX343EN_ArbitraryLuminanceH((uint8_t)((value & 0x100) >> 8), PANEL_LEFT);
+            ECX343EN_Luminance(PANEL_LEFT, (uint16_t)value);
             ecx343_current_data.uLCD_LUXL = (uint16_t)value;
             reply += sprintf(reply, "OK");
         }
@@ -736,8 +735,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         } else {
             // Valid value processing
             value /= 10;
-            ECX343EN_ArbitraryLuminanceL((uint8_t)(value & 0xFF), PANEL_RIGHT);
-            ECX343EN_ArbitraryLuminanceH((uint8_t)((value & 0x100) >> 8), PANEL_RIGHT);
+            ECX343EN_Luminance(PANEL_RIGHT, (uint16_t)value);
             ecx343_current_data.uLCD_LUXR = (uint16_t)value;
             reply += sprintf(reply, "OK");
         }
@@ -818,12 +816,10 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
                 reply += sprintf(reply, "OK");
 
             ecx343_current_data = ecx343_data;
-
-            flag_Freq = ecx343_current_data.uLCD_MODE & 0x01;
-            flag_2D3D = (ecx343_current_data.uLCD_MODE & 0x02) >> 1;
+            currentPanelMode = ecx343_current_data.uLCD_MODE;
             Lcd_swMode(ecx343_current_data.uLCD_MODE);
 
-            write_panel_registers(&ecx343_current_data);
+            ECX343EN_WriteRegisters(&ecx343_current_data);
         }
         else
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
@@ -855,8 +851,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         if (endPtrMode == data || value < 0 || value > 3) {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         } else {
-            flag_Freq = value & 0x01;
-            flag_2D3D = ((value & 0x02) >> 1);
+        	currentPanelMode = value;
             command_flag = true;
             reply += sprintf(reply, "OK");
         }
@@ -1164,10 +1159,10 @@ int Check_Ecx343_data_checksum(ECX343_DATA data)
 }
 void Lcd_swMode(uint8_t lcdmode)
 {
-    ECX343EN_PowerOff();
+	Panel_PowerOff(PANEL_BOTH);
     LT7911_Mode_Switch(lcdmode);
-    ECX343EN_PowerOn();
-
+    osDelay(1000);
+    Panel_PowerOn(PANEL_BOTH);
 }
 uint8_t LcdHorbit(int value) {
     uint8_t tmp = 0;

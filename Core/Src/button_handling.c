@@ -87,8 +87,7 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
             // usbDebug("#power %d@\r\n", *displayType);
 
             mode_state = (ecx343_current_data.uLCD_MODE + 1) % 4;
-            flag_Freq = mode_state & 0x01;
-            flag_2D3D = (mode_state & 0x02) >> 1;
+            currentPanelMode = mode_state;
             switchMode();
             usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
 
