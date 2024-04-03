@@ -694,8 +694,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         } else {
             // Valid value processing
-            ECX343EN_Inversion((uint8_t)value, PANEL_LEFT);
             ecx343_current_data.uLCD_INVL = (uint8_t)value;
+            ECX343EN_Inversion(PANEL_LEFT ,(uint8_t)value);
             reply += sprintf(reply, "OK");
         }
         break;
@@ -707,8 +707,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         } else {
             // Valid value processing
-            ECX343EN_Inversion((uint8_t)value, PANEL_RIGHT);
             ecx343_current_data.uLCD_INVR = (uint8_t)value;
+            ECX343EN_Inversion(PANEL_RIGHT, (uint8_t)value);
             reply += sprintf(reply, "OK");
         }
         break;
@@ -721,8 +721,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         } else {
             // Valid value processing
             value /= 10;
-            ECX343EN_Luminance(PANEL_LEFT, (uint16_t)value);
             ecx343_current_data.uLCD_LUXL = (uint16_t)value;
+            adjustBrightness();
             reply += sprintf(reply, "OK");
         }
         break;
@@ -735,8 +735,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         } else {
             // Valid value processing
             value /= 10;
-            ECX343EN_Luminance(PANEL_RIGHT, (uint16_t)value);
             ecx343_current_data.uLCD_LUXR = (uint16_t)value;
+            adjustBrightness();
             reply += sprintf(reply, "OK");
         }
         break;
@@ -749,7 +749,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         } else {
             ecx343_current_data.uLCD_HORBL = (uint32_t)value;
             uint8_t tmp = LcdHorbit(value);
-            ECX343EN_OrbitH(tmp, PANEL_LEFT);
+            ECX343EN_OrbitH(PANEL_LEFT, tmp);
             reply += sprintf(reply, "OK");
         }
         break;
@@ -763,7 +763,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         } else {
             ecx343_current_data.uLCD_HORBR = (uint32_t)value;
             uint8_t tmp = LcdHorbit(value);
-            ECX343EN_OrbitH(tmp, PANEL_RIGHT);
+            ECX343EN_OrbitH(PANEL_RIGHT, tmp);
             reply += sprintf(reply, "OK");
         }
         break;
@@ -776,7 +776,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         } else {
             ecx343_current_data.uLCD_VORBL = (uint32_t)value;
             uint8_t tmp = LcdVorbit(value);
-            ECX343EN_OrbitV(tmp, PANEL_LEFT);
+            ECX343EN_OrbitV(PANEL_LEFT, tmp);
             reply += sprintf(reply, "OK");
         }
         break;
@@ -789,7 +789,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         } else {
             ecx343_current_data.uLCD_VORBR = (uint32_t)value;
             uint8_t tmp = LcdVorbit(value);
-            ECX343EN_OrbitV(tmp, PANEL_RIGHT);
+            ECX343EN_OrbitV(PANEL_RIGHT, tmp);
             reply += sprintf(reply, "OK");
         }
         break;
@@ -816,7 +816,9 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
                 reply += sprintf(reply, "OK");
 
             ecx343_current_data = ecx343_data;
+
             currentPanelMode = ecx343_current_data.uLCD_MODE;
+
             Lcd_swMode(ecx343_current_data.uLCD_MODE);
 
             ECX343EN_WriteRegisters(&ecx343_current_data);
@@ -1159,10 +1161,10 @@ int Check_Ecx343_data_checksum(ECX343_DATA data)
 }
 void Lcd_swMode(uint8_t lcdmode)
 {
-	Panel_PowerOff(PANEL_BOTH);
+	panelPowerOff(PANEL_BOTH);
     LT7911_Mode_Switch(lcdmode);
     osDelay(1000);
-    Panel_PowerOn(PANEL_BOTH);
+    panelPowerOn(PANEL_BOTH);
 }
 uint8_t LcdHorbit(int value) {
     uint8_t tmp = 0;

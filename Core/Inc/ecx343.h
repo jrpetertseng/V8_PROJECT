@@ -6,6 +6,8 @@
  */
 #include "main.h"
 #include "flash_rw_process.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 #ifndef INC_ECX343_H_
 #define INC_ECX343_H_
@@ -412,28 +414,27 @@ typedef struct {
 
 // Global variables
 extern PanelMode currentPanelMode;
-extern uint16_t currentBrightness[2];
 extern float g_temperatureLeftRaw;
 extern float g_temperatureRightRaw;
 extern float g_temperatureLeftSmoothed;
 extern float g_temperatureRightSmoothed;
+extern SemaphoreHandle_t xMutex;
 
 // Initialization and power control
 void ECX343EN_Init(void);
-void Panel_PowerOn(PanelSide side);
-void Panel_PowerOff(PanelSide side);
+void panelPowerOn(PanelSide side);
+void panelPowerOff(PanelSide side);
 void ECX343EN_WriteRegisters(ECX343_DATA *data);
 
 // Panel configuration and control
 void ECX343EN_Inversion(PanelSide side, uint8_t value);
 void ECX343EN_LuminanceModeSetting(PanelSide side, uint8_t value);
-void ECX343EN_Luminance(PanelSide side, uint16_t brightness);
 void ECX343EN_PresetLuminanceValue(PanelSide side, uint8_t value);
 void ECX343EN_OrbitH(PanelSide side, uint8_t h_value);
 void ECX343EN_OrbitV(PanelSide side, uint8_t v_value);
 void ECX343EN_TempDetect(PanelSide side, uint8_t value);
-void CheckPanelState(void);
 void adjustBrightness(void);
+void checkPanelState(void);
 void switchMode(void);
 
 // Temperature processing
@@ -441,7 +442,7 @@ void updatePanelTemperature(void);
 
 // Brightness adjustment based on ambient light
 int mapLuxToPanelBrightness(int lux, int *currentIndex);
-void smoothlyChangeBrightness(PanelSide side, uint16_t targetBrightness);
+void smoothlyChangeBrightness(uint16_t targetBrightness);
 
 #endif /* INC_ECX343_H_ */
 

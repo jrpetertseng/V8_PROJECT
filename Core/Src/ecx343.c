@@ -36,23 +36,23 @@ const setPanelSeqTable PanelContPSTransitionTable[];
 
 /* Global Variables */
 PanelMode currentPanelMode = MODE_2D_60HZ;
-uint16_t currentBrightness[2];
 float g_temperatureLeftRaw = 0.0f;
 float g_temperatureRightRaw = 0.0f;
 float g_temperatureLeftSmoothed = 0.0f;
 float g_temperatureRightSmoothed = 0.0f;
+SemaphoreHandle_t xMutex;
 
 /* Static Variables */
+static SPI_HandleTypeDef *current_spi_handle = NULL;
 static uint8_t currentPanelMap;
 static PanelSide currentPanelSide;
-static PanelStatus currentPanelStatus = PANEL_STATUS_OK;
 static uint8_t pow_on_seq = 1;
 static uint8_t pow_off_seq = 1;
 static uint8_t panel_cont_seq = 0;
 static CircularBuffer leftTemperatureBuffer, rightTemperatureBuffer;
 static bool isBufferInitialized = false;
-static uint16_t previousRightBrightness;
 static uint16_t previousLeftBrightness;
+static uint16_t previousRightBrightness;
 
 /* Static Functions */
 static bool is_within_range(int value, int min, int max);
@@ -74,22 +74,18 @@ static PanelRegStatus panel_reg_read(uint8_t map, uint8_t addr, uint8_t *value);
 static PanelRegStatus panel_reg_write(uint8_t map, uint8_t addr, uint8_t value);
 static PanelRegStatus panel_reg_read_value(uint8_t addr, uint8_t *value);
 static PanelRegStatus panel_reg_write_value(uint8_t addr, uint8_t value);
+static void writeRegisters(ECX343_DATA *data);
 static void initBuffer(CircularBuffer *cb);
 static void addToBuffer(CircularBuffer *cb, float value);
 static float getBufferElement(CircularBuffer *cb, int index);
 static float exponential_smoothing_sequence(CircularBuffer *cb);
 static float readVoltageAndCalculate(PanelSide site, uint8_t voltage, ADC_HandleTypeDef *hadc);
 static bool isTemperatureValueValid(float temperature, CircularBuffer *cb);
+static void ECX343EN_Luminance(PanelSide side, uint16_t brightness);
 static void ECX343EN_ArbitraryLuminanceH(PanelSide side, uint8_t value);
 static void ECX343EN_ArbitraryLuminanceL(PanelSide side, uint8_t value);
 
-/* Callback and Helper Functions */
-typedef void (*SPI_Control_Callback)(bool enable);
-static SPI_Control_Callback spi_control_callback = NULL;
-static SPI_HandleTypeDef *current_spi_handle = NULL;
-static void set_spi_control_callback(SPI_Control_Callback callback);
-static void left_panel_spi_control(bool enable);
-static void right_panel_spi_control(bool enable);
+/*Helper Functions */
 static void spi_enable(bool enable);
 
 void ECX343EN_Init(void)
@@ -111,73 +107,95 @@ void ECX343EN_Init(void)
 
     LT7911_Mode_Switch(ecx343_current_data.uLCD_MODE);
     currentPanelMode = ecx343_current_data.uLCD_MODE;
+    previousLeftBrightness = ecx343_current_data.uLCD_LUXL;
+    previousRightBrightness = ecx343_current_data.uLCD_LUXR;
+
+	xMutex = xSemaphoreCreateMutex();
+	if (xMutex == NULL)	{
+        while (1) {
+        }
+	}
 }
 
-void Panel_PowerOn(PanelSide side)
+void panelPowerOn(PanelSide side)
 {
-    ECX343EN_PowerOn();
-    switch(side)
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
     {
-        case PANEL_LEFT:
-            ECX343EN_StartPanelPowerSequence(PANEL_LEFT);
-            osDelay(10);
-            break;
-        case PANEL_RIGHT:
-            ECX343EN_StartPanelPowerSequence(PANEL_RIGHT);
-            osDelay(10);
-            break;
-        case PANEL_BOTH:
-            ECX343EN_StartPanelPowerSequence(PANEL_LEFT);
-            osDelay(10);
-            ECX343EN_StartPanelPowerSequence(PANEL_RIGHT);
-            osDelay(10);
-            break;
-        default:
-            break;
+        ECX343EN_PowerOn();
+        switch(side)
+        {
+            case PANEL_LEFT:
+                ECX343EN_StartPanelPowerSequence(PANEL_LEFT);
+                osDelay(10);
+                break;
+            case PANEL_RIGHT:
+                ECX343EN_StartPanelPowerSequence(PANEL_RIGHT);
+                osDelay(10);
+                break;
+            case PANEL_BOTH:
+                ECX343EN_StartPanelPowerSequence(PANEL_LEFT);
+                osDelay(10);
+                ECX343EN_StartPanelPowerSequence(PANEL_RIGHT);
+                osDelay(10);
+                break;
+            default:
+                break;
+        }
+        ECX343EN_PanelPSRelease();
+        xSemaphoreGive(xMutex);
     }
-    ECX343EN_PanelPSRelease();
 }
 
-void Panel_PowerOff(PanelSide side)
+void panelPowerOff(PanelSide side)
 {
-    switch(side)
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
     {
-        case PANEL_LEFT:
-            ECX343EN_StopPanelPowerSequence(PANEL_LEFT);
-            osDelay(10);
-            break;
-        case PANEL_RIGHT:
-            ECX343EN_StopPanelPowerSequence(PANEL_RIGHT);
-            osDelay(10);
-            break;
-        case PANEL_BOTH:
-            ECX343EN_StopPanelPowerSequence(PANEL_LEFT);
-            osDelay(10);
-            ECX343EN_StopPanelPowerSequence(PANEL_RIGHT);
-            osDelay(10);
-            break;
-        default:
-            break;
+        switch(side)
+        {
+            case PANEL_LEFT:
+                ECX343EN_StopPanelPowerSequence(PANEL_LEFT);
+                osDelay(10);
+                break;
+            case PANEL_RIGHT:
+                ECX343EN_StopPanelPowerSequence(PANEL_RIGHT);
+                osDelay(10);
+                break;
+            case PANEL_BOTH:
+                ECX343EN_StopPanelPowerSequence(PANEL_LEFT);
+                osDelay(10);
+                ECX343EN_StopPanelPowerSequence(PANEL_RIGHT);
+                osDelay(10);
+                break;
+            default:
+                break;
+        }
+        ECX343EN_PowerOff();
+        xSemaphoreGive(xMutex);
     }
-    ECX343EN_PowerOff();
 }
 
 void ECX343EN_WriteRegisters(ECX343_DATA *data) {
-	ECX343EN_ActivatePanel(PANEL_LEFT);
-    panel_reg_write(PANEL_MAP_0, SCAN_MODE, leftInversionMasks[data->uLCD_INVL]);
-    panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_LOW, data->uLCD_LUXL & 0x000000FF);
-    panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_HIGH, (data->uLCD_LUXL & 0x00000100) >> 8);
-    panel_reg_write(PANEL_MAP_0, ORBIT_HORIZONTAL, LcdHorbit(data->uLCD_HORBL));
-    panel_reg_write(PANEL_MAP_0, ORBIT_VERTICAL, LcdVorbit(data->uLCD_VORBL));
-    currentBrightness[PANEL_LEFT] = (data->uLCD_LUXL & 0x000001FF);
+	 ECX343EN_ActivatePanel(PANEL_LEFT);
+     while (panel_ps_transition() == PANEL_CONT_CONTINUE) {
+     }
+     panel_reg_write(PANEL_MAP_0, SCAN_MODE, leftInversionMasks[data->uLCD_INVL]);
+     while (panel_ps_release() == PANEL_CONT_CONTINUE) {
+     }
+     panel_reg_write(PANEL_MAP_0, ORBIT_HORIZONTAL, LcdHorbit(data->uLCD_HORBL));
+     panel_reg_write(PANEL_MAP_0, ORBIT_VERTICAL, LcdVorbit(data->uLCD_VORBL));
+     panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_LOW, data->uLCD_LUXL & 0x000000FF);
+     panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_HIGH, (data->uLCD_LUXL & 0x00000100) >> 8);
 
-    ECX343EN_ActivatePanel(PANEL_RIGHT);
-    panel_reg_write(PANEL_MAP_0, SCAN_MODE, rightInversionMasks[data->uLCD_INVR]);
-    panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_LOW, data->uLCD_LUXR & 0x000000FF);
-    panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_HIGH, (data->uLCD_LUXR & 0x00000100) >> 8);
-    panel_reg_write(PANEL_MAP_0, ORBIT_HORIZONTAL, LcdHorbit(data->uLCD_HORBR));
-    panel_reg_write(PANEL_MAP_0, ORBIT_VERTICAL, LcdVorbit(data->uLCD_VORBR));
-    currentBrightness[PANEL_RIGHT] = (data->uLCD_LUXR & 0x000001FF);
+     ECX343EN_ActivatePanel(PANEL_RIGHT);
+     while (panel_ps_transition() == PANEL_CONT_CONTINUE) {
+     }
+     panel_reg_write(PANEL_MAP_0, SCAN_MODE, rightInversionMasks[data->uLCD_INVR]);
+     while (panel_ps_release() == PANEL_CONT_CONTINUE) {
+     }
+     panel_reg_write(PANEL_MAP_0, ORBIT_HORIZONTAL, LcdHorbit(data->uLCD_HORBR));
+     panel_reg_write(PANEL_MAP_0, ORBIT_VERTICAL, LcdVorbit(data->uLCD_VORBR));
+     panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_LOW, data->uLCD_LUXR & 0x000000FF);
+     panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_HIGH, (data->uLCD_LUXR & 0x00000100) >> 8);
 }
 
 void ECX343EN_Inversion(PanelSide side, uint8_t value) {
@@ -194,18 +212,14 @@ void ECX343EN_Inversion(PanelSide side, uint8_t value) {
     */
     ECX343EN_ActivatePanel(side);
 
-    PowContStatus transition_status = panel_ps_transition();
-    if (transition_status == PANEL_CONT_ERR) {
-    	currentPanelStatus = PANEL_STATUS_ERROR;
+    while (panel_ps_transition() == PANEL_CONT_CONTINUE) {
     }
 
     panel_reg_write(PANEL_MAP_0, SCAN_MODE, side == PANEL_LEFT ? leftInversionMasks[value] : rightInversionMasks[value]);
-    osDelay(10);
 
-    PowContStatus release_status = panel_ps_release();
-    if (release_status == PANEL_CONT_ERR) {
-    	currentPanelStatus = PANEL_STATUS_ERROR;
+    while (panel_ps_release() == PANEL_CONT_CONTINUE) {
     }
+
 }
 
 void ECX343EN_LuminanceModeSetting(PanelSide side, uint8_t value) {
@@ -224,7 +238,31 @@ void ECX343EN_LuminanceModeSetting(PanelSide side, uint8_t value) {
     panel_reg_write(PANEL_MAP_0, LUMINANCE_MODE_SETTING, value);
 }
 
-void ECX343EN_Luminance(PanelSide side, uint16_t Brightness) {
+void adjustBrightness(void)
+{
+    if (previousLeftBrightness == ecx343_current_data.uLCD_LUXL &&
+        previousRightBrightness == ecx343_current_data.uLCD_LUXR)
+    {
+        return;
+    }
+
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (previousLeftBrightness != ecx343_current_data.uLCD_LUXL) {
+            ECX343EN_Luminance(PANEL_LEFT, ecx343_current_data.uLCD_LUXL);
+            previousLeftBrightness = ecx343_current_data.uLCD_LUXL;
+        }
+
+        if (previousRightBrightness != ecx343_current_data.uLCD_LUXR) {
+            ECX343EN_Luminance(PANEL_RIGHT, ecx343_current_data.uLCD_LUXR);
+            previousRightBrightness = ecx343_current_data.uLCD_LUXR;
+        }
+
+        xSemaphoreGive(xMutex);
+    }
+}
+
+static void ECX343EN_Luminance(PanelSide side, uint16_t Brightness) {
     Brightness &= 0x01FF;
     uint8_t highByte = Brightness >> 8;
     uint8_t lowByte = Brightness & 0xFF;
@@ -361,67 +399,49 @@ static void ECX343EN_PowerOff(void) {
 }
 
 static void ECX343EN_StartPanelPowerSequence (PanelSide side) {
-	ECX343EN_ActivatePanel(side);
-
+	 ECX343EN_ActivatePanel(side);
     while(pow_on_sequence() == PANEL_CONT_CONTINUE) {
-        osDelay(10);
     }
     pow_on_seq = 1;
 }
 
 static void ECX343EN_StopPanelPowerSequence(PanelSide side) {
-	ECX343EN_ActivatePanel(side);
-
+	 ECX343EN_ActivatePanel(side);
     while (pow_off_sequence() == PANEL_CONT_CONTINUE) {
-        osDelay(10);
     }
     pow_off_seq = 1;
 }
 
 static void ECX343EN_PanelPSRelease(void) {
-    ECX343EN_ActivatePanel(PANEL_LEFT);
-    PowContStatus left_status = panel_ps_release();
-    if (left_status == PANEL_CONT_ERR) {
-    	currentPanelStatus = PANEL_STATUS_ERROR;
-    }
+     ECX343EN_ActivatePanel(PANEL_LEFT);
+     while (panel_ps_release() == PANEL_CONT_CONTINUE) {
+     }
 
-    ECX343EN_ActivatePanel(PANEL_RIGHT);
-    PowContStatus right_status = panel_ps_release();
-    if (right_status == PANEL_CONT_ERR) {
-    	currentPanelStatus = PANEL_STATUS_ERROR;
-    }
+     ECX343EN_ActivatePanel(PANEL_RIGHT);
+     while (panel_ps_release() == PANEL_CONT_CONTINUE) {
+     }
 }
 
 static void ECX343EN_ActivatePanel(PanelSide side) {
     currentPanelSide = side;
-    set_spi_control_callback(side == PANEL_LEFT ? left_panel_spi_control : right_panel_spi_control);
-}
-
-static void set_spi_control_callback(SPI_Control_Callback callback) {
-    spi_control_callback = callback;
     // Set the current SPI handle based on the panel side
-    current_spi_handle = (currentPanelSide == PANEL_LEFT) ? &hspi2 : &hspi4;
-}
-
-static void left_panel_spi_control(bool enable) {
-    if (enable) {
-        ECX343EN_L_SPI_ENABLE();
-    } else {
-        ECX343EN_L_SPI_DISABLE();
-    }
-}
-
-static void right_panel_spi_control(bool enable) {
-    if (enable) {
-        ECX343EN_R_SPI_ENABLE();
-    } else {
-        ECX343EN_R_SPI_DISABLE();
-    }
+    current_spi_handle = (side == PANEL_LEFT) ? &hspi2 : &hspi4;
 }
 
 static void spi_enable(bool enable) {
-    if (spi_control_callback != NULL) {
-        spi_control_callback(enable);
+    // Directly control the SPI based on the current panel side
+    if (currentPanelSide == PANEL_LEFT) {
+        if (enable) {
+            ECX343EN_L_SPI_ENABLE();
+        } else {
+            ECX343EN_L_SPI_DISABLE();
+        }
+    } else if (currentPanelSide == PANEL_RIGHT) {
+        if (enable) {
+            ECX343EN_R_SPI_ENABLE();
+        } else {
+            ECX343EN_R_SPI_DISABLE();
+        }
     }
 }
 
@@ -472,7 +492,7 @@ static PowContStatus pow_on_sequence(void)
         case POW_ON_SEQ_PANEL_LUMINANCE_SETTING:
             pnl_status = panel_luminance_setting();
             if (pnl_status == PANEL_CONT_OK) {
-                ECX343EN_WriteRegisters(&ecx343_current_data);
+            	writeRegisters(&ecx343_current_data);
                 pow_on_seq = POW_ON_SEQ_LVDS_EN;
             } else if (pnl_status == PANEL_CONT_ERR) {
                 pow_on_seq = POW_ON_SEQ_NONE;
@@ -518,7 +538,7 @@ static PowContStatus pow_off_sequence(void)
             case POW_OFF_SEQ_PS_ON_SETTING:
                 pnl_status = panel_ps_transition();
                 if(pnl_status == PANEL_CONT_OK) {
-                    osDelay(24);
+                    osDelay(34);
 					pow_off_seq = POW_OFF_SEQ_LVDS_DIS;
                 } else if(pnl_status == PANEL_CONT_ERR) {
                     pow_off_seq = POW_OFF_SEQ_NONE;
@@ -567,7 +587,7 @@ static PowContStatus panel_reg_setting(void) {
     const setPanelSeqTable *table = (currentPanelMode == MODE_2D_120HZ || currentPanelMode == MODE_3D_120HZ) ?
 		PanelContPanelReg120HzSettingTable : PanelContPanelReg60HzSettingTable;
 
-    while (table[panel_cont_seq].map != PANEL_TABLE_END) {
+    if (table[panel_cont_seq].map != PANEL_TABLE_END) {
         if (panel_reg_write(table[panel_cont_seq].map,
         					table[panel_cont_seq].addr,
 							table[panel_cont_seq].value
@@ -576,10 +596,12 @@ static PowContStatus panel_reg_setting(void) {
             return PANEL_REG_ERR;
         }
         panel_cont_seq++;
+    } else {
+        panel_cont_seq = PANEL_CONT_SEQ_NONE;
+        return PANEL_REG_OK;
     }
 
-    panel_cont_seq = PANEL_CONT_SEQ_NONE;
-    return PANEL_REG_OK;
+    return PANEL_CONT_CONTINUE;
 }
 
 static PowContStatus panel_luminance_setting(void) {
@@ -587,7 +609,7 @@ static PowContStatus panel_luminance_setting(void) {
 		((currentPanelMode == MODE_2D_120HZ || currentPanelMode == MODE_3D_120HZ) ? LeftPanelContLuminance120HzSettingTable : LeftPanelContLuminance60HzSettingTable) :
 		((currentPanelMode == MODE_2D_120HZ || currentPanelMode == MODE_3D_120HZ) ? RightPanelContLuminance120HzSettingTable : RightPanelContLuminance60HzSettingTable);
 
-    while (table[panel_cont_seq].map != PANEL_TABLE_END) {
+    if (table[panel_cont_seq].map != PANEL_TABLE_END) {
         if (panel_reg_write(table[panel_cont_seq].map,
 							table[panel_cont_seq].addr,
 							table[panel_cont_seq].value
@@ -596,14 +618,16 @@ static PowContStatus panel_luminance_setting(void) {
             return PANEL_REG_ERR;
         }
         panel_cont_seq++;
+    } else {
+        panel_cont_seq = PANEL_CONT_SEQ_NONE;
+        return PANEL_REG_OK;
     }
 
-    panel_cont_seq = PANEL_CONT_SEQ_NONE;
-    return PANEL_REG_OK;
+    return PANEL_CONT_CONTINUE;
 }
 
 static PowContStatus panel_ps_release(void) {
-    while (PanelContPSReleaseTable[panel_cont_seq].map != PANEL_TABLE_END) {
+    if (PanelContPSReleaseTable[panel_cont_seq].map != PANEL_TABLE_END) {
         if (panel_reg_write(PanelContPSReleaseTable[panel_cont_seq].map,
 							PanelContPSReleaseTable[panel_cont_seq].addr,
 							PanelContPSReleaseTable[panel_cont_seq].value
@@ -612,14 +636,16 @@ static PowContStatus panel_ps_release(void) {
             return PANEL_REG_ERR;
         }
         panel_cont_seq++;
+    } else {
+        panel_cont_seq = PANEL_CONT_SEQ_NONE;
+        return PANEL_REG_OK;
     }
 
-    panel_cont_seq = PANEL_CONT_SEQ_NONE;
-    return PANEL_REG_OK;
+    return PANEL_CONT_CONTINUE;
 }
 
 static PowContStatus panel_ps_transition(void) {
-    while (PanelContPSTransitionTable[panel_cont_seq].map != PANEL_TABLE_END) {
+    if (PanelContPSTransitionTable[panel_cont_seq].map != PANEL_TABLE_END) {
         if (panel_reg_write(PanelContPSTransitionTable[panel_cont_seq].map,
 							PanelContPSTransitionTable[panel_cont_seq].addr,
 							PanelContPSTransitionTable[panel_cont_seq].value
@@ -628,10 +654,12 @@ static PowContStatus panel_ps_transition(void) {
             return PANEL_REG_ERR;
         }
         panel_cont_seq++;
+    } else {
+        panel_cont_seq = PANEL_CONT_SEQ_NONE;
+        return PANEL_REG_OK;
     }
 
-    panel_cont_seq = PANEL_CONT_SEQ_NONE;
-    return PANEL_REG_OK;
+    return PANEL_CONT_CONTINUE;
 }
 
 static PanelRegStatus panel_reg_read(uint8_t map, uint8_t addr, uint8_t *value)
@@ -673,31 +701,43 @@ static PanelRegStatus panel_reg_write(uint8_t map, uint8_t addr, uint8_t value)
 }
 
 static PanelRegStatus panel_reg_read_value(uint8_t addr, uint8_t *value) {
-    uint8_t PanelWriteBuf[2] = {PANEL_ADDR_81, addr};
-    uint8_t PanelReadBuf[2];
+    uint8_t PanelWriteBuf[10];
+    uint8_t PanelReadBuf[10];
+
+    PanelWriteBuf[0] = PANEL_ADDR_81;
+    PanelWriteBuf[1] = addr;
 
     spi_enable(true);
-    if (HAL_SPI_Transmit(current_spi_handle, PanelWriteBuf, 2, PANEL_REG_RW_TIMEOUT) != HAL_OK) {
+    if (HAL_SPI_Transmit(current_spi_handle, &PanelWriteBuf[0], PANEL_WRITE_LENGTH, PANEL_REG_RW_TIMEOUT) != HAL_OK) {
         spi_enable(false);
         return PANEL_REG_ERR;
     }
+    spi_enable(false);
 
-    PanelWriteBuf[1] = 0xFF; // Set for read operation
-    if (HAL_SPI_TransmitReceive(current_spi_handle, PanelWriteBuf, PanelReadBuf, 2, PANEL_REG_RW_TIMEOUT) != HAL_OK) {
+
+    PanelWriteBuf[0] = PANEL_ADDR_81;
+    PanelWriteBuf[1] = 0xFF;
+
+    spi_enable(true);
+    if (HAL_SPI_TransmitReceive(current_spi_handle, &PanelWriteBuf[0], &PanelReadBuf[0], PANEL_WRITE_LENGTH, PANEL_REG_RW_TIMEOUT) != HAL_OK) {
         spi_enable(false);
         return PANEL_REG_ERR;
     }
     spi_enable(false);
 
     *value = PanelReadBuf[1];
+
     return PANEL_REG_OK;
 }
 
 static PanelRegStatus panel_reg_write_value(uint8_t addr, uint8_t value) {
-    uint8_t PanelWriteBuf[2] = {addr, value};
+    uint8_t PanelWriteBuf[10];
+
+    PanelWriteBuf[0] = addr;
+    PanelWriteBuf[1] = value;
 
     spi_enable(true);
-    if (HAL_SPI_Transmit(current_spi_handle, PanelWriteBuf, 2, PANEL_REG_RW_TIMEOUT) != HAL_OK) {
+    if (HAL_SPI_Transmit(current_spi_handle, &PanelWriteBuf[0], PANEL_WRITE_LENGTH, PANEL_REG_RW_TIMEOUT) != HAL_OK) {
         spi_enable(false);
         return PANEL_REG_ERR;
     }
@@ -706,58 +746,87 @@ static PanelRegStatus panel_reg_write_value(uint8_t addr, uint8_t value) {
     return PANEL_REG_OK;
 }
 
-// Map lux value to panel brightness with linear interpolation within each interval
+static void writeRegisters(ECX343_DATA *data) {
+	if(currentPanelSide == PANEL_LEFT) {
+		panel_reg_write(PANEL_MAP_0, SCAN_MODE, leftInversionMasks[data->uLCD_INVL]);
+		panel_reg_write(PANEL_MAP_0, ORBIT_HORIZONTAL, LcdHorbit(data->uLCD_HORBL));
+		panel_reg_write(PANEL_MAP_0, ORBIT_VERTICAL, LcdVorbit(data->uLCD_VORBL));
+		panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_LOW, data->uLCD_LUXL & 0x000000FF);
+		panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_HIGH, (data->uLCD_LUXL & 0x00000100) >> 8);
+	} else{
+		panel_reg_write(PANEL_MAP_0, SCAN_MODE, rightInversionMasks[data->uLCD_INVR]);
+		panel_reg_write(PANEL_MAP_0, ORBIT_HORIZONTAL, LcdHorbit(data->uLCD_HORBR));
+		panel_reg_write(PANEL_MAP_0, ORBIT_VERTICAL, LcdVorbit(data->uLCD_VORBR));
+		panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_LOW, data->uLCD_LUXR & 0x000000FF);
+		panel_reg_write(PANEL_MAP_0, ARBITRARY_LUMINANCE_VALUE_HIGH, (data->uLCD_LUXR & 0x00000100) >> 8);
+    }
+}
+
 int mapLuxToPanelBrightness(int lux, int *currentIndex) {
-    const int thresholds[] = {100, 280, 460, 640, 820, 1000}; // Lux thresholds for intervals
-    const int overlap = 50; // Overlap between intervals
-    const int brightnessRanges[][2] = {{100, 200}, {160, 280}, {240, 360}, {320, 440}, {400, 500}}; // Brightness ranges for each interval
+    // Lux thresholds define the boundaries for different brightness intervals.
+    const int thresholds[] = {100, 280, 460, 640, 820, 1000};
+    // Overlap allows for a smoother transition between brightness intervals.
+    const int overlap = 50;
+    // Brightness ranges corresponding to each lux interval.
+    const int brightnessRanges[][2] = {{100, 200}, {160, 280}, {240, 360}, {320, 440}, {400, 500}};
+    // Calculate the number of threshold intervals.
     const int numThresholds = sizeof(thresholds) / sizeof(thresholds[0]);
 
-    // Check if lux is below the first threshold (with overlap)
+    // Check if the lux value is below the first threshold minus the overlap.
     if (lux < thresholds[0] - overlap) {
-        *currentIndex = -2;
-        return brightnessRanges[0][0];
+        *currentIndex = -2; // Set to -2 indicating below the first interval.
+        return brightnessRanges[0][0]; // Return the minimum brightness.
     }
-    // Check if lux is above the last threshold (with overlap)
+    // Check if the lux value is above the last threshold plus the overlap.
     else if (lux >= thresholds[numThresholds - 1] + overlap) {
-        *currentIndex = 2;
-        return brightnessRanges[numThresholds - 2][1];
+        *currentIndex = 2; // Set to 2 indicating above the last interval.
+        return brightnessRanges[numThresholds - 2][1]; // Return the maximum brightness.
     }
-    // Iterate through intervals to find the correct range
+    // Iterate through the thresholds to find the correct interval for the lux value.
     else {
         for (int i = 0; i < numThresholds - 1; ++i) {
             if (lux >= thresholds[i] - overlap && lux < thresholds[i + 1] + overlap) {
-                *currentIndex = i - 2;
-                float fraction = (float)(lux - (thresholds[i] - overlap)) / (thresholds[i + 1] + overlap - (thresholds[i] - overlap));
-                int intervalBrightness = brightnessRanges[i][0] + fraction * (brightnessRanges[i][1] - brightnessRanges[i][0]);
+                *currentIndex = i - 2; // Update the index to the current interval.
+                // Calculate the fraction of the position within the current interval.
+                float fraction = (float)(lux - (thresholds[i] - overlap)) /
+                                 (thresholds[i + 1] + overlap - (thresholds[i] - overlap));
+                // Linearly interpolate the brightness value for the current interval.
+                int intervalBrightness = brightnessRanges[i][0] +
+                                         fraction * (brightnessRanges[i][1] - brightnessRanges[i][0]);
                 return intervalBrightness;
             }
         }
     }
 
-    *currentIndex = -2;
-    return brightnessRanges[0][0];
+    *currentIndex = -2; // Default case: below the first interval.
+    return brightnessRanges[0][0]; // Return the minimum brightness as default.
 }
 
-// Smoothly adjusts the brightness of a panel to a target value
-void smoothlyChangeBrightness(PanelSide side, uint16_t targetBrightness) {
-    const int adjustmentRate = 10; // Rate of brightness change
+void smoothlyChangeBrightness(uint16_t targetBrightness) {
+    // Rate of brightness change to ensure smooth transition.
+    const int adjustmentRate = 10;
 
-    // Adjust brightness only if it's different from the target
-    if (currentBrightness[side] != targetBrightness) {
-        // If the difference is less than or equal to the adjustment rate, set to target directly
-        if (abs(currentBrightness[side] - targetBrightness) <= adjustmentRate) {
-            currentBrightness[side] = targetBrightness;
+    // Check if the current brightness is different from the target.
+    if (ecx343_current_data.uLCD_LUXL != targetBrightness ||
+        ecx343_current_data.uLCD_LUXR != targetBrightness) {
+        // Directly set to target brightness if within the adjustment rate.
+        if (abs(ecx343_current_data.uLCD_LUXL - targetBrightness) <= adjustmentRate ||
+            abs(ecx343_current_data.uLCD_LUXR - targetBrightness) <= adjustmentRate) {
+            ecx343_current_data.uLCD_LUXL = targetBrightness;
+            ecx343_current_data.uLCD_LUXR = targetBrightness;
         } else {
-            // Otherwise, adjust by the adjustment rate
-            currentBrightness[side] += (currentBrightness[side] < targetBrightness) ? adjustmentRate : -adjustmentRate;
+            // Otherwise, increment or decrement brightness by the adjustment rate.
+            ecx343_current_data.uLCD_LUXL += (ecx343_current_data.uLCD_LUXL < targetBrightness) ? adjustmentRate : -adjustmentRate;
+            ecx343_current_data.uLCD_LUXR += (ecx343_current_data.uLCD_LUXR < targetBrightness) ? adjustmentRate : -adjustmentRate;
         }
-        // Clamp the brightness value within the min and max limits
-        currentBrightness[side] = (currentBrightness[side] < MIN_BRIGHTNESS) ? MIN_BRIGHTNESS : (currentBrightness[side] > MAX_BRIGHTNESS) ? MAX_BRIGHTNESS : currentBrightness[side];
+        // Clamp the brightness values within the minimum and maximum limits.
+        ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL < MIN_BRIGHTNESS) ? MIN_BRIGHTNESS :
+        (ecx343_current_data.uLCD_LUXL > MAX_BRIGHTNESS) ? MAX_BRIGHTNESS : ecx343_current_data.uLCD_LUXL;
+        ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR < MIN_BRIGHTNESS) ? MIN_BRIGHTNESS :
+		(ecx343_current_data.uLCD_LUXR > MAX_BRIGHTNESS) ? MAX_BRIGHTNESS : ecx343_current_data.uLCD_LUXR;
+        // Invoke the function to adjust the physical brightness of the panel.
+        adjustBrightness();
     }
-
-    // Update the panel luminance
-    ECX343EN_Luminance(side, currentBrightness[side]);
 }
 
 // Initialize the circular buffer
@@ -847,8 +916,8 @@ void updatePanelTemperature(void) {
     }
 
     float leftOrigVolt[2] = {
-        readVoltageAndCalculate(PANEL_LEFT, PANEL_TEMP_VOLT1, &hadc1),
-        readVoltageAndCalculate(PANEL_LEFT, PANEL_TEMP_VOLT2, &hadc1)
+         readVoltageAndCalculate(PANEL_LEFT, PANEL_TEMP_VOLT1, &hadc1),
+         readVoltageAndCalculate(PANEL_LEFT, PANEL_TEMP_VOLT2, &hadc1)
     };
     float rightOrigVolt[2] = {
         readVoltageAndCalculate(PANEL_RIGHT, PANEL_TEMP_VOLT1, &hadc2),
@@ -917,34 +986,16 @@ void CheckPanelState(void)
 	}
 }
 
-
 void switchMode(void)
 {
-    ecx343_current_data.uLCD_MODE = currentPanelMode;
+	ecx343_current_data.uLCD_MODE = currentPanelMode;
 
-    Panel_PowerOff(PANEL_BOTH);
+	panelPowerOff(PANEL_BOTH);
 
     LT7911_Mode_Switch(ecx343_current_data.uLCD_MODE);
     osDelay(1000);
 
-    Panel_PowerOn(PANEL_BOTH);
-}
-
-void adjustBrightness(void)
-{
-    uint16_t newLeftBrightness = (uint16_t)(ecx343_current_data.uLCD_LUXL);
-    uint16_t newRightBrightness = (uint16_t)(ecx343_current_data.uLCD_LUXR);
-
-    if (newLeftBrightness != previousLeftBrightness)
-    {
-    	ECX343EN_Luminance(PANEL_LEFT, ecx343_current_data.uLCD_LUXL);
-    	previousLeftBrightness = newLeftBrightness;
-    }
-    if (newRightBrightness != previousRightBrightness)
-    {
-    	ECX343EN_Luminance(PANEL_RIGHT, ecx343_current_data.uLCD_LUXR);
-    	previousRightBrightness = newRightBrightness;
-    }
+    panelPowerOn(PANEL_BOTH);
 }
 
 const setPanelSeqTable PanelContPanelReg60HzSettingTable[] = {

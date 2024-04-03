@@ -908,7 +908,6 @@ void ALSensorTask(void * argument)
     static int target_brightness = 0;
     static int lux_index  = -3;
     static int previous_lux_index = -3;
-    static uint8_t adjustment_in_progress = 0;
 
     for(;;)
     {
@@ -918,37 +917,19 @@ void ALSensorTask(void * argument)
                 AL3010_ReadData();
                 i2c1TxUnblock();
                 ALS_SendReport_FS();
-                if(AutoBrightness) {
-                	if (light != current_lux)
-        			{
-                		current_lux = light;
-        			}
-                    target_brightness = mapLuxToPanelBrightness(current_lux, &lux_index);
+        		if (AutoBrightness) {
+        		    if (light != current_lux) {
+        		        current_lux = light;
+        		        target_brightness = mapLuxToPanelBrightness(current_lux, &lux_index);
 
-                    if (previous_lux_index != lux_index) {
-                    	usbDebug("Interval: %d\n", lux_index);
-                    	previous_lux_index = lux_index;
-                    }
+        		        if (previous_lux_index != lux_index) {
+        		            previous_lux_index = lux_index;
+        		            usbDebug("Interval: %d\n", lux_index);
+        		        }
+        		    }
+        			smoothlyChangeBrightness(target_brightness);
+        		}
 
-                    if (!adjustment_in_progress ||
-                        abs(currentBrightness[PANEL_LEFT] - target_brightness) >= BRIGHTNESS_CHANGE_THRESHOLD ||
-                        abs(currentBrightness[PANEL_RIGHT] - target_brightness) >= BRIGHTNESS_CHANGE_THRESHOLD) {
-                        adjustment_in_progress = 1;
-                    }
-
-                    if (adjustment_in_progress) {
-                    	smoothlyChangeBrightness(PANEL_LEFT, target_brightness);
-                    	smoothlyChangeBrightness(PANEL_RIGHT, target_brightness);
-
-                        if (currentBrightness[PANEL_LEFT] == target_brightness &&
-                            currentBrightness[PANEL_RIGHT] == target_brightness) {
-                            adjustment_in_progress = 0;
-                        }
-
-                        ecx343_current_data.uLCD_LUXL = currentBrightness[PANEL_LEFT];
-                        ecx343_current_data.uLCD_LUXR = currentBrightness[PANEL_RIGHT];
-                    }
-                }
                 osThreadFlagsClear(0x02);
             }
         }
@@ -1051,7 +1032,7 @@ void MainTask(void * argument)
 
 
 #if ENABLE_PANEL
-  	Panel_PowerOn(PANEL_BOTH);
+  	panelPowerOn(PANEL_BOTH);
     osDelay(10);
     on_flag = 1;
     // CheckPanelState();
@@ -1179,21 +1160,28 @@ void MainTask(void * argument)
 
 void ADCTask(void *argument)
 {
+    TickType_t lastWakeTime = xTaskGetTickCount();
+
     for (;;)
     {
         if (on_flag)
         {
-        	if(DebugSwitch)
-        	{
-        		usbDebug("LeftOrigTemperature: %.2f\r\nRightOrigTemperature: %.2f\r\n", g_temperatureLeftRaw, g_temperatureRightRaw);
-        	}
-        	updatePanelTemperature();
-        	if(DebugSwitch)
-        	{
-        		usbDebug("LeftTemperature: %.2f\r\nRightTemperature: %.2f\r\n", g_temperatureLeftSmoothed, g_temperatureRightSmoothed);
-        	}
+            if(DebugSwitch)
+            {
+                usbDebug("LeftOrigTemperature: %.2f\r\nRightOrigTemperature: %.2f\r\n", g_temperatureLeftRaw, g_temperatureRightRaw);
+            }
+            if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
+            {
+                updatePanelTemperature();
+                xSemaphoreGive(xMutex);
+            }
+            if(DebugSwitch)
+            {
+                usbDebug("LeftTemperature: %.2f\r\nRightTemperature: %.2f\r\n", g_temperatureLeftSmoothed, g_temperatureRightSmoothed);
+            }
         }
-        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(1000));
     }
 }
 
