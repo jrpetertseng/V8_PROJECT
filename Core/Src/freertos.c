@@ -226,7 +226,7 @@ const osThreadAttr_t usbCpuLoadTask_attributes = {
 static void ImuSensorTask(void * argument);
 #if ENABLE_IMU
 osThreadId_t ImuSensorHandle;
-uint32_t ImuSensorTaskBuffer[ 1024 ];
+uint32_t ImuSensorTaskBuffer[ 2048 ];
 osStaticThreadDef_t ImuSensorTaskControlBlock;
 const osThreadAttr_t ImuSensorTask_attributes = {
   .name = "ImuSensorTask",
@@ -793,7 +793,7 @@ static void ImuSensorTask(void * argument)
 {
   /* USER CODE BEGIN 5 */
   HAL_GPIO_WritePin(IMU_RST_GPIO_Port, IMU_RST_Pin, GPIO_PIN_SET);
-
+  osDelay(1000);
   initSensor();
   /* Infinite loop */
   sensorLoop();

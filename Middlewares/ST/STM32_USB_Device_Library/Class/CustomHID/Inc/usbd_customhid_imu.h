@@ -45,7 +45,7 @@ extern "C" {
 #define CUSTOM_HID_IMU_EPIN_ADDR                         0x84U
 
 #ifndef CUSTOM_HID_IMU_EPIN_SIZE
-#define CUSTOM_HID_IMU_EPIN_SIZE                         0x40U
+#define CUSTOM_HID_IMU_EPIN_SIZE                         0x80U //0x40 for FS
 #endif
 
 #define CUSTOM_HID_IMU_EPOUT_ADDR                        0x04U

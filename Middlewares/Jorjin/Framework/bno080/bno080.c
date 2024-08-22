@@ -39,7 +39,7 @@ int propertySendSensorWithCDC = 0;
 
 // Number of sensor events that can be queued before dropping data.
 // A good value would be twice the number of sensors enabled by the app.
-#define SENSOR_EVENT_QUEUE_SIZE (6)
+#define SENSOR_EVENT_QUEUE_SIZE (16) //6
 
 #ifndef ARRAY_LEN
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -71,11 +71,18 @@ struct SensorContent_t {
     SemaphoreHandle_t wakeSensorTask;
     volatile bool resetPerformed;
     QueueHandle_t eventQueue;
-    QueueHandle_t sensorQueue;
+//    QueueHandle_t sensorQueue;
 };
 
 static struct SensorContent_t ctx;
 
+static sh2_SensorValue_t value;
+static JQueueMessage_t msg;
+static ACCEL3_INPUT_REPORT accel3;
+static MAG3_INPUT_REPORT tstMag3;
+static QUAT_INPUT_REPORT tstQuat;
+static struct EulerAngles angles;
+static sh2_SensorEvent_t event;
 // --- Public methods -------------------------------------------------
 
 void initSensor() {
@@ -83,11 +90,11 @@ void initSensor() {
   usb_waitUntilInited();
   sh2_hal_init();
 
-  ctx.sensorQueue = xQueueCreate(SENSOR_EVENT_QUEUE_SIZE,
-          sizeof(struct SensorMessage));
-  if (ctx.sensorQueue == NULL) {
-    //printf("Error creating sensor queue.\n");
-  }
+//  ctx.sensorQueue = xQueueCreate(SENSOR_EVENT_QUEUE_SIZE,
+//          sizeof(struct SensorMessage));
+//  if (ctx.sensorQueue == NULL) {
+//    //printf("Error creating sensor queue.\n");
+//  }
 
   ctx.wakeSensorTask = xSemaphoreCreateBinary();
   ctx.eventQueue = xQueueCreate(SENSOR_EVENT_QUEUE_SIZE,
@@ -144,7 +151,7 @@ void configSensor(sh2_SensorId_t sensorId, int interval)
 
 void sensorLoop()
 {
-    sh2_SensorEvent_t event;
+
 #if ENABLE_FAKE_DATA
     ACCEL3_INPUT_REPORT accel3;
     MAG3_INPUT_REPORT tstMag3;
@@ -406,12 +413,7 @@ static void toEulerAngles(
 static void processSensorValue(const sh2_SensorEvent_t * event)
 {
     int rc;
-    sh2_SensorValue_t value;
-    JQueueMessage_t msg;
-    ACCEL3_INPUT_REPORT accel3;
-    MAG3_INPUT_REPORT tstMag3;
-    QUAT_INPUT_REPORT tstQuat;
-    struct EulerAngles angles;
+
 
 
     rc = sh2_decodeSensorEvent(&value, event);

@@ -9,7 +9,7 @@
 #define USB_QUEUE_SIZE                  32
 #define USB_RX_QUEUE_SIZE               USB_QUEUE_SIZE
 
-#define USB_CDC_MAX_STRING_SIZE         64
+#define USB_CDC_MAX_STRING_SIZE         512     //HS mode
 #define USB_CDC_COMMAND_MAX_SIZE        32
 #define USB_COMMAND_BUF_MAX_SIZE        2048
 #define USB_COMMAND_CATEGORY_MAX_SIZE   16

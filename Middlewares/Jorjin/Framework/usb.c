@@ -93,7 +93,7 @@ int usbInit() {
 static inline void usbTxBlock( void)
 {
   #if ENABLE_CDC_DEVCTLR_LOAD_PRINT
-    xSemaphoreTake(gCtx.txLock, 100 * portTICK_PERIOD_MS);
+    xSemaphoreTake(gCtx.txLock, 1000 * portTICK_PERIOD_MS); //100 * portTICK_PERIOD_MS
   #else
     xSemaphoreTake(gCtx.txLock, portMAX_DELAY);
   #endif
