@@ -12,6 +12,9 @@
 #include "flash_rw_process.h"
 #include "cmd_engine.h"
 #include "lt7911.h"
+#include <string.h>
+#include "semphr.h"
+#include <stdarg.h>
 
 /* External Declarations */
 extern ECX343_DATA ecx343_data;
@@ -75,18 +78,85 @@ static PanelRegStatus panel_reg_write(uint8_t map, uint8_t addr, uint8_t value);
 static PanelRegStatus panel_reg_read_value(uint8_t addr, uint8_t *value);
 static PanelRegStatus panel_reg_write_value(uint8_t addr, uint8_t value);
 static void writeRegisters(ECX343_DATA *data);
-static void initBuffer(CircularBuffer *cb);
-static void addToBuffer(CircularBuffer *cb, float value);
-static float getBufferElement(CircularBuffer *cb, int index);
 static float exponential_smoothing_sequence(CircularBuffer *cb);
 static float readVoltageAndCalculate(PanelSide site, uint8_t voltage, ADC_HandleTypeDef *hadc);
-static bool isTemperatureValueValid(float temperature, CircularBuffer *cb);
 static void ECX343EN_Luminance(PanelSide side, uint16_t brightness);
 static void ECX343EN_ArbitraryLuminanceH(PanelSide side, uint8_t value);
 static void ECX343EN_ArbitraryLuminanceL(PanelSide side, uint8_t value);
 
 /*Helper Functions */
 static void spi_enable(bool enable);
+
+void executeTaskWithMutex(TaskID taskID, ...) {
+    va_list args;
+    va_start(args, taskID);
+
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+        switch (taskID) {
+            case POWER_ON:
+                panelPowerOn(va_arg(args, int));
+                break;
+            case POWER_OFF:
+                panelPowerOff(va_arg(args, int));
+                break;
+            case WRITE_REGISTERS:
+                {
+                    ECX343_DATA *data = va_arg(args, ECX343_DATA*);
+                    ECX343EN_WriteRegisters(data);
+                }
+                break;
+            case INVERSION:
+                {
+                    int side = va_arg(args, int);
+                    uint8_t value = (uint8_t) va_arg(args, int);
+                    ECX343EN_Inversion(side, value);
+                }
+                break;
+            case LUMINANCE_MODE:
+                {
+                    int side = va_arg(args, int);
+                    uint8_t value = (uint8_t) va_arg(args, int);
+                    ECX343EN_LuminanceModeSetting(side, value);
+                }
+                break;
+            case PRESET_LUMINANCE:
+                {
+                    int side = va_arg(args, int);
+                    uint8_t value = (uint8_t) va_arg(args, int);
+                    ECX343EN_PresetLuminanceValue(side, value);
+                }
+                break;
+            case ORBIT_H:
+                {
+                    int side = va_arg(args, int);
+                    uint8_t value = (uint8_t) va_arg(args, int);
+                    ECX343EN_OrbitH(side, value);
+                }
+                break;
+            case ORBIT_V:
+                {
+                    int side = va_arg(args, int);
+                    uint8_t value = (uint8_t) va_arg(args, int);
+                    ECX343EN_OrbitV(side, value);
+                }
+                break;
+            case ADJUST_BRIGHTNESS:
+                adjustBrightness();
+                break;
+            case UPDATE_TEMPERATURE:
+                {
+                    int side = va_arg(args, int);
+                    uint8_t value = (uint8_t) va_arg(args, int);
+                    ECX343EN_TempDetect(side, value);
+                }
+                break;
+            default:
+                break;
+        }
+        xSemaphoreGive(xMutex);
+    }
+    va_end(args);
+}
 
 void ECX343EN_Init(void)
 {
@@ -119,59 +189,51 @@ void ECX343EN_Init(void)
 
 void panelPowerOn(PanelSide side)
 {
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-    {
-        ECX343EN_PowerOn();
-        switch(side)
-        {
-            case PANEL_LEFT:
-                ECX343EN_StartPanelPowerSequence(PANEL_LEFT);
-                osDelay(10);
-                break;
-            case PANEL_RIGHT:
-                ECX343EN_StartPanelPowerSequence(PANEL_RIGHT);
-                osDelay(10);
-                break;
-            case PANEL_BOTH:
-                ECX343EN_StartPanelPowerSequence(PANEL_LEFT);
-                osDelay(10);
-                ECX343EN_StartPanelPowerSequence(PANEL_RIGHT);
-                osDelay(10);
-                break;
-            default:
-                break;
-        }
-        ECX343EN_PanelPSRelease();
-        xSemaphoreGive(xMutex);
-    }
+	ECX343EN_PowerOn();
+	switch(side)
+	{
+		case PANEL_LEFT:
+			ECX343EN_StartPanelPowerSequence(PANEL_LEFT);
+			osDelay(10);
+			break;
+		case PANEL_RIGHT:
+			ECX343EN_StartPanelPowerSequence(PANEL_RIGHT);
+			osDelay(10);
+			break;
+		case PANEL_BOTH:
+			ECX343EN_StartPanelPowerSequence(PANEL_LEFT);
+			osDelay(10);
+			ECX343EN_StartPanelPowerSequence(PANEL_RIGHT);
+			osDelay(10);
+			break;
+		default:
+			break;
+	}
+	ECX343EN_PanelPSRelease();
 }
 
 void panelPowerOff(PanelSide side)
 {
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-    {
-        switch(side)
-        {
-            case PANEL_LEFT:
-                ECX343EN_StopPanelPowerSequence(PANEL_LEFT);
-                osDelay(10);
-                break;
-            case PANEL_RIGHT:
-                ECX343EN_StopPanelPowerSequence(PANEL_RIGHT);
-                osDelay(10);
-                break;
-            case PANEL_BOTH:
-                ECX343EN_StopPanelPowerSequence(PANEL_LEFT);
-                osDelay(10);
-                ECX343EN_StopPanelPowerSequence(PANEL_RIGHT);
-                osDelay(10);
-                break;
-            default:
-                break;
-        }
-        ECX343EN_PowerOff();
-        xSemaphoreGive(xMutex);
-    }
+	switch(side)
+	{
+		case PANEL_LEFT:
+			ECX343EN_StopPanelPowerSequence(PANEL_LEFT);
+			osDelay(10);
+			break;
+		case PANEL_RIGHT:
+			ECX343EN_StopPanelPowerSequence(PANEL_RIGHT);
+			osDelay(10);
+			break;
+		case PANEL_BOTH:
+			ECX343EN_StopPanelPowerSequence(PANEL_LEFT);
+			osDelay(10);
+			ECX343EN_StopPanelPowerSequence(PANEL_RIGHT);
+			osDelay(10);
+			break;
+		default:
+			break;
+	}
+	ECX343EN_PowerOff();
 }
 
 void ECX343EN_WriteRegisters(ECX343_DATA *data) {
@@ -246,20 +308,15 @@ void adjustBrightness(void)
         return;
     }
 
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-    {
-        if (previousLeftBrightness != ecx343_current_data.uLCD_LUXL) {
-            ECX343EN_Luminance(PANEL_LEFT, ecx343_current_data.uLCD_LUXL);
-            previousLeftBrightness = ecx343_current_data.uLCD_LUXL;
-        }
+	if (previousLeftBrightness != ecx343_current_data.uLCD_LUXL) {
+		ECX343EN_Luminance(PANEL_LEFT, ecx343_current_data.uLCD_LUXL);
+		previousLeftBrightness = ecx343_current_data.uLCD_LUXL;
+	}
 
-        if (previousRightBrightness != ecx343_current_data.uLCD_LUXR) {
-            ECX343EN_Luminance(PANEL_RIGHT, ecx343_current_data.uLCD_LUXR);
-            previousRightBrightness = ecx343_current_data.uLCD_LUXR;
-        }
-
-        xSemaphoreGive(xMutex);
-    }
+	if (previousRightBrightness != ecx343_current_data.uLCD_LUXR) {
+		ECX343EN_Luminance(PANEL_RIGHT, ecx343_current_data.uLCD_LUXR);
+		previousRightBrightness = ecx343_current_data.uLCD_LUXR;
+	}
 }
 
 static void ECX343EN_Luminance(PanelSide side, uint16_t Brightness) {
@@ -386,7 +443,7 @@ static void ECX343EN_PowerOn(void) {
     ECX343EN_3V3_ENABLE();
     osDelay(10);
     ECX343EN_6V6_N_ENABLE();
-    osDelay(10);
+    osDelay(1000);
 }
 
 static void ECX343EN_PowerOff(void) {
@@ -763,74 +820,90 @@ static void writeRegisters(ECX343_DATA *data) {
 }
 
 int mapLuxToPanelBrightness(int lux, int *currentIndex) {
-    // Lux thresholds define the boundaries for different brightness intervals.
+    // Define lux thresholds to separate different brightness intervals.
     const int thresholds[] = {100, 280, 460, 640, 820, 1000};
-    // Overlap allows for a smoother transition between brightness intervals.
+    // Define the overlap value for smoother transitions between intervals.
     const int overlap = 50;
-    // Brightness ranges corresponding to each lux interval.
+    // Define brightness ranges corresponding to each lux interval.
     const int brightnessRanges[][2] = {{100, 200}, {160, 280}, {240, 360}, {320, 440}, {400, 500}};
-    // Calculate the number of threshold intervals.
+    // Calculate the number of thresholds.
     const int numThresholds = sizeof(thresholds) / sizeof(thresholds[0]);
 
-    // Check if the lux value is below the first threshold minus the overlap.
+    // Check if lux value is below the first threshold minus the overlap.
     if (lux < thresholds[0] - overlap) {
-        *currentIndex = -2; // Set to -2 indicating below the first interval.
+        *currentIndex = -2; // Set currentIndex to -2 indicating below the first interval.
         return brightnessRanges[0][0]; // Return the minimum brightness.
     }
-    // Check if the lux value is above the last threshold plus the overlap.
+    // Check if lux value is above the last threshold plus the overlap.
     else if (lux >= thresholds[numThresholds - 1] + overlap) {
-        *currentIndex = 2; // Set to 2 indicating above the last interval.
+        *currentIndex = 2; // Set currentIndex to 2 indicating above the last interval.
         return brightnessRanges[numThresholds - 2][1]; // Return the maximum brightness.
     }
     // Iterate through the thresholds to find the correct interval for the lux value.
     else {
         for (int i = 0; i < numThresholds - 1; ++i) {
+            // Check if lux is within the current interval including overlap.
             if (lux >= thresholds[i] - overlap && lux < thresholds[i + 1] + overlap) {
-                *currentIndex = i - 2; // Update the index to the current interval.
+                *currentIndex = i - 2; // Update currentIndex to the corresponding interval index.
                 // Calculate the fraction of the position within the current interval.
                 float fraction = (float)(lux - (thresholds[i] - overlap)) /
                                  (thresholds[i + 1] + overlap - (thresholds[i] - overlap));
                 // Linearly interpolate the brightness value for the current interval.
-                int intervalBrightness = brightnessRanges[i][0] +
-                                         fraction * (brightnessRanges[i][1] - brightnessRanges[i][0]);
-                return intervalBrightness;
+                return brightnessRanges[i][0] +
+                       fraction * (brightnessRanges[i][1] - brightnessRanges[i][0]);
             }
         }
     }
 
-    *currentIndex = -2; // Default case: below the first interval.
-    return brightnessRanges[0][0]; // Return the minimum brightness as default.
+    // Default case: Set currentIndex to -2 and return the minimum brightness.
+    *currentIndex = -2;
+    return brightnessRanges[0][0];
 }
 
 void smoothlyChangeBrightness(uint16_t targetBrightness) {
-    // Rate of brightness change to ensure smooth transition.
-    const int adjustmentRate = 10;
+    const int adjustmentRate = 10;  // Define the rate at which brightness changes.
 
-    // Check if the current brightness is different from the target.
+    // Check if the current brightness is different from the target brightness.
     if (ecx343_current_data.uLCD_LUXL != targetBrightness ||
         ecx343_current_data.uLCD_LUXR != targetBrightness) {
-        // Directly set to target brightness if within the adjustment rate.
-        if (abs(ecx343_current_data.uLCD_LUXL - targetBrightness) <= adjustmentRate ||
-            abs(ecx343_current_data.uLCD_LUXR - targetBrightness) <= adjustmentRate) {
+
+        // Calculate the difference between the target brightness and the current brightness for both left and right screens.
+        int deltaL = targetBrightness - ecx343_current_data.uLCD_LUXL;
+        int deltaR = targetBrightness - ecx343_current_data.uLCD_LUXR;
+
+        // Adjust left screen brightness.
+        if (abs(deltaL) <= adjustmentRate) {
+            // If the difference is less than or equal to the adjustment rate, set the brightness directly to the target.
             ecx343_current_data.uLCD_LUXL = targetBrightness;
+        } else {
+            // Otherwise, increase or decrease the brightness by the adjustment rate.
+            ecx343_current_data.uLCD_LUXL += (deltaL > 0) ? adjustmentRate : -adjustmentRate;
+        }
+
+        // Adjust right screen brightness.
+        if (abs(deltaR) <= adjustmentRate) {
+            // If the difference is less than or equal to the adjustment rate, set the brightness directly to the target.
             ecx343_current_data.uLCD_LUXR = targetBrightness;
         } else {
-            // Otherwise, increment or decrement brightness by the adjustment rate.
-            ecx343_current_data.uLCD_LUXL += (ecx343_current_data.uLCD_LUXL < targetBrightness) ? adjustmentRate : -adjustmentRate;
-            ecx343_current_data.uLCD_LUXR += (ecx343_current_data.uLCD_LUXR < targetBrightness) ? adjustmentRate : -adjustmentRate;
+            // Otherwise, increase or decrease the brightness by the adjustment rate.
+            ecx343_current_data.uLCD_LUXR += (deltaR > 0) ? adjustmentRate : -adjustmentRate;
         }
-        // Clamp the brightness values within the minimum and maximum limits.
+
+        // Ensure the left screen brightness is within the allowed range.
         ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL < MIN_BRIGHTNESS) ? MIN_BRIGHTNESS :
         (ecx343_current_data.uLCD_LUXL > MAX_BRIGHTNESS) ? MAX_BRIGHTNESS : ecx343_current_data.uLCD_LUXL;
+
+        // Ensure the right screen brightness is within the allowed range.
         ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR < MIN_BRIGHTNESS) ? MIN_BRIGHTNESS :
-		(ecx343_current_data.uLCD_LUXR > MAX_BRIGHTNESS) ? MAX_BRIGHTNESS : ecx343_current_data.uLCD_LUXR;
-        // Invoke the function to adjust the physical brightness of the panel.
-        adjustBrightness();
+        (ecx343_current_data.uLCD_LUXR > MAX_BRIGHTNESS) ? MAX_BRIGHTNESS : ecx343_current_data.uLCD_LUXR;
+
+        // Adjust the physical brightness of the panel.
+        executeTaskWithMutex(ADJUST_BRIGHTNESS);
     }
 }
 
 // Initialize the circular buffer
-static void initBuffer(CircularBuffer *cb) {
+static inline void initBuffer(CircularBuffer *cb) {
     cb->head = 0;
     cb->size = 0;
     cb->temperatureCount = 0;
@@ -839,7 +912,7 @@ static void initBuffer(CircularBuffer *cb) {
 }
 
 // Add a value to the circular buffer
-static void addToBuffer(CircularBuffer *cb, float value) {
+static inline void addToBuffer(CircularBuffer *cb, float value) {
     cb->buffer[cb->head] = value;
     cb->head = (cb->head + 1) % MAX_BUFFER_SIZE;
     if (cb->size < MAX_BUFFER_SIZE) {
@@ -848,7 +921,7 @@ static void addToBuffer(CircularBuffer *cb, float value) {
 }
 
 // Get an element from the circular buffer by index
-static float getBufferElement(CircularBuffer *cb, int index) {
+static inline float getBufferElement(CircularBuffer *cb, int index) {
     if (index < 0 || index >= cb->size) {
         return 0;
     }
@@ -874,7 +947,7 @@ static float readVoltageAndCalculate(PanelSide side, uint8_t voltage, ADC_Handle
     uint16_t adcVal = 0x0000;
     float volt = 0.0;
 
-    ECX343EN_TempDetect(side, voltage);
+    executeTaskWithMutex(UPDATE_TEMPERATURE, side, voltage);
     osDelay(100);
     HAL_ADC_Start(hadc);
 
@@ -892,17 +965,17 @@ static float readVoltageAndCalculate(PanelSide side, uint8_t voltage, ADC_Handle
 }
 
 // Calculate the temperature based on two voltage readings
-static float calculateTemperature(float voltage1, float voltage2) {
+static inline float calculateTemperature(float voltage1, float voltage2) {
     return ((voltage2 - voltage1) - 0.6796) * 1.0 / 0.0025;
 }
 
 // Check if the temperature is within the valid range
-static bool isTemperatureInRange(float temperature) {
+static inline bool isTemperatureInRange(float temperature) {
     return temperature >= MIN_TEMPERATURE && temperature <= MAX_TEMPERATURE;
 }
 
 // Check if the temperature value is valid
-static bool isTemperatureValueValid(float temperature, CircularBuffer *cb) {
+static inline bool isTemperatureValueValid(float temperature, CircularBuffer *cb) {
     return isTemperatureInRange(temperature) &&
            (cb->temperatureCount < SOME_THRESHOLD || fabs(temperature - cb->smoothedTemperature) <= TEMPERATURE_THRESHOLD);
 }
@@ -915,14 +988,11 @@ void updatePanelTemperature(void) {
         isBufferInitialized = true;
     }
 
-    float leftOrigVolt[2] = {
-         readVoltageAndCalculate(PANEL_LEFT, PANEL_TEMP_VOLT1, &hadc1),
-         readVoltageAndCalculate(PANEL_LEFT, PANEL_TEMP_VOLT2, &hadc1)
-    };
-    float rightOrigVolt[2] = {
-        readVoltageAndCalculate(PANEL_RIGHT, PANEL_TEMP_VOLT1, &hadc2),
-        readVoltageAndCalculate(PANEL_RIGHT, PANEL_TEMP_VOLT2, &hadc2)
-    };
+    float leftOrigVolt[2], rightOrigVolt[2];
+    rightOrigVolt[0] = readVoltageAndCalculate(PANEL_RIGHT, PANEL_TEMP_VOLT1, &hadc2);
+    rightOrigVolt[1] = readVoltageAndCalculate(PANEL_RIGHT, PANEL_TEMP_VOLT2, &hadc2);
+    leftOrigVolt[0] = readVoltageAndCalculate(PANEL_LEFT, PANEL_TEMP_VOLT1, &hadc1);
+    leftOrigVolt[1] = readVoltageAndCalculate(PANEL_LEFT, PANEL_TEMP_VOLT2, &hadc1);
 
     bool isError = (leftOrigVolt[0] == -1.0f || rightOrigVolt[0] == -1.0f ||
                     leftOrigVolt[1] == -1.0f || rightOrigVolt[1] == -1.0f);
@@ -989,13 +1059,12 @@ void CheckPanelState(void)
 void switchMode(void)
 {
 	ecx343_current_data.uLCD_MODE = currentPanelMode;
+	executeTaskWithMutex(POWER_OFF, PANEL_BOTH);
 
-	panelPowerOff(PANEL_BOTH);
+	LT7911_Mode_Switch(ecx343_current_data.uLCD_MODE);
+	osDelay(1000);
 
-    LT7911_Mode_Switch(ecx343_current_data.uLCD_MODE);
-    osDelay(1000);
-
-    panelPowerOn(PANEL_BOTH);
+	executeTaskWithMutex(POWER_ON, PANEL_BOTH);
 }
 
 const setPanelSeqTable PanelContPanelReg60HzSettingTable[] = {

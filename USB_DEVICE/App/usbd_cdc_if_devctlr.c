@@ -158,11 +158,11 @@ extern USBD_HandleTypeDef hUsbDeviceHS;
   * @{
   */
 
-static int8_t CDC_DEVCTLR_Init_FS(void);
-static int8_t CDC_DEVCTLR_DeInit_FS(void);
-static int8_t CDC_DEVCTLR_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length);
-static int8_t CDC_DEVCTLR_Receive_FS(uint8_t* pbuf, uint32_t *Len);
-static int8_t CDC_DEVCTLR_TransmitCplt_FS(uint8_t *pbuf, uint32_t *Len, uint8_t epnum);
+static int8_t CDC_DEVCTLR_Init_HS(void);
+static int8_t CDC_DEVCTLR_DeInit_HS(void);
+static int8_t CDC_DEVCTLR_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length);
+static int8_t CDC_DEVCTLR_Receive_HS(uint8_t* pbuf, uint32_t *Len);
+static int8_t CDC_DEVCTLR_TransmitCplt_HS(uint8_t *pbuf, uint32_t *Len, uint8_t epnum);
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_DECLARATION */
 static int8_t CDC_DEVCTLR_EnableTransmit = 0x1;
@@ -172,13 +172,13 @@ static int8_t CDC_DEVCTLR_EnableTransmit = 0x1;
   * @}
   */
 
-USBD_CDC_ItfTypeDef USBD_Interface_fops_DEVCTLR_FS =
+USBD_CDC_ItfTypeDef USBD_Interface_fops_DEVCTLR_HS =
 {
-  CDC_DEVCTLR_Init_FS,
-  CDC_DEVCTLR_DeInit_FS,
-  CDC_DEVCTLR_Control_FS,
-  CDC_DEVCTLR_Receive_FS,
-  CDC_DEVCTLR_TransmitCplt_FS
+  CDC_DEVCTLR_Init_HS,
+  CDC_DEVCTLR_DeInit_HS,
+  CDC_DEVCTLR_Control_HS,
+  CDC_DEVCTLR_Receive_HS,
+  CDC_DEVCTLR_TransmitCplt_HS
 };
 
 /* Private functions ---------------------------------------------------------*/
@@ -186,7 +186,7 @@ USBD_CDC_ItfTypeDef USBD_Interface_fops_DEVCTLR_FS =
   * @brief  Initializes the CDC media low layer over the FS USB IP
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CDC_DEVCTLR_Init_FS(void)
+static int8_t CDC_DEVCTLR_Init_HS(void)
 {
   /* USER CODE BEGIN 3 */
   nCdcDevCtlrRxIdx = 0;
@@ -201,7 +201,7 @@ static int8_t CDC_DEVCTLR_Init_FS(void)
   * @brief  DeInitializes the CDC media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CDC_DEVCTLR_DeInit_FS(void)
+static int8_t CDC_DEVCTLR_DeInit_HS(void)
 {
   /* USER CODE BEGIN 4 */
   return (USBD_OK);
@@ -215,7 +215,7 @@ static int8_t CDC_DEVCTLR_DeInit_FS(void)
   * @param  length: Number of data to be sent (in bytes)
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CDC_DEVCTLR_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
+static int8_t CDC_DEVCTLR_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 {
   /* USER CODE BEGIN 5 */
   switch(cmd)
@@ -313,7 +313,7 @@ static int8_t CDC_DEVCTLR_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length
   * @param  Len: Number of data received (in bytes)
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CDC_DEVCTLR_Receive_FS(uint8_t* Buf, uint32_t *Len)
+static int8_t CDC_DEVCTLR_Receive_HS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
   // always swap the buffers in ISR
@@ -352,7 +352,7 @@ static int8_t CDC_DEVCTLR_Receive_FS(uint8_t* Buf, uint32_t *Len)
 }
 
 /**
-  * @brief  CDC_DEVCTLR_Transmit_FS
+  * @brief  CDC_DEVCTLR_Transmit_HS
   *         Data to send over USB IN endpoint are sent over CDC interface
   *         through this function.
   *         @note
@@ -362,7 +362,7 @@ static int8_t CDC_DEVCTLR_Receive_FS(uint8_t* Buf, uint32_t *Len)
   * @param  Len: Number of data to be sent (in bytes)
   * @retval USBD_OK if all operations are OK else USBD_FAIL or USBD_BUSY
   */
-uint8_t CDC_DEVCTLR_Transmit_FS(uint8_t* Buf, uint16_t Len)
+uint8_t CDC_DEVCTLR_Transmit_HS(uint8_t* Buf, uint16_t Len)
 {
   uint8_t result = USBD_OK;
   /* USER CODE BEGIN 7 */
@@ -403,7 +403,7 @@ uint8_t CDC_DEVCTLR_Transmit_FS(uint8_t* Buf, uint16_t Len)
 }
 
 /**
-  * @brief  CDC_DEVCTLR_TransmitCplt_FS
+  * @brief  CDC_DEVCTLR_TransmitCplt_HS
   *         Data transmitted callback
   *
   *         @note
@@ -414,7 +414,7 @@ uint8_t CDC_DEVCTLR_Transmit_FS(uint8_t* Buf, uint16_t Len)
   * @param  Len: Number of data received (in bytes)
   * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CDC_DEVCTLR_TransmitCplt_FS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
+static int8_t CDC_DEVCTLR_TransmitCplt_HS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
 {
   uint8_t result = USBD_OK;
   /* USER CODE BEGIN 13 */
@@ -554,7 +554,7 @@ void CDC_DEVCTLR_EchoBack(void)
 
 	// send out the echo back characters
 	while (start_len == DEVCTLR_EchoedRxBuffLength && buf == DEVCTLR_RxBuffer &&
-			CDC_DEVCTLR_Transmit_FS(buf+start_len, target_len-start_len) != HAL_OK);
+			CDC_DEVCTLR_Transmit_HS(buf+start_len, target_len-start_len) != HAL_OK);
 
 	// update the echoed buffer length only when it hasn't been changed
 	if (start_len == DEVCTLR_EchoedRxBuffLength)
@@ -577,7 +577,7 @@ void usb_DEVCTLR_printf(const char *format, ...)
     va_end(args);
 
     nRetry = 0;
-    while( (USBD_OK !=  CDC_DEVCTLR_Transmit_FS(DEVCTLR_UserTxBufferFS, length)) &&
+    while( (USBD_OK !=  CDC_DEVCTLR_Transmit_HS(DEVCTLR_UserTxBufferFS, length)) &&
            (nRetry < MAX_RETRY) )
     {
         HAL_Delay(1);

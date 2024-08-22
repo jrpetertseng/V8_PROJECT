@@ -88,7 +88,7 @@
   */
 
 /** AUDIO_IF Interface callback. */
-extern USBD_AUDIO_ItfTypeDef USBD_AUDIO_fops_FS;
+extern USBD_AUDIO_ItfTypeDef USBD_AUDIO_fops_HS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
 
@@ -107,13 +107,13 @@ extern USBD_AUDIO_ItfTypeDef USBD_AUDIO_fops_FS;
   * @brief  Manages the DMA full transfer complete event.
   * @retval None
   */
-void TransferComplete_CallBack_FS(void);
+void TransferComplete_CallBack_HS(void);
 
 /**
   * @brief  Manages the DMA half transfer complete event.
   * @retval None
   */
-void HalfTransfer_CallBack_FS(void);
+void HalfTransfer_CallBack_HS(void);
 
 /* USER CODE BEGIN EXPORTED_FUNCTIONS */
 

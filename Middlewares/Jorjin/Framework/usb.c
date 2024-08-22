@@ -19,12 +19,12 @@
 
 static JUsb_t gCtx;
 
-extern int8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len);
+extern int8_t USBD_CUSTOM_HID_SendReport_HS(uint8_t *report, uint16_t len);
 
 static void UsbEscapeISRTask(void * argument);
 
 extern uint32_t                 nExecs_IsrToF;
-
+extern bool bRangePacketUpdated;
 #if (0x20001U == osCMSIS)
 
 #include "FreeRTOS.h"
@@ -290,7 +290,7 @@ void usbLoop() {
                usbAls_TxBlock();
                usbTx_inc_key_report();
                //ret = USBD_OK;
-               ret = USBD_CUSTOM_HID_KEY_SendReport_FS(msg.data.keyReport.report, msg.data.keyReport.len);
+               ret = USBD_CUSTOM_HID_KEY_SendReport_HS(msg.data.keyReport.report, msg.data.keyReport.len);
                if(USBD_OK != ret)
                {
                    /* Fail, release the lock. */
@@ -303,20 +303,21 @@ void usbLoop() {
                 usbToF_TxBlock();
 //                nTofGpioInts_1 += 1;
 //                usbTx_inc_tof();
-                ret = CDC_Transmit_FS((uint8_t *)msg.data.ToFMsg.p, msg.data.ToFMsg.len);
+                ret = CDC_Transmit_HS((uint8_t *)msg.data.ToFMsg.p, msg.data.ToFMsg.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
                     usbTx_inc_tof_error();
 //                    usbTxUnblock();
                 }
+                bRangePacketUpdated = false;
                 usbTxUnblock();
                 break;
             case USB_DEBUG_MSG:
                 usbToF_TxBlock();
                 usbTx_inc_devctlr();
-//                ret = CDC_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
-                ret = CDC_DEVCTLR_Transmit_FS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
+//                ret = CDC_Transmit_HS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
+                ret = CDC_DEVCTLR_Transmit_HS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */

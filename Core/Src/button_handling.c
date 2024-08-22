@@ -114,7 +114,7 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType, Operati
                    ecx343_current_data.uLCD_LUXL - 10 : ecx343_current_data.uLCD_LUXL;
                ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR > 100) ?
                    ecx343_current_data.uLCD_LUXR - 10 : ecx343_current_data.uLCD_LUXR;
-               adjustBrightness();
+                executeTaskWithMutex(ADJUST_BRIGHTNESS);
                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
                break;
            } else {
@@ -127,7 +127,7 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType, Operati
                    ecx343_current_data.uLCD_LUXL + 10 : ecx343_current_data.uLCD_LUXL;
                ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR < 500) ?
                    ecx343_current_data.uLCD_LUXR + 10 : ecx343_current_data.uLCD_LUXR;
-               adjustBrightness();
+                executeTaskWithMutex(ADJUST_BRIGHTNESS);
                usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
            } else {
            	usbDebug("#volume +@\r\n");

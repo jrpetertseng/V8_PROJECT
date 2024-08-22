@@ -21,11 +21,11 @@ static USBD_AUDIO_HandleTypeDef          *pAUDData_MIC;
 #define AUDIO_PACKET_SZE(frq)          (uint8_t)(((frq * 2U * 2U)/1000U) & 0xFFU), \
                                    (uint8_t)((((frq * 2U * 2U)/1000U) >> 8) & 0xFFU)
 #if UAC_USE_PCM
-#define MIC_PACKET_SZE(frq)            (uint8_t)(((frq * 1U * 2U)/(1000U/AUDIO_FS_BINTERVAL)) & 0xFFU), \
-                                   (uint8_t)((((frq * 1U * 2U)/(1000U/AUDIO_FS_BINTERVAL)) >> 8) & 0xFFU)
+#define MIC_PACKET_SZE(frq)            (uint8_t)(((frq * 1U * 2U)/(1000U/AUDIO_HS_BINTERVAL)) & 0xFFU), \
+                                   (uint8_t)((((frq * 1U * 2U)/(1000U/AUDIO_HS_BINTERVAL)) >> 8) & 0xFFU)
 #else
-#define MIC_PACKET_SZE(frq)            (uint8_t)(((frq * 1U * 1U)/(1000U/AUDIO_FS_BINTERVAL)) & 0xFFU), \
-                                   (uint8_t)((((frq * 1U * 1U)/(1000U/AUDIO_FS_BINTERVAL)) >> 8) & 0xFFU)
+#define MIC_PACKET_SZE(frq)            (uint8_t)(((frq * 1U * 1U)/(1000U/AUDIO_HS_BINTERVAL)) & 0xFFU), \
+                                   (uint8_t)((((frq * 1U * 1U)/(1000U/AUDIO_HS_BINTERVAL)) >> 8) & 0xFFU)
 #endif
 
 static USBD_CUSTOM_HID_KEY_HandleTypeDef *pHIDData_KEY;
@@ -269,7 +269,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE]  __ALIG
   AUDIO_IN_EP,                          /* bEndpointAddress 1 out endpoint */
   USBD_EP_TYPE_ISOC,                    /* bmAttributes */
   MIC_PACKET_SZE(USBD_AUDIO_FREQ),      /* wMaxPacketSize in Bytes (Freq(Samples)*2(Stereo)*2(HalfWord)) */
-  AUDIO_FS_BINTERVAL,                   /* bInterval */
+  AUDIO_HS_BINTERVAL,                   /* bInterval */
   0x00,                                 /* bRefresh */
   0x00,                                 /* bSynchAddress */
   /* 09 byte*/
@@ -316,7 +316,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE]  __ALIG
   0x03,                                               /* bmAttributes: Interrupt endpoint */
   CUSTOM_HID_IMU_EPIN_SIZE,                           /* wMaxPacketSize: 2 Byte max */
   0x00,
-  CUSTOM_HID_IMU_FS_BINTERVAL,                        /* bInterval: Polling Interval */
+  CUSTOM_HID_IMU_HS_BINTERVAL,                        /* bInterval: Polling Interval */
   /* 34 */
 
   /****************************HID KEY*******************************/
@@ -350,7 +350,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE]  __ALIG
   0x03,                                               /* bmAttributes: Interrupt endpoint */
   CUSTOM_HID_KEY_EPIN_SIZE,                           /* wMaxPacketSize: 2 Byte max */
   0x00,
-  CUSTOM_HID_KEY_FS_BINTERVAL,                        /* bInterval: Polling Interval */
+  CUSTOM_HID_KEY_HS_BINTERVAL,                        /* bInterval: Polling Interval */
 
   /* 32 */
   0x07,                                               /* bLength: Endpoint Descriptor size */
@@ -359,7 +359,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE]  __ALIG
   0x03,                                               /* bmAttributes: Interrupt endpoint */
   CUSTOM_HID_KEY_EPOUT_SIZE,                          /* wMaxPacketSize: 2 Bytes max  */
   0x00,
-  CUSTOM_HID_KEY_FS_BINTERVAL,                        /* bInterval: Polling Interval */
+  CUSTOM_HID_KEY_HS_BINTERVAL,                        /* bInterval: Polling Interval */
 
 
   /****************************CDC ToF************************************/
@@ -425,7 +425,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE]  __ALIG
   0x03,                                       /* bmAttributes: Interrupt */
   LOBYTE(CDC_CMD_PACKET_SIZE),                /* wMaxPacketSize: */
   HIBYTE(CDC_CMD_PACKET_SIZE),
-  CDC_FS_BINTERVAL,                           /* bInterval: */
+  CDC_HS_BINTERVAL,                           /* bInterval: */
   /*---------------------------------------------------------------------------*/
   
   /* Data class interface descriptor */
@@ -531,7 +531,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE]  __ALIG
   0x03,                                       /* bmAttributes: Interrupt */
   LOBYTE(CDC_DEVCTLR_CMD_PACKET_SIZE),        /* wMaxPacketSize: */
   HIBYTE(CDC_DEVCTLR_CMD_PACKET_SIZE),
-  CDC_DEVCTLR_FS_BINTERVAL,                   /* bInterval: */
+  CDC_DEVCTLR_HS_BINTERVAL,                   /* bInterval: */
   /*---------------------------------------------------------------------------*/
   
   /* Data class interface descriptor */
@@ -608,11 +608,11 @@ static uint8_t  USBD_Composite_Init (USBD_HandleTypeDef *pdev,
 {
   uint8_t res = 0;
 
-  pdev->pUserData = &USBD_AUDIO_fops_FS;
+  pdev->pUserData = &USBD_AUDIO_fops_HS;
   res +=  USBD_AUDIO.Init(pdev,cfgidx);
   pAUDData_MIC = pdev->pClassData;
 
-  pdev->pUserData = &USBD_Interface_fops_FS;
+  pdev->pUserData = &USBD_Interface_fops_HS;
   res +=  USBD_CDC.Init(pdev,cfgidx);
   pCDCData_Tof = pdev->pClassData;
   
@@ -624,11 +624,11 @@ static uint8_t  USBD_Composite_Init (USBD_HandleTypeDef *pdev,
   res +=  USBD_CUSTOM_HID_IMU.Init(pdev,cfgidx);
   pHIDData_IMU = pdev->pClassData;
 
-  pdev->pUserData = &USBD_CustomHID_KEY_fops_FS;
+  pdev->pUserData = &USBD_CustomHID_KEY_fops_HS;
   res +=  USBD_CUSTOM_HID_KEY.Init(pdev,cfgidx);
   pHIDData_KEY = pdev->pClassData;
   
-  pdev->pUserData = &USBD_Interface_fops_DEVCTLR_FS;
+  pdev->pUserData = &USBD_Interface_fops_DEVCTLR_HS;
   res +=  USBD_CDC_DEVCTLR.Init(pdev,cfgidx);
   pCDCData_Devctlr = pdev->pClassData;
   
@@ -649,11 +649,11 @@ static uint8_t  USBD_Composite_DeInit (USBD_HandleTypeDef *pdev,
     uint8_t res = 0;
 
     pdev->pClassData = pAUDData_MIC;
-    pdev->pUserData = &USBD_AUDIO_fops_FS;
+    pdev->pUserData = &USBD_AUDIO_fops_HS;
     res +=  USBD_AUDIO.DeInit(pdev,cfgidx);
 
     pdev->pClassData = pCDCData_Tof;
-    pdev->pUserData = &USBD_Interface_fops_FS;
+    pdev->pUserData = &USBD_Interface_fops_HS;
     res +=  USBD_CDC.DeInit(pdev,cfgidx);
 
 //    pdev->pClassData = pHIDData;
@@ -665,11 +665,11 @@ static uint8_t  USBD_Composite_DeInit (USBD_HandleTypeDef *pdev,
     res +=  USBD_CUSTOM_HID_IMU.DeInit(pdev,cfgidx);
 
     pdev->pClassData = pHIDData_KEY;
-    pdev->pUserData = &USBD_CustomHID_KEY_fops_FS;
+    pdev->pUserData = &USBD_CustomHID_KEY_fops_HS;
     res +=  USBD_CUSTOM_HID_KEY.DeInit(pdev,cfgidx);
 
     pdev->pClassData = pCDCData_Devctlr;
-    pdev->pUserData = &USBD_Interface_fops_DEVCTLR_FS;
+    pdev->pUserData = &USBD_Interface_fops_DEVCTLR_HS;
     res +=  USBD_CDC_DEVCTLR.DeInit(pdev,cfgidx);
 
     return res;
@@ -682,12 +682,12 @@ static uint8_t  USBD_Composite_EP0_RxReady(USBD_HandleTypeDef *pdev)
 	    case USBD_AUD_INTERFACE_MIC_CONTROL:
 	    case USBD_AUD_INTERFACE_MIC_STREAMING:
 	        pdev->pClassData = pAUDData_MIC;
-	        pdev->pUserData =  &USBD_AUDIO_fops_FS;
+	        pdev->pUserData =  &USBD_AUDIO_fops_HS;
 	        return(USBD_AUDIO.EP0_RxReady (pdev));
 	    case USBD_CDC_DATA_INTERFACE:
 	    case USBD_CDC_CMD_INTERFACE:
 	        pdev->pClassData = pCDCData_Tof;
-	        pdev->pUserData =  &USBD_Interface_fops_FS;
+	        pdev->pUserData =  &USBD_Interface_fops_HS;
 	        return(USBD_CDC.EP0_RxReady(pdev));
 
 //	    case USBD_HID_INTERFACE:
@@ -703,12 +703,12 @@ static uint8_t  USBD_Composite_EP0_RxReady(USBD_HandleTypeDef *pdev)
 	    case USBD_CDC_DEVCTLR_CMD_INTERFACE:
 	    case USBD_CDC_DEVCTLR_DATA_INTERFACE:
 	        pdev->pClassData = pCDCData_Devctlr;
-	        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+	        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
 	        return(USBD_CDC_DEVCTLR.EP0_RxReady(pdev));
 
 	    case USBD_HID_INTERFACE_KEY:
 	        pdev->pClassData = pHIDData_KEY;
-	        pdev->pUserData =  &USBD_CustomHID_KEY_fops_FS;
+	        pdev->pUserData =  &USBD_CustomHID_KEY_fops_HS;
 	        return(USBD_CUSTOM_HID_KEY.EP0_RxReady (pdev));          
 
 	    default:
@@ -738,12 +738,12 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
          case USBD_AUD_INTERFACE_MIC_CONTROL:
 	     case USBD_AUD_INTERFACE_MIC_STREAMING:
              pdev->pClassData = pAUDData_MIC;
-             pdev->pUserData =  &USBD_AUDIO_fops_FS;
+             pdev->pUserData =  &USBD_AUDIO_fops_HS;
            return(USBD_AUDIO.Setup (pdev, req));
          case USBD_CDC_DATA_INTERFACE:
          case USBD_CDC_CMD_INTERFACE:
              pdev->pClassData = pCDCData_Tof;
-             pdev->pUserData =  &USBD_Interface_fops_FS;
+             pdev->pUserData =  &USBD_Interface_fops_HS;
            return(USBD_CDC.Setup(pdev, req));
 
 //         case USBD_HID_INTERFACE:
@@ -757,11 +757,11 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
          case USBD_CDC_DEVCTLR_DATA_INTERFACE:
          case USBD_CDC_DEVCTLR_CMD_INTERFACE:
              pdev->pClassData = pCDCData_Devctlr;
-             pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+             pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
            return(USBD_CDC_DEVCTLR.Setup (pdev, req));
 		 case USBD_HID_INTERFACE_KEY:
              pdev->pClassData = pHIDData_KEY;
-             pdev->pUserData =  &USBD_CustomHID_KEY_fops_FS;
+             pdev->pUserData =  &USBD_CustomHID_KEY_fops_HS;
            return(USBD_CUSTOM_HID_KEY.Setup (pdev, req));           
          default:
             break;
@@ -775,13 +775,13 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
          case AUDIO_IN_EP:
          case AUDIO_OUT_EP:
              pdev->pClassData = pAUDData_MIC;
-             pdev->pUserData =  &USBD_AUDIO_fops_FS;
+             pdev->pUserData =  &USBD_AUDIO_fops_HS;
            return(USBD_AUDIO.Setup (pdev, req));
          case CDC_IN_EP:
          case CDC_OUT_EP:
          case CDC_CMD_EP:
              pdev->pClassData = pCDCData_Tof;
-             pdev->pUserData =  &USBD_Interface_fops_FS;
+             pdev->pUserData =  &USBD_Interface_fops_HS;
            return(USBD_CDC.Setup(pdev, req));
 
 //         case CUSTOM_HID_EPIN_ADDR:
@@ -800,12 +800,12 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
          case CDC_DEVCTLR_OUT_EP:
          case CDC_DEVCTLR_CMD_EP:
              pdev->pClassData = pCDCData_Devctlr;
-             pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+             pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
            return(USBD_CDC_DEVCTLR.Setup(pdev, req));
          case CUSTOM_HID_KEY_EPIN_ADDR:
          case CUSTOM_HID_KEY_EPOUT_ADDR:
              pdev->pClassData = pHIDData_KEY;
-             pdev->pUserData =  &USBD_CustomHID_KEY_fops_FS;
+             pdev->pUserData =  &USBD_CustomHID_KEY_fops_HS;
            return(USBD_CUSTOM_HID_KEY.Setup (pdev, req));
 
          default:
@@ -833,11 +833,11 @@ uint8_t  USBD_Composite_DataIn (USBD_HandleTypeDef *pdev,
   {
       case AUD_MIC_INDATA_NUM:
              pdev->pClassData = pAUDData_MIC;
-             pdev->pUserData =  &USBD_AUDIO_fops_FS;
+             pdev->pUserData =  &USBD_AUDIO_fops_HS;
          return(USBD_AUDIO.DataIn(pdev,epnum));
       case CDC_INDATA_NUM:
         pdev->pClassData = pCDCData_Tof;
-        pdev->pUserData =  &USBD_Interface_fops_FS;
+        pdev->pUserData =  &USBD_Interface_fops_HS;
          return(USBD_CDC.DataIn(pdev,epnum));
 
 //      case HID_INDATA_NUM:
@@ -852,11 +852,11 @@ uint8_t  USBD_Composite_DataIn (USBD_HandleTypeDef *pdev,
 
       case CDC_DEVCTLR_INDATA_NUM:
         pdev->pClassData = pCDCData_Devctlr;
-        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
          return(USBD_CDC_DEVCTLR.DataIn(pdev,epnum));
       case HID_KEY_INDATA_NUM:
              pdev->pClassData = pHIDData_KEY;
-             pdev->pUserData =  &USBD_CustomHID_KEY_fops_FS;
+             pdev->pUserData =  &USBD_CustomHID_KEY_fops_HS;
          return(USBD_CUSTOM_HID_KEY.DataIn(pdev,epnum));
 
       default:
@@ -881,12 +881,12 @@ uint8_t  USBD_Composite_DataOut (USBD_HandleTypeDef *pdev,
   {
       case AUD_MIC_OUTDATA_NUM:
              pdev->pClassData = pAUDData_MIC;
-             pdev->pUserData =  &USBD_AUDIO_fops_FS;
+             pdev->pUserData =  &USBD_AUDIO_fops_HS;
          return(USBD_AUDIO.DataOut(pdev,epnum));
       case CDC_OUTDATA_NUM:
       case CDC_OUTCMD_NUM:
         pdev->pClassData = pCDCData_Tof;
-        pdev->pUserData =  &USBD_Interface_fops_FS;
+        pdev->pUserData =  &USBD_Interface_fops_HS;
          return(USBD_CDC.DataOut(pdev,epnum));
 
 //      case HID_OUTDATA_NUM:
@@ -902,11 +902,11 @@ uint8_t  USBD_Composite_DataOut (USBD_HandleTypeDef *pdev,
       case CDC_DEVCTLR_OUTDATA_NUM:
       case CDC_DEVCTLR_OUTCMD_NUM:
         pdev->pClassData = pCDCData_Devctlr;
-        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
          return(USBD_CDC_DEVCTLR.DataOut(pdev,epnum));
       case HID_KEY_OUTDATA_NUM:
              pdev->pClassData = pHIDData_KEY;
-             pdev->pUserData =  &USBD_CustomHID_KEY_fops_FS;
+             pdev->pUserData =  &USBD_CustomHID_KEY_fops_HS;
          return(USBD_CUSTOM_HID_KEY.DataOut(pdev,epnum));
 
       default:
@@ -955,11 +955,11 @@ if (!pdev || !pCDCData_Tof || !pAUDData_MIC || !pHIDData_IMU || !pCDCData_Devctl
   {
   case USBD_AUD_MIC_INTERFACE:
       pdev->pClassData = pAUDData_MIC;
-      pdev->pUserData = &USBD_AUDIO_fops_FS;
+      pdev->pUserData = &USBD_AUDIO_fops_HS;
       break;
   case USBD_CDC_INTERFACE:
       pdev->pClassData = pCDCData_Tof;
-      pdev->pUserData =  &USBD_Interface_fops_FS;
+      pdev->pUserData =  &USBD_Interface_fops_HS;
       break;
 //  case USBD_CUSTOMHID_INTERFACE:
 //      pdev->pClassData = pHIDData;
@@ -971,11 +971,11 @@ if (!pdev || !pCDCData_Tof || !pAUDData_MIC || !pHIDData_IMU || !pCDCData_Devctl
       break;
   case USBD_CDC_DEVCTLR_INTERFACE:
       pdev->pClassData = pCDCData_Devctlr;
-      pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_FS;
+      pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
       break;
   case USBD_CUSTOMHID_KEY_INTERFACE:
       pdev->pClassData = pHIDData_KEY;
-      pdev->pUserData = &USBD_CustomHID_KEY_fops_FS;
+      pdev->pUserData = &USBD_CustomHID_KEY_fops_HS;
       break;
   default:
 	  break;

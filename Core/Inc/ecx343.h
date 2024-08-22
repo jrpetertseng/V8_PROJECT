@@ -377,6 +377,24 @@ typedef enum {
     PANEL_STATUS_ERROR,
 } PanelStatus;
 
+typedef struct {
+    PanelSide side;
+    uint8_t value;
+} PanelControlData;
+
+typedef enum {
+    POWER_ON,
+    POWER_OFF,
+	WRITE_REGISTERS,
+    INVERSION,
+    LUMINANCE_MODE,
+    PRESET_LUMINANCE,
+    ORBIT_H,
+    ORBIT_V,
+    ADJUST_BRIGHTNESS,
+	UPDATE_TEMPERATURE,
+} TaskID;
+
 #define PANEL_WRITE_LENGTH                   (uint16_t)2
 #define PANEL_REG_RW_TIMEOUT                 (uint32_t)1000
 
@@ -443,6 +461,8 @@ void updatePanelTemperature(void);
 // Brightness adjustment based on ambient light
 int mapLuxToPanelBrightness(int lux, int *currentIndex);
 void smoothlyChangeBrightness(uint16_t targetBrightness);
+
+void executeTaskWithMutex(TaskID taskID, ...);
 
 #endif /* INC_ECX343_H_ */
 

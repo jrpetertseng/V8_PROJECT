@@ -7,13 +7,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -36,12 +35,6 @@
 #include "stm32f7xx_hal.h"
 #include "debug_defs.h"
 /* USER CODE BEGIN INCLUDE */
-
-//#define USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE     64
-//#define USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE     335
-
-//#define USBD_CUSTOMHID_ALS_OUTREPORT_BUF_SIZE     2U
-//#define USBD_CUSTOM_HID_ALS_REPORT_DESC_SIZE     164U
 
 /* USER CODE END INCLUDE */
 
@@ -86,11 +79,11 @@
 #define USBD_CUSTOM_HID_REPORT_DESC_SIZE     164U
 /*---------- -----------*/
 #define CUSTOM_HID_HS_BINTERVAL     0x5U
-#define USBD_AUDIO_FREQ     16000U          //16000U
+#define USBD_AUDIO_FREQ     16000U
 #define USBD_AUDIO_CHANNEL  1U
 
 /* If we use UAC, this must be on */
-#define FS_OVER_HS_CTRL     1
+#define FS_OVER_HS_CTRL     0
 
 /****************************************/
 /* #define for FS and HS identification */
@@ -189,5 +182,3 @@ void USBD_static_free(void *p);
 #endif
 
 #endif /* __USBD_CONF__H__ */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

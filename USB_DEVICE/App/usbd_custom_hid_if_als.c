@@ -89,7 +89,7 @@
   */
 
 /** Usb custom HID report descriptor. */
-__ALIGN_BEGIN static uint8_t CUSTOM_HID_KEY_ReportDesc_FS[USBD_CUSTOM_HID_KEY_REPORT_DESC_SIZE] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t CUSTOM_HID_KEY_ReportDesc_HS[USBD_CUSTOM_HID_KEY_REPORT_DESC_SIZE] __ALIGN_END =
 {
 	/* USER CODE BEGIN 0 */
 	// ref: see https://github.com/torvalds/linux/blob/master/drivers/hid/hid-input.c for the kernel code
@@ -322,20 +322,20 @@ HID_Keypad_Report hid_keyboard_als_report = {0};
   * @{
   */
 
-static int8_t CUSTOM_HID_KEY_Init_FS(void);
-static int8_t CUSTOM_HID_KEY_DeInit_FS(void);
-static int8_t CUSTOM_HID_KEY_OutEvent_FS(uint8_t event_idx, uint8_t state);
+static int8_t CUSTOM_HID_KEY_Init_HS(void);
+static int8_t CUSTOM_HID_KEY_DeInit_HS(void);
+static int8_t CUSTOM_HID_KEY_OutEvent_HS(uint8_t event_idx, uint8_t state);
 
 /**
   * @}
   */
 
-USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_KEY_fops_FS =
+USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_KEY_fops_HS =
 {
-  CUSTOM_HID_KEY_ReportDesc_FS,
-  CUSTOM_HID_KEY_Init_FS,
-  CUSTOM_HID_KEY_DeInit_FS,
-  CUSTOM_HID_KEY_OutEvent_FS
+  CUSTOM_HID_KEY_ReportDesc_HS,
+  CUSTOM_HID_KEY_Init_HS,
+  CUSTOM_HID_KEY_DeInit_HS,
+  CUSTOM_HID_KEY_OutEvent_HS
 };
 
 /** @defgroup USBD_CUSTOM_HID_Private_Functions USBD_CUSTOM_HID_Private_Functions
@@ -349,7 +349,7 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_KEY_fops_FS =
   * @brief  Initializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_KEY_Init_FS(void)
+static int8_t CUSTOM_HID_KEY_Init_HS(void)
 {
   /* USER CODE BEGIN 8 */
   return (USBD_OK);
@@ -360,7 +360,7 @@ static int8_t CUSTOM_HID_KEY_Init_FS(void)
   * @brief  DeInitializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_KEY_DeInit_FS(void)
+static int8_t CUSTOM_HID_KEY_DeInit_HS(void)
 {
   /* USER CODE BEGIN 9 */
   return (USBD_OK);
@@ -373,7 +373,7 @@ static int8_t CUSTOM_HID_KEY_DeInit_FS(void)
   * @param  state: Event state
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_KEY_OutEvent_FS(uint8_t event_idx, uint8_t state)
+static int8_t CUSTOM_HID_KEY_OutEvent_HS(uint8_t event_idx, uint8_t state)
 {
   /* USER CODE BEGIN 10 */
   UNUSED(event_idx);
@@ -393,7 +393,7 @@ static int8_t CUSTOM_HID_KEY_OutEvent_FS(uint8_t event_idx, uint8_t state)
   * @param  len: The report length
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-int8_t USBD_CUSTOM_HID_KEY_SendReport_FS(uint8_t *report, uint16_t len)
+int8_t USBD_CUSTOM_HID_KEY_SendReport_HS(uint8_t *report, uint16_t len)
 {
   /* NOTE:
    * We need manually switch the USB interface during the Tx data preparation

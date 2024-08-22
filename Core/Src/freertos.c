@@ -6,13 +6,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -43,7 +42,6 @@
 #include "usbd_custom_hid_if_als.h"
 #include "usbd_audio.h"
 
-//#include "lt7911d.h"
 #include "al3010.h"
 #include "ecx343.h"
 #include "rpr0521.h"
@@ -52,13 +50,11 @@
 #include "usb.h"
 #include "bno080.h"
 
-#include "i2s.h"
 #include "i2c.h"
 #include "pingpong_buf.h"
 #include "vl53l8cx_api.h"
 #include "button_handling.h"
 #include "ring_buffer.h"
-//#include "libfar.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -117,14 +113,10 @@ uint8_t on_flag = 0;
 uint8_t p_flag = 0;
 uint8_t DebugSwitch = 0;
 uint8_t AutoBrightness = 0;
-//uint16_t p_threshold = 1;
-//int16_t data_i2s[AUDIO_IN_PACKET*_PACK_SIZE];
 int16_t data_i2s[AUDIO_IN_PACKET*_DMA_SIZE];
 int16_t average_volume = 1970; //1430
 uint8_t buttonEvent;
 extern uint16_t tofResetCount;
-//bool medianFlag = true;
-//int16_t median_buf[AUDIO_IN_PACKET/2];
 
 extern RingBuffer rb;
 extern RingBuffer reSample_rb;
@@ -142,10 +134,8 @@ static int16_t upSampleBuffer[AUDIO_IN_PACKET/2*_RESAMPLE_SIZE];
 const int16_t upSample_size = sizeof(upSampleBuffer)/2;
 #endif
 static int tmp_bufferIndex = 0;
-//static int16_t tmp_buffer[AUDIO_IN_PACKET];
 
 const int dmaDataSize = sizeof(data_i2s)/4;
-//extern volatile uint8_t buffer_updated;
 
 VL53L8CX_Configuration  Dev;
 
@@ -259,7 +249,7 @@ const osThreadAttr_t MainTask_attributes = {
 
 #if ENABLE_ALS
 osThreadId_t ALSensorTaskHandle;
-uint32_t ALSensorTaskBuffer[ 256 ]; //512
+uint32_t ALSensorTaskBuffer[ 512 ]; //512
 osStaticThreadDef_t ALSensorTaskControlBlock;
 const osThreadAttr_t ALSensorTask_attributes = {
   .name = "ALSensorTask",
@@ -522,13 +512,8 @@ void UsbTxTask(void *argument)
 {
   /* USER CODE BEGIN Pre UsbTxTask */
   // This task is responsible to create all other tasks.
-//    osDelay(500);
-#if ENABLE_TOF_15HZ
-    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_RESET);
-#else
     HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
-#endif
-//    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
     osDelay(500);
   usbInit();
@@ -902,6 +887,50 @@ void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s) //Get last 10ms data = 5ms
 }
 #endif
 
+void checkAndReduceBrightness(uint32_t* startTime, uint32_t* lastHighTempTime) {
+    const uint32_t checkInterval = 1000;
+    const uint32_t highTempThresholdTime = 60000;
+    static bool reduceBrightness = false;
+
+    uint32_t currentTick = osKernelGetTickCount();
+
+    if ((currentTick - *startTime) > checkInterval) {
+        *startTime = currentTick;
+
+        if (g_temperatureLeftSmoothed > 70.0f || g_temperatureRightSmoothed > 70.0f) {
+            if (*lastHighTempTime == 0) {
+                *lastHighTempTime = currentTick;
+            } else if ((currentTick - *lastHighTempTime) > highTempThresholdTime) {
+                reduceBrightness = true;
+            }
+        } else {
+            *lastHighTempTime = 0;
+        }
+    }
+
+    if (reduceBrightness) {
+        bool brightnessReduced = false;
+
+        if (ecx343_current_data.uLCD_LUXL > 350) {
+            ecx343_current_data.uLCD_LUXL -= 10;
+            brightnessReduced = true;
+        }
+
+        if (ecx343_current_data.uLCD_LUXR > 350) {
+            ecx343_current_data.uLCD_LUXR -= 10;
+            brightnessReduced = true;
+        }
+
+        if (brightnessReduced) {
+            executeTaskWithMutex(ADJUST_BRIGHTNESS);
+        }
+
+        if (ecx343_current_data.uLCD_LUXL <= 350 && ecx343_current_data.uLCD_LUXR <= 350) {
+            reduceBrightness = false;
+        }
+    }
+}
+
 void ALSensorTask(void * argument)
 {
     static int current_lux = 0;
@@ -917,19 +946,18 @@ void ALSensorTask(void * argument)
                 AL3010_ReadData();
                 i2c1TxUnblock();
                 ALS_SendReport_FS();
-        		if (AutoBrightness) {
-        		    if (light != current_lux) {
-        		        current_lux = light;
-        		        target_brightness = mapLuxToPanelBrightness(current_lux, &lux_index);
+        	    if (AutoBrightness) {
+        	        if (light != current_lux) {
+        	            current_lux = light;
+        	            target_brightness = mapLuxToPanelBrightness(current_lux, &lux_index);
 
-        		        if (previous_lux_index != lux_index) {
-        		            previous_lux_index = lux_index;
-        		            usbDebug("Interval: %d\n", lux_index);
-        		        }
-        		    }
-        			smoothlyChangeBrightness(target_brightness);
-        		}
-
+        	            if (previous_lux_index != lux_index) {
+        	                previous_lux_index = lux_index;
+        	                usbDebug("Interval: %d\n", lux_index);
+        	            }
+        	            smoothlyChangeBrightness(target_brightness);
+        	        }
+        	    }
                 osThreadFlagsClear(0x02);
             }
         }
@@ -949,14 +977,14 @@ void PSensorTask(void * argument)
             if (xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE) {
                 p_threshold = RPR0521_ReadPS();
                 i2c1TxUnblock();
-                p_flag = (p_threshold > PROXIMITY_THRESHOLD) ? true : false; 
+                p_flag = (p_threshold > PROXIMITY_THRESHOLD) ? true : false;
             	if (p_flag != on_flag) {
             	    TickType_t currentTick = xTaskGetTickCount();
             	    TickType_t debounceThreshold = on_flag ? OFF_DEBOUNCE_THRESHOLD : ON_DEBOUNCE_THRESHOLD;
 
             	    if ((currentTick - lastTransitionTick) >= debounceThreshold) {
             	        on_flag = !on_flag;
-            	        on_flag ? Panel_PowerOn(PANEL_BOTH) : Panel_PowerOff(PANEL_BOTH); // On 110 Tick : Off 138 Tick
+            	        on_flag ? executeTaskWithMutex(POWER_ON, PANEL_BOTH) : executeTaskWithMutex(POWER_OFF, PANEL_BOTH);
             	        lastTransitionTick = currentTick;
             	    }
             	} else {
@@ -983,14 +1011,12 @@ void MainTask(void * argument)
 //    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
 //    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
 //    osDelay(1000);
-#if ENABLE_PANEL
     HAL_GPIO_WritePin(LT7911_RSTN_GPIO_Port, LT7911_RSTN_Pin, GPIO_PIN_SET);
     osDelay(10);
     Ecx343_data_init_default();
     osDelay(10);
     ECX343EN_Init();
     osDelay(10);
-#endif
 #if ENABLE_TOF
     isrToFLock       = xSemaphoreCreateBinary();
 #if ENABLE_FAKE_DATA
@@ -1032,12 +1058,12 @@ void MainTask(void * argument)
 
 
 #if ENABLE_PANEL
-  	panelPowerOn(PANEL_BOTH);
+  	executeTaskWithMutex(POWER_ON, PANEL_BOTH);
     osDelay(10);
     on_flag = 1;
     // CheckPanelState();
-    // panel_reg_write(0, 0x80, 0x01, 0);
-    // panel_reg_write(0, 0x80, 0x01, 1);
+    //  panel_reg_write(0, 0x80, 0x01, 0);
+    //  panel_reg_write(0, 0x80, 0x01, 1);
 #endif
 
     uint32_t pressTime = 0, releaseTime = 0;
@@ -1046,13 +1072,16 @@ void MainTask(void * argument)
     OperationMode currentMode = MODE_BRIGHTNESS;
     PowerSave displayType = MODE_RELEASE;
     ButtonClickType clickType = NO_CLICK;
+//    uint8_t pin_status=0;
 
 #if REDUCE_BRIGHTNESS_ON_HIGH_TEMP
     uint32_t startTime = osKernelGetTickCount();
-    uint32_t checkInterval = 10000;
+    uint32_t lastHighTempTime = 0;
 #endif
     for(;;)
     {
+//    	pin_status = HAL_GPIO_ReadPin(AUDIO_DET_GPIO_Port, AUDIO_DET_Pin);
+
     	osDelay(100);
 #if ENABLE_TOF_FORCE_RESET
     	nTofGpioInts_1 += 1;
@@ -1138,21 +1167,7 @@ void MainTask(void * argument)
 
 #if REDUCE_BRIGHTNESS_ON_HIGH_TEMP
         /* Reduce brightness by 1000 when panel exceeds 90 degrees. */
-        if ((osKernelGetTickCount() - startTime) > checkInterval)
-        {
-            startTime = osKernelGetTickCount();
-			if (smoothed_left > 90.0f || smoothed_right > 90.0f)
-			{
-				for (uint8_t i = 0; i < 10; i++)
-				{
-					ecx343_current_data.uLCD_LUXL -= 10;
-					ecx343_current_data.uLCD_LUXR -= 10;
-					adjustBrightness();
-					osDelay(10);
-				}
-			}
-
-        }
+        checkAndReduceBrightness(&startTime, &lastHighTempTime);
         /**/
 #endif
     }
@@ -1170,18 +1185,14 @@ void ADCTask(void *argument)
             {
                 usbDebug("LeftOrigTemperature: %.2f\r\nRightOrigTemperature: %.2f\r\n", g_temperatureLeftRaw, g_temperatureRightRaw);
             }
-            if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE)
-            {
-                updatePanelTemperature();
-                xSemaphoreGive(xMutex);
-            }
+            updatePanelTemperature();
             if(DebugSwitch)
             {
                 usbDebug("LeftTemperature: %.2f\r\nRightTemperature: %.2f\r\n", g_temperatureLeftSmoothed, g_temperatureRightSmoothed);
             }
         }
 
-        vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(1000));
+        vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(5000));
     }
 }
 
@@ -1241,8 +1252,7 @@ static void ToFTask(void * argument)
 //    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
 //    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
 //    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
-//    osDelay(1000);
-
+    osDelay(1000);
     ResetTof();
   /* Infinite loop */
     while(1)
@@ -1253,31 +1263,29 @@ static void ToFTask(void * argument)
 
         nExecs_IsrToF += 1;
         if (bRangePacketUpdated) continue;
-        if(xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
-        {
-            status = vl53l8cx_get_resolution(&Dev, &resolution);
-            status = vl53l8cx_get_ranging_data(&Dev, &Results);
-            i2c1TxUnblock();
+
+		status = vl53l8cx_get_resolution(&Dev, &resolution);
+		status = vl53l8cx_get_ranging_data(&Dev, &Results);
 
 #if ENABLE_TOF_DEBUG
-            for(int i = 0; i < resolution;i++){
-                /* Print per zone results */
-                usbDebug("Zone : %2d, Nb targets : %2u, Ambient : %4lu Kcps/spads, \r\n",
-                        i,
-                        Results.nb_target_detected[i],
-                        Results.ambient_per_spad[i]);
+		for(int i = 0; i < resolution;i++){
+			/* Print per zone results */
+			usbDebug("Zone : %2d, Nb targets : %2u, Ambient : %4lu Kcps/spads, \r\n",
+					i,
+					Results.nb_target_detected[i],
+					Results.ambient_per_spad[i]);
 
-                /* Print per target results */
-                if(Results.nb_target_detected[i] > 0){
-                    usbDebug("Target status : %3u, Distance : %4d mm \r\n",
-                            Results.target_status[VL53L8CX_NB_TARGET_PER_ZONE * i],
-                            Results.distance_mm[VL53L8CX_NB_TARGET_PER_ZONE * i]);
-                }else{
-                    usbDebug("Target status : 255, Distance : No target\r\n");
-                }
-            }
-            usbDebug("\r\n");
-        }
+			/* Print per target results */
+			if(Results.nb_target_detected[i] > 0){
+				usbDebug("Target status : %3u, Distance : %4d mm \r\n",
+						Results.target_status[VL53L8CX_NB_TARGET_PER_ZONE * i],
+						Results.distance_mm[VL53L8CX_NB_TARGET_PER_ZONE * i]);
+			}else{
+				usbDebug("Target status : 255, Distance : No target\r\n");
+			}
+		}
+		usbDebug("\r\n");
+
 #else
         /*GOTO ToF CDC Process*/
             TickType_t timestamp = xTaskGetTickCount();
@@ -1293,24 +1301,21 @@ static void ToFTask(void * argument)
 #endif
         }
 #endif
-    }
+
 }
 #endif
 
 void ResetTof(void)
 {
     uint8_t isAlive, status;
-    i2c1TxUnblock();
     Dev.platform.address = VL53L8CX_DEFAULT_I2C_ADDRESS;
 //    Hard_reset();
     Reset_Sensor(&(Dev.platform));
     while(1)
     {
-        if(xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
-        {
-            status = vl53l8cx_is_alive(&Dev, &isAlive);
-            i2c1TxUnblock();
-        }
+
+		status = vl53l8cx_is_alive(&Dev, &isAlive);
+
         if(!isAlive)
         {
 //            usbDebug("VL53L8CX not detected at requested address (0x%x) \r\n", Dev.platform.address);
@@ -1321,21 +1326,20 @@ void ResetTof(void)
 
     }
 //    usbDebug("Sensor initializing, please wait few seconds \r\n");
-    if(xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
-    {
-        status = vl53l8cx_init(&Dev);
-        status = vl53l8cx_set_resolution(&Dev, VL53L8CX_RESOLUTION_8X8);
-        status = vl53l8cx_set_target_order(&Dev, VL53L8CX_TARGET_ORDER_CLOSEST);
+
+	status = vl53l8cx_init(&Dev);
+	status = vl53l8cx_set_resolution(&Dev, VL53L8CX_RESOLUTION_8X8);
+	status = vl53l8cx_set_target_order(&Dev, VL53L8CX_TARGET_ORDER_CLOSEST);
 #if ENABLE_TOF_15HZ
-        status = vl53l8cx_set_ranging_frequency_hz(&Dev, 15);
+	status = vl53l8cx_set_ranging_frequency_hz(&Dev, 15);
 #else
-        status = vl53l8cx_set_ranging_frequency_hz(&Dev, 8);
+	status = vl53l8cx_set_ranging_frequency_hz(&Dev, 8);
 #endif
-        status = vl53l8cx_set_ranging_mode(&Dev, VL53L8CX_RANGING_MODE_CONTINUOUS);  // Set mode continuous
+	status = vl53l8cx_set_ranging_mode(&Dev, VL53L8CX_RANGING_MODE_CONTINUOUS);  // Set mode continuous
 //        usbDebug("Ranging starts \r\n");
-        status = vl53l8cx_start_ranging(&Dev);
-        i2c1TxUnblock();
-    }
+	status = vl53l8cx_start_ranging(&Dev);
+
+
     nExecs_IsrToF = 0;
 //    usbDebug("Ranging status:%d \r\n", status);
 //    HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
@@ -1349,16 +1353,15 @@ void Tof_Hard_reset(void)
     xSemaphoreGive(isrToFLock);
     xSemaphoreTake( isrToFLock, portMAX_DELAY);
 //    osDelay(2000);
-    if(xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
-    {
-        I2C1_SoftwareReset();
-        ResetTof();
-        tof_resetFlag = 0;
-        nTofGpioInts_1 = 0;
-        osDelay(20);
-        HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
-        HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-    }
+
+	I2C2_SoftwareReset();
+	ResetTof();
+	tof_resetFlag = 0;
+	nTofGpioInts_1 = 0;
+	osDelay(20);
+	HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
+	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
 }
 #endif
 

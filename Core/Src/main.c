@@ -6,13 +6,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -21,13 +20,10 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "adc.h"
-#include "dma.h"
 #include "i2c.h"
-#include "i2s.h"
 #include "spi.h"
 #include "tim.h"
 #include "usb_device.h"
-//#include "usb_otg_hs.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -43,10 +39,8 @@
 #include "usbd_cdc_devctlr.h"
 #include "usbd_customhid.h"
 #include "usbd_customhid_imu.h"
-//#include "usbd_customhid_als.h"
 #include "usbd_custom_hid_if.h"
 #include "usbd_custom_hid_if_imu.h"
-//#include "usbd_custom_hid_if_als.h"
 #include "usbd_audio_if.h"
 
   #ifdef PRINTF_VIA_CDC_ENABLED
@@ -79,6 +73,7 @@
 
 /* USER CODE BEGIN PV */
 extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c3;
 extern USBD_HandleTypeDef hUsbDeviceHS;
 extern osThreadId_t ALSensorTaskHandle;
@@ -94,12 +89,6 @@ uint32_t nTaskAudioInts;
 uint8_t interruptTofEnable = 0;
 extern uint16_t p_threshold;
 extern int16_t data_i2s[AUDIO_IN_PACKET*_DMA_SIZE]; //1ms data x 10 = 10ms
-//extern int16_t data_i2s[AUDIO_IN_PACKET]; //1ms data x 10 = 10ms
-
-/*new PingPong Buffer*/
-//int16_t pingpong_1[AUDIO_IN_PACKET/2*_PACK_SIZE];
-//int16_t pingpong_2[AUDIO_IN_PACKET/2*_PACK_SIZE];
-//PingPongBuffer_t pingPong;
 
 /*new Ring Buffer*/
 RingBuffer rb;
@@ -110,9 +99,10 @@ int16_t reSample_buf[RESAMPLE_BUFFER_SIZE];
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MPU_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-static void MPU_Config(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -156,23 +146,6 @@ void McuReset(void)
     /* Should never reach!!! */
     while(1);
 }
-
-//bool ADC_to_MIC(void **process_buf)
-//{
-//    if(PingPongBuffer_GetReadBuf(&pingPong, process_buf))
-//    {
-//        return true;
-//    }else return false;
-//}
-//
-//bool ifReadOccupy(void **process_buf)
-//{
-//    if(PingPongBuffer_GetWriteBuf(&pingPong, process_buf))
-//    {
-//        return true;
-//    }else return false;
-//}
-
 /* ENABLE_CDC_ENGINEERING_TEST */
 
 /* USER CODE END 0 */
@@ -213,10 +186,9 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_I2C1_Init();
+  MX_I2C2_Init();
   MX_I2C3_Init();
-  MX_I2S3_Init();
   MX_SPI1_Init();
   MX_SPI2_Init();
   MX_SPI4_Init();
@@ -291,8 +263,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 24;
-  RCC_OscInitStruct.PLL.PLLN = 432;
+  RCC_OscInitStruct.PLL.PLLM = 12;
+  RCC_OscInitStruct.PLL.PLLN = 216;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -312,23 +284,19 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV2;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_7) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_I2C1|RCC_PERIPHCLK_I2C3
-                              |RCC_PERIPHCLK_I2S|RCC_PERIPHCLK_CLK48;
-  PeriphClkInitStruct.PLLI2S.PLLI2SN = 192;
-  PeriphClkInitStruct.PLLI2S.PLLI2SR = 2;
-  PeriphClkInitStruct.PLLI2S.PLLI2SQ = 2;
-  PeriphClkInitStruct.PLLI2SDivQ = 1;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_I2C1|RCC_PERIPHCLK_I2C2
+                              |RCC_PERIPHCLK_I2C3|RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
+  PeriphClkInitStruct.I2c2ClockSelection = RCC_I2C2CLKSOURCE_PCLK1;
   PeriphClkInitStruct.I2c3ClockSelection = RCC_I2C3CLKSOURCE_PCLK1;
-  PeriphClkInitStruct.I2sClockSelection = RCC_I2SCLKSOURCE_PLLI2S;
   PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLL;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {

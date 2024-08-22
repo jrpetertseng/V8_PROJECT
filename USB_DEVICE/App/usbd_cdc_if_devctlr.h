@@ -91,7 +91,7 @@
   */
 
 /** CDC DEVCTLR Interface callback. */
-extern USBD_CDC_ItfTypeDef USBD_Interface_fops_DEVCTLR_FS;
+extern USBD_CDC_ItfTypeDef USBD_Interface_fops_DEVCTLR_HS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
 //extern uint8_t DEVCTLR_UserTxBufferFS[DEVCTLR_APP_TX_DATA_SIZE];
@@ -107,7 +107,7 @@ extern bool CDC_DEVCTLR_Echo_Ctrl_Flag;
   * @{
   */
 
-uint8_t CDC_DEVCTLR_Transmit_FS(uint8_t* Buf, uint16_t Len);
+uint8_t CDC_DEVCTLR_Transmit_HS(uint8_t* Buf, uint16_t Len);
 
 /* USER CODE BEGIN EXPORTED_FUNCTIONS */
 void CDC_DEVCTLR_SetEnableTransmit( uint8_t bEnable);

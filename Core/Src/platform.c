@@ -63,9 +63,9 @@
 #include "platform.h"
 #include "main.h"
 
-extern I2C_HandleTypeDef 	hi2c1;
+extern I2C_HandleTypeDef 	hi2c2;
 
-#define TOF_BUS hi2c1
+#define TOF_BUS hi2c2
 
 uint8_t RdByte(
 		VL53L8CX_Platform *p_platform,

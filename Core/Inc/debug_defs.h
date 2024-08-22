@@ -13,29 +13,29 @@
 #define ENABLE_CMD                      0
 #define ENABLE_TOF                      1
 #define ENABLE_TOF_FORCE_RESET          0
-#define ENABLE_TOF_15HZ                 0
+#define ENABLE_TOF_15HZ                 1
 #define ENABLE_TOF_DEBUG                0
 #define ENABLE_OLD_TOF                  0
 #define ENABLE_IMU                      1
-#define ENABLE_MIS                      1
-#define MIC_DOWNSAMPLING                1
+#define ENABLE_MIS                      0
+#define MIC_DOWNSAMPLING                0
 #define MIC_UPSAMPLING                  0
 
-#define ENABLE_ALS                      0
-#define ENABLE_PS                       0
-#define ENABLE_ADC                      0
+#define ENABLE_ALS                      1
+#define ENABLE_PS                       1
+#define ENABLE_ADC                      1
 #define ENABLE_SCAN_I2C                 0
 
 #define REDUCE_BRIGHTNESS_ON_HIGH_TEMP  0
-#define ENABLE_PANEL                    1
+#define ENABLE_PANEL                    0
 
 #define ADD_HID_KEYBOARD                0
-#define ENABLE_HID_KEYBOARD_TEST        1
+#define ENABLE_HID_KEYBOARD_TEST        0
 
 #define ENABLE_CDC_CMD_PORT             1
 
-#define ENABLE_AUDIO_PROCESS            1
-#define ENABLE_FAKE_DATA                1
+#define ENABLE_AUDIO_PROCESS            0
+#define ENABLE_FAKE_DATA                0
 
 
 
