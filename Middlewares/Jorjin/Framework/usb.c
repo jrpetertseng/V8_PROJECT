@@ -17,6 +17,8 @@
 
 //#include "properties.h"
 
+static JQueueMessage_t msg;
+
 static JUsb_t gCtx;
 
 extern int8_t USBD_CUSTOM_HID_SendReport_HS(uint8_t *report, uint16_t len);
@@ -258,7 +260,7 @@ void usbSendMessageISR(JISRQueueMessage_t *msg) {
 }
 
 void usbLoop() {
-    static JQueueMessage_t msg;
+
     uint8_t         ret;
 #if ENABLE_STACK_CHECK
     UBaseType_t uxHighWaterMark;
@@ -269,25 +271,26 @@ void usbLoop() {
     
     while (1) {
         while (xQueueReceive(gCtx.queue, &msg, portMAX_DELAY) == pdPASS) {
+            usbTxBlock();   //Take USB Lock
             switch (msg.type) {
             case USB_HID_INPUT_REPORT:
                 break;
             case USB_HID_IMU_INPUT_REPORT:
 //                nIMUHIDUsbOuts += 1;
                 nIMUHIDUsbOuts = 0;
-                usbImu_TxBlock();
+//                usbImu_TxBlock();
                 usbTx_inc_imu_report();
                 ret = USBD_CUSTOM_HID_IMU_SendReport_HS(msg.data.imuReport.report, msg.data.imuReport.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
-                    usbTxUnblock();
+//                    usbTxUnblock();
                 }
                 /* Success, release the lock. */
-                usbTxUnblock();
+//                usbTxUnblock();
                 break;
            case USB_HID_KEY_INPUT_REPORT:
-               usbAls_TxBlock();
+//               usbAls_TxBlock();
                usbTx_inc_key_report();
                //ret = USBD_OK;
                ret = USBD_CUSTOM_HID_KEY_SendReport_HS(msg.data.keyReport.report, msg.data.keyReport.len);
@@ -297,24 +300,24 @@ void usbLoop() {
                    //usbTxUnblock();
                }
                /* Success, release the lock. */
-				usbTxUnblock();
+//				usbTxUnblock();
                break;
             case USB_CDC_TOF_DATA:
-                usbToF_TxBlock();
+//                usbToF_TxBlock();
 //                nTofGpioInts_1 += 1;
 //                usbTx_inc_tof();
                 ret = CDC_Transmit_HS((uint8_t *)msg.data.ToFMsg.p, msg.data.ToFMsg.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
-                    usbTx_inc_tof_error();
+//                    usbTx_inc_tof_error();
 //                    usbTxUnblock();
                 }
                 bRangePacketUpdated = false;
-                usbTxUnblock();
+//                usbTxUnblock();
                 break;
             case USB_DEBUG_MSG:
-                usbToF_TxBlock();
+//                usbToF_TxBlock();
                 usbTx_inc_devctlr();
 //                ret = CDC_Transmit_HS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
                 ret = CDC_DEVCTLR_Transmit_HS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
@@ -327,7 +330,7 @@ void usbLoop() {
 #if ENABLE_STACK_CHECK
 //                osDelay(1000);
 #endif
-                usbTxUnblock();
+//                usbTxUnblock();
                 break;
             default:
                 break;
@@ -340,7 +343,7 @@ void usbLoop() {
                 usbDebug("USB_task free stack：%lu\n", uxHighWaterMark);
             }
 #endif
-
+            usbTxUnblock(); //Release USB Lock
         }
     }
 }
@@ -357,6 +360,7 @@ static void UsbEscapeISRTask(void * argument)
 
     while (1) {
         while (xQueueReceive(gCtx.isrQueue, &msg, portMAX_DELAY) == pdPASS) {
+//            usbTxBlock();
             switch (msg.type) {
             case USB_HID_FEATURE_REPORT:
 #if SENSOR_DYNAMIC_INTERVAL
@@ -373,7 +377,7 @@ static void UsbEscapeISRTask(void * argument)
                 break;
             case USB_CDC_TX_COMPLETE_MSG:
                 usbTx_inc_tof_complete();
-                usbTxUnblock();
+//                usbTxUnblock();
                 break;
             case USB_CDC_RX_RECEIVE_MSG:
                 ret = copyToBuffer_ToF( msg.data.cdcRx.buf, msg.data.cdcRx.len);
@@ -402,7 +406,7 @@ static void UsbEscapeISRTask(void * argument)
                 break;
             case USB_CDC_DEVCTLR_TX_COMPLETE_MSG:
                 usbTx_inc_devctlr_complete();
-                usbTxUnblock();
+//                usbTxUnblock();
                 break;
             case USB_CDC_DEVCTLR_RX_RECEIVE_MSG:
                 ret = copyToBuffer_devCtlr( msg.data.cdcRx.buf, msg.data.cdcRx.len);
@@ -428,6 +432,7 @@ static void UsbEscapeISRTask(void * argument)
             default:
                 break;
             }
+//            usbTxUnblock();
         }
     }
 }

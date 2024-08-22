@@ -74,7 +74,7 @@ typedef struct JQueueMessage {
         struct UsbHidFeatureReport featureReport;
         struct UsbDebugMsg         debugMsg;
         struct UsbToFMsg           ToFMsg;
-        struct UsbHidInputReport   inputReport;
+//        struct UsbHidInputReport   inputReport;
         struct UsbHidImuReport     imuReport;
         struct UsbHidKeyReport     keyReport;
     } data;

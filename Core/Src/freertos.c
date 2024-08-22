@@ -113,11 +113,14 @@ uint8_t on_flag = 0;
 uint8_t p_flag = 0;
 uint8_t DebugSwitch = 0;
 uint8_t AutoBrightness = 0;
-int16_t data_i2s[AUDIO_IN_PACKET*_DMA_SIZE];
-int16_t average_volume = 1970; //1430
+
 uint8_t buttonEvent;
 extern uint16_t tofResetCount;
 
+#if ENABLE_MIS
+static SemaphoreHandle_t rb_xSemaphore;
+int16_t data_i2s[AUDIO_IN_PACKET*_DMA_SIZE];
+int16_t average_volume = 1970; //1430
 extern RingBuffer rb;
 extern RingBuffer reSample_rb;
 static int16_t tmp_buffer[AUDIO_IN_PACKET/2*_DMA_SIZE];
@@ -136,6 +139,7 @@ const int16_t upSample_size = sizeof(upSampleBuffer)/2;
 static int tmp_bufferIndex = 0;
 
 const int dmaDataSize = sizeof(data_i2s)/4;
+#endif
 
 VL53L8CX_Configuration  Dev;
 
@@ -360,7 +364,7 @@ static TimerHandle_t     ceTimers;
 static SemaphoreHandle_t ceLock;
 static int               nExecs_CmdToF;
 static SemaphoreHandle_t isrToFLock;
-static SemaphoreHandle_t rb_xSemaphore;
+
 
 //static int               nExecs_IsrToF;
 uint32_t                 nExecs_IsrToF;
@@ -840,17 +844,11 @@ void MicRxTask(void *argument)
 void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s) //Get last 10ms data = 5ms
 {
     nDMAAudioInts += 1;
-
-
     memset( tmp_buffer, 0x0, sizeof(tmp_buffer)); //clear tmp_buffer
-//    memcpy(tmp_buffer, data_i2s, sizeof(tmp_buffer));
     for (uint8_t i = 0; i < sizeof(data_i2s)/4 ; i++)
     {
         tmp_buffer[i] = (data_i2s[i*2]+average_volume)*2;
-//        tmp_buffer[i] = data_i2s[i*2];
     }
-//    int16_t* dest = downSampleBuffer + (tmp_bufferIndex * 32);
-//    memcpy(dest, tmp_buffer, sizeof(tmp_buffer));
 #if MIC_DOWNSAMPLING
     tmp_bufferIndex += 1;
     RingBuffer_Write(&reSample_rb, tmp_buffer, tmp_size);

@@ -145,11 +145,12 @@ void configSensor(sh2_SensorId_t sensorId, int interval)
 void sensorLoop()
 {
     sh2_SensorEvent_t event;
-
+#if ENABLE_FAKE_DATA
     ACCEL3_INPUT_REPORT accel3;
     MAG3_INPUT_REPORT tstMag3;
     QUAT_INPUT_REPORT tstQuat;
     JQueueMessage_t msg;
+#endif
     // Process sensors forever
     while (1) {
 #if ENABLE_FAKE_DATA
@@ -160,10 +161,10 @@ void sensorLoop()
         accel3.sAccelYValue = (int32_t)(0.2*10204082);
         accel3.sAccelZValue = (int32_t)(0.2*10204082);
         msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
-        msg.data.inputReport.len = sizeof(ACCEL3_INPUT_REPORT);
-        memcpy(msg.data.inputReport.report,
+        msg.data.imuReport.len = sizeof(ACCEL3_INPUT_REPORT);
+        memcpy(msg.data.imuReport.report,
                (void *)&accel3,
-               msg.data.inputReport.len);
+               msg.data.imuReport.len);
         usbSendMessage(&msg);
         vTaskDelay(10);
         accel3.ucReportId = REPORT_ID_GYRO3_INPUT;
@@ -173,10 +174,10 @@ void sensorLoop()
         accel3.sAccelYValue = (int32_t)(0.1*1000000);
         accel3.sAccelZValue = (int32_t)(0.1*1000000);
         msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
-        msg.data.inputReport.len = sizeof(ACCEL3_INPUT_REPORT);
-        memcpy(msg.data.inputReport.report,
+        msg.data.imuReport.len = sizeof(ACCEL3_INPUT_REPORT);
+        memcpy(msg.data.imuReport.report,
               (void *)&accel3,
-              msg.data.inputReport.len);
+              msg.data.imuReport.len);
         usbSendMessage(&msg);
         vTaskDelay(10);
         tstMag3.ucReportId = REPORT_ID_MAG3_INPUT;
@@ -186,10 +187,10 @@ void sensorLoop()
         tstMag3.sMagYValue = (int32_t)(1*10000);
         tstMag3.sMagZValue = (int32_t)(1*10000);
         msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
-        msg.data.inputReport.len = sizeof(MAG3_INPUT_REPORT);
-        memcpy(msg.data.inputReport.report,
+        msg.data.imuReport.len = sizeof(MAG3_INPUT_REPORT);
+        memcpy(msg.data.imuReport.report,
               (void *)&tstMag3,
-              msg.data.inputReport.len);
+              msg.data.imuReport.len);
         usbSendMessage(&msg);
         vTaskDelay(10);
         tstQuat.ucReportId = REPORT_ID_QUAT_INPUT;
@@ -201,9 +202,9 @@ void sensorLoop()
         tstQuat.sRawQuatReal = (int32_t)(1*100000000);
         tstQuat.sQuatAccuracy = (uint8_t)1;
         msg.type = USB_HID_IMU_INPUT_REPORT;
-        msg.data.inputReport.len = sizeof(QUAT_INPUT_REPORT);
-        memcpy(msg.data.inputReport.report, (void *)&tstQuat,
-                           msg.data.inputReport.len);
+        msg.data.imuReport.len = sizeof(QUAT_INPUT_REPORT);
+        memcpy(msg.data.imuReport.report, (void *)&tstQuat,
+                           msg.data.imuReport.len);
         usbSendMessage(&msg);
         vTaskDelay(10);
         accel3.ucReportId = REPORT_ID_GRAV3_INPUT;
@@ -213,10 +214,10 @@ void sensorLoop()
         accel3.sAccelYValue = (int32_t)(0*10204082);
         accel3.sAccelZValue = (int32_t)(9.8*10204082);
         msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
-        msg.data.inputReport.len = sizeof(ACCEL3_INPUT_REPORT);
-        memcpy(msg.data.inputReport.report,
+        msg.data.imuReport.len = sizeof(ACCEL3_INPUT_REPORT);
+        memcpy(msg.data.imuReport.report,
                (void *)&accel3,
-               msg.data.inputReport.len);
+               msg.data.imuReport.len);
         usbSendMessage(&msg);
         vTaskDelay(10);
 
@@ -436,10 +437,10 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
             accel3.sAccelYValue = (int32_t)(value.un.accelerometer.y*10204082);
             accel3.sAccelZValue = (int32_t)(value.un.accelerometer.z*10204082);
             msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
-            msg.data.inputReport.len = sizeof(ACCEL3_INPUT_REPORT);
-            memcpy(msg.data.inputReport.report,
+            msg.data.imuReport.len = sizeof(ACCEL3_INPUT_REPORT);
+            memcpy(msg.data.imuReport.report,
                    (void *)&accel3,
-                   msg.data.inputReport.len);
+                   msg.data.imuReport.len);
             usbSendMessage(&msg);
         }
         break;
@@ -458,10 +459,10 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
             accel3.sAccelYValue = (int32_t)(value.un.gyroscope.y*1000000);
             accel3.sAccelZValue = (int32_t)(value.un.gyroscope.z*1000000);
             msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
-            msg.data.inputReport.len = sizeof(ACCEL3_INPUT_REPORT);
-            memcpy(msg.data.inputReport.report,
+            msg.data.imuReport.len = sizeof(ACCEL3_INPUT_REPORT);
+            memcpy(msg.data.imuReport.report,
                   (void *)&accel3,
-                  msg.data.inputReport.len);
+                  msg.data.imuReport.len);
             usbSendMessage(&msg);
         }
         break;
@@ -480,10 +481,10 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
             tstMag3.sMagYValue = (int32_t)(value.un.magneticField.y*10000);
             tstMag3.sMagZValue = (int32_t)(value.un.magneticField.z*10000);
             msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
-            msg.data.inputReport.len = sizeof(MAG3_INPUT_REPORT);
-            memcpy(msg.data.inputReport.report,
+            msg.data.imuReport.len = sizeof(MAG3_INPUT_REPORT);
+            memcpy(msg.data.imuReport.report,
                   (void *)&tstMag3,
-                  msg.data.inputReport.len);
+                  msg.data.imuReport.len);
             usbSendMessage(&msg);
         }
         break;
@@ -510,9 +511,9 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
             tstQuat.sRawQuatReal = (int32_t)(value.un.rotationVector.real*100000000);
             tstQuat.sQuatAccuracy = (uint8_t)value.un.rotationVector.accuracy;
             msg.type = USB_HID_IMU_INPUT_REPORT;
-            msg.data.inputReport.len = sizeof(QUAT_INPUT_REPORT);
-            memcpy(msg.data.inputReport.report, (void *)&tstQuat,
-                               msg.data.inputReport.len);
+            msg.data.imuReport.len = sizeof(QUAT_INPUT_REPORT);
+            memcpy(msg.data.imuReport.report, (void *)&tstQuat,
+                               msg.data.imuReport.len);
 //            usbDebug("x: %0.6f, y: %0.6f, z: %0.6f, w: %0.6f\r\n",
 //                    value.un.rotationVector.j,
 //                    value.un.rotationVector.i,
@@ -530,10 +531,10 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
         accel3.sAccelYValue = (int32_t)(value.un.gravity.y*10204082);
         accel3.sAccelZValue = (int32_t)(value.un.gravity.z*10204082);
         msg.type = USB_HID_IMU_INPUT_REPORT; //USB_HID_INPUT_REPORT
-        msg.data.inputReport.len = sizeof(ACCEL3_INPUT_REPORT);
-        memcpy(msg.data.inputReport.report,
+        msg.data.imuReport.len = sizeof(ACCEL3_INPUT_REPORT);
+        memcpy(msg.data.imuReport.report,
                (void *)&accel3,
-               msg.data.inputReport.len);
+               msg.data.imuReport.len);
         usbSendMessage(&msg);
         break;
     }

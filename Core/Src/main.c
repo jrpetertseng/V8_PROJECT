@@ -88,14 +88,17 @@ uint32_t nTofGpioInts_1;
 uint32_t nTaskAudioInts;
 uint8_t interruptTofEnable = 0;
 extern uint16_t p_threshold;
-extern int16_t data_i2s[AUDIO_IN_PACKET*_DMA_SIZE]; //1ms data x 10 = 10ms
 
+
+#if ENABLE_MIS
 /*new Ring Buffer*/
 RingBuffer rb;
 RingBuffer reSample_rb;
 int16_t rb_buf[RING_BUFFER_SIZE];
 int16_t reSample_buf[RESAMPLE_BUFFER_SIZE];
+extern int16_t data_i2s[AUDIO_IN_PACKET*_DMA_SIZE]; //1ms data x 10 = 10ms
 /* USER CODE END PV */
+#endif
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);

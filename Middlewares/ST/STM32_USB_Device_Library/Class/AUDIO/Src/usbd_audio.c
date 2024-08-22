@@ -110,24 +110,14 @@ EndBSPDependencies */
 
 static int16_t         VOL_CUR;
 
-//bool ADC_to_MIC(void **ptr);
-//extern PingPongBuffer_t pingPong;
+
 USBD_AUDIO_HandleTypeDef hUACMic;
 uint32_t nUsbAudioInts = 0;
 uint32_t nUsbAudioIntsNotReady = 0;
-//uint32_t _tmp[AUDIO_IN_PACKET/2];
-//int16_t _tmp[AUDIO_IN_PACKET/2];
-//void *_pinpong_ptr;
+
+#if ENABLE_MIS
 extern RingBuffer rb;
-//uint8_t selected_bufferF = 0;
-//static volatile uint16_t _pinpong_ptr_index = 0;
-
-//int packageSize = AUDIO_IN_PACKET/2 * _PACK_SIZE;
-//volatile uint8_t buffer_updated = 0;
-
-//extern int16_t tmp_buffer[AUDIO_IN_PACKET*_PACK_SIZE/2];
-//int16_t new_buf[16] = {-1000, -1000, -1000, -1000, 1000, 1000, 1000, 1000, -1000, -1000, -1000, -1000, 1000, 1000, 1000, 1000};
-//haudio = &hUACMic;
+#endif
 /* USER CODE END */
 /**
   * @}
@@ -665,6 +655,7 @@ static uint8_t USBD_AUDIO_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
   {
     nUsbAudioInts+=1;
     USBD_LL_FlushEP  (pdev, AUDIO_IN_EP);
+#if ENABLE_MIS
     if(RingBuffer_Read(&rb, haudio->in_buffer, AUDIO_IN_PACKET/2))
         USBD_LL_Transmit (pdev, AUDIO_IN_EP, (uint8_t*)(haudio->in_buffer), AUDIO_IN_PACKET);
 
@@ -681,49 +672,13 @@ static uint8_t USBD_AUDIO_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 
 //          return (uint8_t)USBD_OK;
     }
+#else
+    memset( haudio->in_buffer, 0x0, sizeof(haudio->in_buffer));
+    USBD_LL_Transmit (pdev, AUDIO_IN_EP, (uint8_t*)(haudio->in_buffer), AUDIO_IN_PACKET);
+#endif
 
-        return (uint8_t)USBD_OK;
-////      haudio->in_buffer_half = !haudio->in_buffer_half;    // also serves as init to 1 or 0
-////      uint16_t prev = (AUDIO_IN_PACKET / 2) * !haudio->in_buffer_half;
-//      memcpy(haudio->in_buffer, _pinpong_ptr+_pinpong_ptr_index, sizeof(haudio->in_buffer));
-//        USBD_LL_FlushEP  (pdev, AUDIO_IN_EP);
-//#if UAC_USE_PCM
-////        USBD_LL_Transmit (pdev, AUDIO_IN_EP, (uint8_t*)(_pinpong_ptr+_pinpong_ptr_index), AUDIO_IN_PACKET);
-////        USBD_LL_Transmit (pdev, AUDIO_IN_EP, (uint8_t*)(new_buf), AUDIO_IN_PACKET);
-//        USBD_LL_Transmit (pdev, AUDIO_IN_EP, (uint8_t*)(haudio->in_buffer), AUDIO_IN_PACKET);
-//#else
-//        USBD_LL_Transmit (pdev, AUDIO_IN_EP, (uint8_t*)(haudio->in_buffer + prev), AUDIO_IN_PACKET/2);
-//#endif
-////        if (_pinpong_ptr_index < (AUDIO_IN_PACKET * _PACK_SIZE))
-////            _pinpong_ptr_index += AUDIO_IN_PACKET;
-////        else
-////        {
-////            selected_bufferF = 0;
-////            _pinpong_ptr_index = 0;
-////            PingPongBuffer_SetReadDone(&pingPong);
-////        }
-//#if _PACK_SIZE!= 1
-//        if (_pinpong_ptr_index < loop_size) //(_PACK_SIZE-1)*32
-////            _pinpong_ptr_index += (AUDIO_IN_PACKET/2);
-//            _pinpong_ptr_index += AUDIO_IN_PACKET;
-//        else
-//        {
-//            _pinpong_ptr_index = 0;
-//            selected_bufferF = 0;
-////            PingPongBuffer_SetReadDone(&pingPong);
-//        }
-//#else
-//
-//        selected_bufferF = 0;
-//        PingPongBuffer_SetReadDone(&pingPong);
-//
-//
-//#endif
-//  }
-//
-//
-//  return (uint8_t)USBD_OK;
   }
+  return (uint8_t)USBD_OK;
 }
 
 /**

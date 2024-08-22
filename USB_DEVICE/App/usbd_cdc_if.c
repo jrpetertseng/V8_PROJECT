@@ -54,7 +54,7 @@ extern int    bHidTest;
 
 static JISRQueueMessage_t cdcRxMsg[CDC_MAX_RX_MSGS];
 static int                nCdcRxIdx;
-extern void usbcmd_sendData( uint8_t *p, int nLength);
+//extern void usbcmd_sendData( uint8_t *p, int nLength);
 /* USER CODE END PV */
 
 /** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY

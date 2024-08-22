@@ -100,12 +100,12 @@ static Command string_to_command(char* str, uint32_t len);
 static void usbhid_sendReport( char *pReport, int nLength)
 {
     hidReport.type                 = USB_HID_INPUT_REPORT;
-    hidReport.data.inputReport.len = nLength;
+    hidReport.data.keyReport.len = nLength;
 
     if( (0 < nLength) &&
         (8 >= nLength) )
     {
-        memcpy( hidReport.data.inputReport.report,
+        memcpy( hidReport.data.keyReport.report,
                 pReport,
                 nLength);
   #if ENABLE_USB_SEND_MSG
@@ -119,12 +119,12 @@ static void usbhid_sendReport( char *pReport, int nLength)
 static void usbhid_sendReportIsr( char *pReport, int nLength)
 {
     hidReportIsr.type                 = USB_HID_INPUT_REPORT;
-    hidReportIsr.data.inputReport.len = nLength;
+    hidReportIsr.data.keyReport.len = nLength;
 
     if( (0 < nLength) &&
         (8 >= nLength) )
     {
-        memcpy( hidReportIsr.data.inputReport.report,
+        memcpy( hidReportIsr.data.keyReport.report,
                 pReport,
                 nLength);
   #if ENABLE_USB_SEND_MSG
@@ -145,22 +145,22 @@ void usbcdc_sendData( uint8_t *p, int nLength)
   #if ENABLE_USB_SEND_MSG
     usbSendMessage( &cdcData);
   #endif
-    taskYIELD();
+//    taskYIELD(); //Not from ISR Task anymore.
 }
 
-void usbcmd_sendData( uint8_t *p, int nLength)
-{
-    cdcData.type            = USB_CDC_TOF_DATA; //USB_CDC_TOF_DATA
-    cdcData.data.ToFMsg.len = nLength;
-    memcpy( cdcData.data.ToFMsg.p, p, nLength);
-    // It is better to confirm the pass in pointer is in static address.
-    //cdcData.data.ToFMsg.p   = p;
-
-  #if 1//ENABLE_USB_SEND_MSG
-    usbSendMessage( &cdcData);
-  #endif
-    taskYIELD();
-}
+//void usbcmd_sendData( uint8_t *p, int nLength)
+//{
+//    cdcData.type            = USB_CDC_TOF_DATA; //USB_CDC_TOF_DATA
+//    cdcData.data.ToFMsg.len = nLength;
+//    memcpy( cdcData.data.ToFMsg.p, p, nLength);
+//    // It is better to confirm the pass in pointer is in static address.
+//    //cdcData.data.ToFMsg.p   = p;
+//
+//  #if 1//ENABLE_USB_SEND_MSG
+//    usbSendMessage( &cdcData);
+//  #endif
+////    taskYIELD();
+//}
 
 #endif
 
@@ -194,7 +194,7 @@ void CE_Parse_ToF_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len) {
 
         meta_data = get_data(buf, len);
         cmd = string_to_command((char*)meta_data.CmdData, meta_data.CmdLength);
-        if (cmd.Cmd < 0x100U || cmd.Cmd >= 0x200U)
+        if (cmd.Cmd < 0x100U)
             CE_Execute_Command(cmd.Cmd, cmd.Args, cmd.ArgsLength);
         else
             usbEcho_Tof("NG %d", CE_ERR_COMMAND);
