@@ -519,7 +519,7 @@ void UsbTxTask(void *argument)
     HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
-    osDelay(500);
+    osDelay(1000);
   usbInit();
   /* USER CODE END Pre UsbTxTask */
   /* init code for USB_DEVICE */
@@ -1014,7 +1014,7 @@ void MainTask(void * argument)
     Ecx343_data_init_default();
     osDelay(10);
     ECX343EN_Init();
-    osDelay(10);
+    osDelay(1000);
 #if ENABLE_TOF
     isrToFLock       = xSemaphoreCreateBinary();
 #if ENABLE_FAKE_DATA
@@ -1051,9 +1051,6 @@ void MainTask(void * argument)
 #if ENABLE_SCAN_I2C
   I2CScanTaskHandle = osThreadNew(I2CScanTask, NULL, &I2CScanTask_attributes);
 #endif
-
-
-
 
 #if ENABLE_PANEL
   	executeTaskWithMutex(POWER_ON, PANEL_BOTH);
@@ -1112,7 +1109,6 @@ void MainTask(void * argument)
 #if ENABLE_FAKE_DATA
         ALS_SendFAKE_FS();
 #endif
-
 
     	if (!on_flag) continue;
 

@@ -12,7 +12,7 @@
 #define ENABLE_CDC_PRINT_CMD_ENGINE     0
 #define ENABLE_CMD                      0
 #define ENABLE_TOF                      1
-#define ENABLE_TOF_FORCE_RESET          1
+#define ENABLE_TOF_FORCE_RESET          0
 #define ENABLE_TOF_15HZ                 1
 #define ENABLE_TOF_DEBUG                0
 #define ENABLE_OLD_TOF                  0

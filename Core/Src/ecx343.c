@@ -443,7 +443,7 @@ static void ECX343EN_PowerOn(void) {
     ECX343EN_3V3_ENABLE();
     osDelay(10);
     ECX343EN_6V6_N_ENABLE();
-    osDelay(1000);
+    osDelay(10);
 }
 
 static void ECX343EN_PowerOff(void) {
