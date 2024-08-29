@@ -77,7 +77,7 @@ extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c3;
 extern USBD_HandleTypeDef hUsbDeviceHS;
 extern osThreadId_t ALSensorTaskHandle;
-extern osThreadId_t PSTaskHandle;
+extern osThreadId_t PSensorTaskHandle;
 uint32_t nBno08xGpioInts;
 uint32_t nAlsGpioInts;
 
@@ -87,7 +87,6 @@ uint32_t nDMAAudioInts;
 uint32_t nTofGpioInts_1;
 uint32_t nTaskAudioInts;
 uint8_t interruptTofEnable = 0;
-extern uint16_t p_threshold;
 
 
 #if ENABLE_MIS
@@ -332,7 +331,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 #if ENABLE_PS
     else if(PS_INT_Pin == GPIO_Pin)
     {
-        osThreadFlagsSet(PSTaskHandle, 0x01);
+        osThreadFlagsSet(PSensorTaskHandle, 0x01);
         nPsGpioInts += 1;
     }
 #endif

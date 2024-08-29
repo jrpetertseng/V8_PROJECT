@@ -1,6 +1,6 @@
 /.settings
-/Debug
-/Release
-/backup
+/[Dd]ebug
+/[Rr]elease
+/[Bb]ackup
 *.launch
 .gitignore

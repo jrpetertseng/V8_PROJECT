@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * File Name          : freertos.c
-  * Description        : Code for freertos applications
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2024 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * File Name          : freertos.c
+ * Description        : Code for freertos applications
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2024 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -25,1301 +25,790 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "portmacro.h"
 #include "timers.h"
+#include "semphr.h"
+
+#include "i2c.h"
+
 #include "debug_defs.h"
 #include "cmd_engine.h"
-#include "semphr.h"
-#include "portmacro.h"
-
 #include "usbd_composite.h"
 #include "usbd_cdc.h"
 #include "usbd_cdc_devctlr.h"
 #include "usbd_customhid.h"
 #include "usbd_customhid_imu.h"
-#include "usbd_customhid_als.h"
 #include "usbd_custom_hid_if.h"
 #include "usbd_custom_hid_if_imu.h"
-#include "usbd_custom_hid_if_als.h"
-#include "usbd_audio.h"
 
 #include "al3010.h"
-#include "ecx343.h"
 #include "rpr0521.h"
 #include "lt7911.h"
-
+#include "ecx343.h"
 #include "usb.h"
 #include "bno080.h"
-
-#include "i2c.h"
-#include "pingpong_buf.h"
 #include "vl53l8cx_api.h"
 #include "button_handling.h"
-#include "ring_buffer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
+typedef StaticTask_t osStaticThreadDef_t;
 /* USER CODE BEGIN PTD */
 
-#if ENABLE_CDC_ENGINEERING_TEST
-static JQueueMessage_t report_usb;
-#endif
-typedef StaticTask_t osStaticThreadDef_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-/* We accept the ce loop to run every 5ms. */
-#define CE_LOOP_MS          5
-#define VOLUME              4
-#define I2C_BUS             (&hi2c1)
-#define SPK_TICK            9000
-#define PROXIMITY_THRESHOLD 10
-#define BRIGHTNESS_CHANGE_THRESHOLD  10
-#define OFF_DEBOUNCE_THRESHOLD pdMS_TO_TICKS(5000)
-#define ON_DEBOUNCE_THRESHOLD pdMS_TO_TICKS(1000)
+#define I2C_BUS             	(&hi2c1)
+#define PROXIMITY_THRESHOLD 	200
+#define OFF_DEBOUNCE_THRESHOLD 	pdMS_TO_TICKS(5000)
+#define ON_DEBOUNCE_THRESHOLD 	pdMS_TO_TICKS(1000)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-extern bool ifReadOccupy(void **process_buf);
-void gradualMixing(int16_t* buffer1, int16_t* buffer2, int numSamples, int mixLength);
-void gradualAdjustment(int16_t* buffer1, int16_t* buffer2, int numSamples, int adjustmentLength);
-void downsampleAudioLinear(const int16_t* inputBuffer, int inputSize, int16_t* outputBuffer, int outputSize);
-void downsampleAudioSimple(const int16_t* inputBuffer, int inputSize, int16_t* outputBuffer, int outputSize);
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-extern I2C_HandleTypeDef  hi2c1;
-extern I2C_HandleTypeDef  hi2c3;
-//extern USBD_HandleTypeDef hUsbDeviceHS;
-extern TIM_HandleTypeDef  htim13;
-extern USBD_AUDIO_HandleTypeDef hUACMic;
-extern PingPongBuffer_t pingPong;
-extern uint8_t readCount;
-extern uint32_t nUsbAudioInts;
-extern uint32_t nUsbAudioIntsNotReady;
-extern uint32_t light;
-extern ECX343_DATA ecx343_current_data;
-extern bool command_flag;
-extern float temperatureLeft;
-extern float temperatureRight;
-extern float smoothed_left;
-extern float smoothed_right;
-extern uint16_t current_brightness[2];
-
-extern uint32_t nTofGpioInts_1;
-uint8_t on_flag = 0;
-uint8_t p_flag = 0;
-uint8_t DebugSwitch = 0;
-uint8_t AutoBrightness = 0;
-
-uint8_t buttonEvent;
+extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c2;
+extern I2C_HandleTypeDef hi2c3;
+extern TIM_HandleTypeDef htim13;
 extern uint16_t tofResetCount;
+extern uint32_t nTofGpioInts_1;
+extern uint32_t ambientLight;
+extern ECX343_DATA ecx343_current_data;
+uint32_t nExecs_IsrToF;
+uint8_t isPanelOn = 0;
+uint8_t isDebugModeEnabled = 0;
+uint8_t isAutoBrightnessEnabled = 0;
+VL53L8CX_Configuration Dev;
 
-#if ENABLE_MIS
-static SemaphoreHandle_t rb_xSemaphore;
-int16_t data_i2s[AUDIO_IN_PACKET*_DMA_SIZE];
-int16_t average_volume = 1970; //1430
-extern RingBuffer rb;
-extern RingBuffer reSample_rb;
-static int16_t tmp_buffer[AUDIO_IN_PACKET/2*_DMA_SIZE];
-const int16_t tmp_size = sizeof(tmp_buffer)/2;
-
-#if MIC_DOWNSAMPLING
-static int16_t downSampleBuffer[AUDIO_IN_PACKET/2*_RESAMPLE_SIZE];
-static int16_t outBuffer[AUDIO_IN_PACKET/2*_PACK_SIZE/3];
-const int16_t downSample_size = sizeof(downSampleBuffer)/2;
-const int16_t out_size = sizeof(outBuffer)/2;
-#endif
-#if MIC_UPSAMPLING
-static int16_t upSampleBuffer[AUDIO_IN_PACKET/2*_RESAMPLE_SIZE];
-const int16_t upSample_size = sizeof(upSampleBuffer)/2;
-#endif
-static int tmp_bufferIndex = 0;
-
-const int dmaDataSize = sizeof(data_i2s)/4;
-#endif
-
-VL53L8CX_Configuration  Dev;
-
-/* Definitions for cmdToFTask */
-#if ENABLE_CMD
-osThreadId_t cmdToFTaskHandle;
-static uint32_t cmdToFTaskBuffer[ 1536 ];
-osStaticThreadDef_t cmdToFTaskControlBlock;
-const osThreadAttr_t cmdToFTask_attributes = {
-  .name = "cmdToFTask",
-  .cb_mem = &cmdToFTaskControlBlock,
-  .cb_size = sizeof(cmdToFTaskControlBlock),
-  .stack_mem = &cmdToFTaskBuffer[0],
-  .stack_size = sizeof(cmdToFTaskBuffer),
-  .priority = (osPriority_t) osPriorityBelowNormal, //osPriorityBelowNormal
-};
-#endif
-#if ENABLE_OLD_TOF
-osThreadId_t isrToFTaskHandle;
-static uint32_t isrToFTaskBuffer[ 256 ];
-osStaticThreadDef_t isrToFTaskControlBlock;
-const osThreadAttr_t isrToFTask_attributes = {
-  .name = "isrToFTask",
-  .cb_mem = &isrToFTaskControlBlock,
-  .cb_size = sizeof(isrToFTaskControlBlock),
-  .stack_mem = &isrToFTaskBuffer[0],
-  .stack_size = sizeof(isrToFTaskBuffer),
-  .priority = (osPriority_t) osPriorityISR,
-};
-#endif
-
-#if ENABLE_TOF
-
-void ResetTof(void);
-void Tof_Hard_reset(void);
-#if ENABLE_FAKE_DATA
-
-static void ToFFakeTask(void * argument);
-osThreadId_t ToFTaskHandle;
-static uint32_t ToFTaskBuffer[ 2048 ]; //512 //1536
-osStaticThreadDef_t ToFTaskControlBlock;
-const osThreadAttr_t ToFTask_attributes = {
-  .name = "ToFFakeTask",
-  .cb_mem = &ToFTaskControlBlock,
-  .cb_size = sizeof(ToFTaskControlBlock),
-  .stack_mem = &ToFTaskBuffer[0],
-  .stack_size = sizeof(ToFTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal, //osPriorityNormal
-};
-#else
-static void ToFTask(void * argument);
-osThreadId_t ToFTaskHandle;
-static uint32_t ToFTaskBuffer[ 2048 ]; //512 //1536
-osStaticThreadDef_t ToFTaskControlBlock;
-const osThreadAttr_t ToFTask_attributes = {
-  .name = "ToFTask",
-  .cb_mem = &ToFTaskControlBlock,
-  .cb_size = sizeof(ToFTaskControlBlock),
-  .stack_mem = &ToFTaskBuffer[0],
-  .stack_size = sizeof(ToFTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal, //osPriorityNormal
-};
-#endif
-#endif
-
-  #if ENABLE_CDC_DEVCTLR_LOAD_PRINT
-//#error
-static void UsbCpuLoadTask(void * argument);
-
-static uint32_t usbCpuLoadTaskBuffer[ 512 ];
-osStaticThreadDef_t usbCpuLoadTaskControlBlock;
-const osThreadAttr_t usbCpuLoadTask_attributes = {
-  .name = "usbCpuLoadTask",
-  .cb_mem = &usbCpuLoadTaskControlBlock,
-  .cb_size = sizeof(usbCpuLoadTaskControlBlock),
-  .stack_mem = &usbCpuLoadTaskBuffer[0],
-  .stack_size = sizeof(usbCpuLoadTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal,
-};
-
-  #endif
-
-//ckhsu for imu bno08x
-static void ImuSensorTask(void * argument);
-#if ENABLE_IMU
-osThreadId_t ImuSensorHandle;
-uint32_t ImuSensorTaskBuffer[ 2048 ];
-osStaticThreadDef_t ImuSensorTaskControlBlock;
-const osThreadAttr_t ImuSensorTask_attributes = {
-  .name = "ImuSensorTask",
-  .cb_mem = &ImuSensorTaskControlBlock,
-  .cb_size = sizeof(ImuSensorTaskControlBlock),
-  .stack_mem = &ImuSensorTaskBuffer[0],
-  .stack_size = sizeof(ImuSensorTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal,
-};
-//ckhsu end bno08x
-#endif
-
-osThreadId_t MainTaskHandle;
-static uint32_t MainTaskBuffer[ 512 ];
-osStaticThreadDef_t MainTaskControlBlock;
-const osThreadAttr_t MainTask_attributes = {
-  .name = "MainTask",
-  .cb_mem = &MainTaskControlBlock,
-  .cb_size = sizeof(MainTaskControlBlock),
-  .stack_mem = &MainTaskBuffer[0],
-  .stack_size = sizeof(MainTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal, //osPriorityAboveNormal
-};
-
-#if ENABLE_ALS
-osThreadId_t ALSensorTaskHandle;
-uint32_t ALSensorTaskBuffer[ 512 ]; //512
-osStaticThreadDef_t ALSensorTaskControlBlock;
-const osThreadAttr_t ALSensorTask_attributes = {
-  .name = "ALSensorTask",
-  .cb_mem = &ALSensorTaskControlBlock,
-  .cb_size = sizeof(ALSensorTaskControlBlock),
-  .stack_mem = &ALSensorTaskBuffer[0],
-  .stack_size = sizeof(ALSensorTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal,
-};
-#endif
-/* Definitions for usbTxTask */
-osThreadId_t usbTxTaskHandle;
-static uint32_t usbTxTaskBuffer[ 2048 ]; //512 //1024
-osStaticThreadDef_t usbTxTaskControlBlock;
-const osThreadAttr_t usbTxTask_attributes = {
-  .name = "usbTxTask",
-  .cb_mem = &usbTxTaskControlBlock,
-  .cb_size = sizeof(usbTxTaskControlBlock),
-  .stack_mem = &usbTxTaskBuffer[0],
-  .stack_size = sizeof(usbTxTaskBuffer),
-  .priority = (osPriority_t) osPriorityHigh, //osPriorityAboveNormal
-};
-
-#if ENABLE_SCAN_I2C
-static void I2CScanTask(void * argument);
-osThreadId_t I2CScanTaskHandle;
-static uint32_t I2CScanTaskBuffer[ 512 ];
-osStaticThreadDef_t I2CScanTaskControlBlock;
-const osThreadAttr_t I2CScanTask_attributes = {
-  .name = "I2CScanTask",
-  .cb_mem = &I2CScanTaskControlBlock,
-  .cb_size = sizeof(I2CScanTaskControlBlock),
-  .stack_mem = &I2CScanTaskBuffer[0],
-  .stack_size = sizeof(I2CScanTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal,
-};
-#endif
-#if ENABLE_PS
-osThreadId_t PSTaskHandle;
-uint32_t PSensorTaskBuffer[ 512 ]; //512
-osStaticThreadDef_t PSensorTaskControlBlock;
-const osThreadAttr_t PSensorTask_attributes = {
-  .name = "PSensorTask",
-  .cb_mem = &PSensorTaskControlBlock,
-  .cb_size = sizeof(PSensorTaskControlBlock),
-  .stack_mem = &PSensorTaskBuffer[0],
-  .stack_size = sizeof(PSensorTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal,
-};
-#endif
-
-#if MIC_DOWNSAMPLING
-/* Definitions for micRxTask */
-osThreadId_t micRxTaskHandle;
-uint32_t micRxTaskBuffer[ 2048 ];
-osStaticThreadDef_t micRxTaskControlBlock;
-const osThreadAttr_t micRxTask_attributes = {
-  .name = "micRxTask",
-  .cb_mem = &micRxTaskControlBlock,
-  .cb_size = sizeof(micRxTaskControlBlock),
-  .stack_mem = &micRxTaskBuffer[0],
-  .stack_size = sizeof(micRxTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal,  //osPriorityHigh
-};
-
-
-#endif
-
-/* Definitions for flashRxTxTask */
-//osThreadId_t flashRxTxTaskHandle;
-//uint32_t flashRxTxTaskBuffer[ 512 ];
-//osStaticThreadDef_t flashRxTxTaskControlBlock;
-//const osThreadAttr_t flashRxTxTask_attributes = {
-//  .name = "flashRxTxTask",
-//  .cb_mem = &flashRxTxTaskControlBlock,
-//  .cb_size = sizeof(flashRxTxTaskControlBlock),
-//  .stack_mem = &flashRxTxTaskBuffer[0],
-//  .stack_size = sizeof(flashRxTxTaskBuffer),
-//  .priority = (osPriority_t) osPriorityNormal,
-//};
-#if ENABLE_ADC
-static void ADCTask(void * argument);
-osThreadId_t ADCTaskHandle;
-static uint32_t ADCTaskBuffer[ 512 ];
-osStaticThreadDef_t ADCTaskControlBlock;
-const osThreadAttr_t ADCTask_attributes = {
-  .name = "ADCTask",
-  .cb_mem = &ADCTaskControlBlock,
-  .cb_size = sizeof(ADCTaskControlBlock),
-  .stack_mem = &ADCTaskBuffer[0],
-  .stack_size = sizeof(ADCTaskBuffer),
-  .priority = (osPriority_t) osPriorityNormal, //osPriorityAboveNormal
-};
-#endif
+static SemaphoreHandle_t I2C1_Lock;
+static SemaphoreHandle_t isrToFLock;
+volatile unsigned long ulHighFrequencyTimerTicks;
 /* USER CODE END Variables */
+/* Definitions for UsbTxTask */
+osThreadId_t UsbTxTaskHandle;
+uint32_t UsbTxTaskBuffer[2048];
+osStaticThreadDef_t UsbTxTaskControlBlock;
+const osThreadAttr_t UsbTxTask_attributes =
+{ .name = "UsbTxTask", .cb_mem = &UsbTxTaskControlBlock, .cb_size =
+		sizeof(UsbTxTaskControlBlock), .stack_mem = &UsbTxTaskBuffer[0],
+		.stack_size = sizeof(UsbTxTaskBuffer), .priority =
+				(osPriority_t) osPriorityHigh, };
 
+/* Definitions for TofTask */
+osThreadId_t TofTaskHandle;
+uint32_t ToFTaskBuffer[2048];
+osStaticThreadDef_t ToFTaskControlBlock;
+const osThreadAttr_t TofTask_attributes =
+{ .name = "TofTask", .cb_mem = &ToFTaskControlBlock, .cb_size =
+		sizeof(ToFTaskControlBlock), .stack_mem = &ToFTaskBuffer[0],
+		.stack_size = sizeof(ToFTaskBuffer), .priority =
+				(osPriority_t) osPriorityNormal, };
+
+/* Definitions for ImuSensorTask */
+osThreadId_t ImuSensorTaskHandle;
+uint32_t ImuSensorTaskBuffer[2048];
+osStaticThreadDef_t ImuSensorTaskControlBlock;
+const osThreadAttr_t ImuSensorTask_attributes =
+{ .name = "ImuSensorTask", .cb_mem = &ImuSensorTaskControlBlock, .cb_size =
+		sizeof(ImuSensorTaskControlBlock), .stack_mem = &ImuSensorTaskBuffer[0],
+		.stack_size = sizeof(ImuSensorTaskBuffer), .priority =
+				(osPriority_t) osPriorityNormal, };
+
+/* Definitions for PSensorTask */
+osThreadId_t PSensorTaskHandle;
+uint32_t PSensorTaskBuffer[512];
+osStaticThreadDef_t PSensorTaskControlBlock;
+const osThreadAttr_t PSensorTask_attributes =
+{ .name = "PSensorTask", .cb_mem = &PSensorTaskControlBlock, .cb_size =
+		sizeof(PSensorTaskControlBlock), .stack_mem = &PSensorTaskBuffer[0],
+		.stack_size = sizeof(PSensorTaskBuffer), .priority =
+				(osPriority_t) osPriorityNormal, };
+
+/* Definitions for ALSensorTask */
+osThreadId_t ALSensorTaskHandle;
+uint32_t ALSensorTaskBuffer[512];
+osStaticThreadDef_t ALSensorTaskControlBlock;
+const osThreadAttr_t ALSensorTask_attributes =
+{ .name = "ALSensorTask", .cb_mem = &ALSensorTaskControlBlock, .cb_size =
+		sizeof(ALSensorTaskControlBlock), .stack_mem = &ALSensorTaskBuffer[0],
+		.stack_size = sizeof(ALSensorTaskBuffer), .priority =
+				(osPriority_t) osPriorityNormal, };
+
+/* Definitions for ADCTask */
+osThreadId_t ADCTaskHandle;
+uint32_t ADCTaskBuffer[512];
+osStaticThreadDef_t ADCTaskControlBlock;
+const osThreadAttr_t ADCTask_attributes =
+{ .name = "ADCTask", .cb_mem = &ADCTaskControlBlock, .cb_size =
+		sizeof(ADCTaskControlBlock), .stack_mem = &ADCTaskBuffer[0],
+		.stack_size = sizeof(ADCTaskBuffer), .priority =
+				(osPriority_t) osPriorityNormal, };
+
+/* Definitions for I2CScanTask */
+osThreadId_t I2CScanTaskHandle;
+uint32_t I2CScanTaskBuffer[512];
+osStaticThreadDef_t I2CScanTaskControlBlock;
+const osThreadAttr_t I2CScanTask_attributes =
+{ .name = "I2CScanTask", .cb_mem = &I2CScanTaskControlBlock, .cb_size =
+		sizeof(I2CScanTaskControlBlock), .stack_mem = &I2CScanTaskBuffer[0],
+		.stack_size = sizeof(I2CScanTaskBuffer), .priority =
+				(osPriority_t) osPriorityNormal, };
+
+/* Definitions for MainTask */
+osThreadId_t MainTaskHandle;
+uint32_t MainTaskBuffer[512];
+osStaticThreadDef_t MainTaskControlBlock;
+const osThreadAttr_t MainTask_attributes =
+{ .name = "MainTask", .cb_mem = &MainTaskControlBlock, .cb_size =
+		sizeof(MainTaskControlBlock), .stack_mem = &MainTaskBuffer[0],
+		.stack_size = sizeof(MainTaskBuffer), .priority =
+				(osPriority_t) osPriorityNormal, };
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
+void configureTimerForRunTimeStats(void);
+unsigned long getRunTimeCounterValue(void);
+static inline void i2c1TxBlock(void);
+static inline void i2c1TxUnblock(void);
 
-/* ckhsu, I am lazy to modify the CE loop, so we try to use */
-/* a timed semaphore to reduce the load of it.              */
-
-/* An array to hold handles to the created timers. */
-  #if 0
-static TimerHandle_t     ceTimers;
-  #endif
-static SemaphoreHandle_t ceLock;
-static int               nExecs_CmdToF;
-static SemaphoreHandle_t isrToFLock;
-
-
-//static int               nExecs_IsrToF;
-uint32_t                 nExecs_IsrToF;
-static SemaphoreHandle_t I2C1_Lock;
-
-SemaphoreHandle_t isrALSLock = NULL;
-SemaphoreHandle_t isrPSLock = NULL;
-
-float readVoltageAndCalculate(uint8_t voltage, uint8_t panel, ADC_HandleTypeDef *hadc);
-
-void MainTask(void * argument);
-void ALSensorTask(void * argument);
-void ADCTask(void * argument);
-
-void CmdToFTask(void *argument);
-void IsrToFTask(void *argument);
-void PnlTask(void *argument);
-void UsbTxTask(void *argument);
-void MicRxTask(void *argument);
-void PSensorTask(void *argument);
-
+void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime);
+void ResetTof(void);
+void Tof_Hard_reset(void);
 /* USER CODE END FunctionPrototypes */
 
+void StartUsbTxTask(void *argument);
+void StartTofTask(void *argument);
+void StartImuSensorTask(void *argument);
+void StartPSensorTask(void *argument);
+void StartALSensorTask(void *argument);
+void StartADCTask(void *argument);
+void StartI2CScanTask(void *argument);
+void StartMainTask(void *argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
-/* USER CODE BEGIN 1 */
 
-/* Hook prototypes */
-void configureTimerForRunTimeStats(void);
-unsigned long getRunTimeCounterValue(void);
-
-
-volatile unsigned long ulHighFrequencyTimerTicks;
-
-/* Functions needed when configGENERATE_RUN_TIME_STATS is on */
-__weak void configureTimerForRunTimeStats(void)
-{
-  ulHighFrequencyTimerTicks = 0;
-  HAL_TIM_Base_Start_IT(&htim13);
-}
-
-__weak unsigned long getRunTimeCounterValue(void)
-{
-  return ulHighFrequencyTimerTicks;
-}
-
-  #if 0
-static void ceTimerCallback( TimerHandle_t xTimer)
-{
-    /* Optionally do something if the pxTimer parameter is NULL. */
-    configASSERT( xTimer );
-
-    xSemaphoreGive( ceLock);
-}
-  #endif
-
-void isrToFTaskTrigger( void)
-{
-	static BaseType_t xHigherPriorityTaskWoken;
-
-	xHigherPriorityTaskWoken = pdFALSE;
-    xSemaphoreGiveFromISR( isrToFLock, &xHigherPriorityTaskWoken);
-    
-    /* If xHigherPriorityTaskWoken was set to true we should yield. */
-    portYIELD_FROM_ISR( xHigherPriorityTaskWoken);
-}
-static inline void i2c1TxBlock( void)
-{
-
-    xSemaphoreTake(I2C1_Lock, portMAX_DELAY);
-}
-static inline void i2c1TxUnblock( void)
-{
-    xSemaphoreGive(I2C1_Lock);
-}
-
-/* USER CODE END 1 */
 /**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
-void MX_FREERTOS_Init(void) {
-  /* USER CODE BEGIN Init */
+ * @brief  FreeRTOS initialization
+ * @param  None
+ * @retval None
+ */
+void MX_FREERTOS_Init(void)
+{
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+	/* USER CODE END Init */
 
-  /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
+	/* USER CODE BEGIN RTOS_MUTEX */
+	/* add mutexes, ... */
+	/* USER CODE END RTOS_MUTEX */
 
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
-  /* USER CODE END RTOS_SEMAPHORES */
+	/* USER CODE BEGIN RTOS_SEMAPHORES */
+	/* add semaphores, ... */
+	/* USER CODE END RTOS_SEMAPHORES */
 
-  /* USER CODE BEGIN RTOS_TIMERS */
-  /* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
+	/* USER CODE BEGIN RTOS_TIMERS */
+	/* start timers, add new ones, ... */
+	/* USER CODE END RTOS_TIMERS */
 
-  /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
+	/* USER CODE BEGIN RTOS_QUEUES */
+	/* add queues, ... */
+	/* USER CODE END RTOS_QUEUES */
 
-  /* Create the thread(s) */
+	/* Create the thread(s) */
+	/* creation of UsbTxTask */
+	UsbTxTaskHandle = osThreadNew(StartUsbTxTask, NULL, &UsbTxTask_attributes);
 
-  /* USER CODE BEGIN RTOS_THREADS */
+	/* USER CODE BEGIN RTOS_THREADS */
+	/* add threads, ... */
+	/* USER CODE END RTOS_THREADS */
 
-#if MIC_DOWNSAMPLING
-  micRxTaskHandle = osThreadNew(MicRxTask, NULL, &micRxTask_attributes);
-#endif
-
-  usbTxTaskHandle = osThreadNew(UsbTxTask, NULL, &usbTxTask_attributes);
-
-  /* creation of micRxTask */
-
-//  MainTaskHandle = osThreadNew(MainTask, NULL, &MainTask_attributes);
-
-//#if ENABLE_ALS
-//  ALSensorTaskHandle = osThreadNew(ALSensorTask, NULL, &ALSensorTask_attributes);
-//
-//#endif
-//
-//#if ENABLE_ADC
-//  ADCTaskHandle = osThreadNew(ADCTask, NULL, &ADCTask_attributes);
-//#endif
-//
-//#if ENABLE_PS
-//  PSTaskHandle = osThreadNew(PSensorTask, NULL, &PSensorTask_attributes);
-//#endif
-
-  /* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
-
-  /* USER CODE BEGIN RTOS_EVENTS */
-  /* add events, ... */
-  /* USER CODE END RTOS_EVENTS */
+	/* USER CODE BEGIN RTOS_EVENTS */
+	/* add events, ... */
+	/* USER CODE END RTOS_EVENTS */
 
 }
 
-/* USER CODE BEGIN Header_UsbTxTask */
+/* USER CODE BEGIN Header_StartUsbTxTask */
 /**
-  * @brief  Function implementing the usbTxTask thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/* USER CODE END Header_UsbTxTask */
-void UsbTxTask(void *argument)
+ * @brief Function implementing the usbTxTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartUsbTxTask */
+void StartUsbTxTask(void *argument)
 {
-  /* USER CODE BEGIN Pre UsbTxTask */
-  // This task is responsible to create all other tasks.
-    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
-    osDelay(1000);
-  usbInit();
-  /* USER CODE END Pre UsbTxTask */
-  /* init code for USB_DEVICE */
-  MX_USB_DEVICE_Init();
-  /* USER CODE BEGIN UsbTxTask */
-  osDelay(1000);
-  /* creation of cmdToFTask */
-#if ENABLE_CMD
-  cmdToFTaskHandle = osThreadNew( CmdToFTask, NULL, &cmdToFTask_attributes);
-#endif
-#if ENABLE_OLD_TOF
-  isrToFLock       = xSemaphoreCreateBinary();
-  isrToFTaskHandle = osThreadNew( IsrToFTask, NULL, &isrToFTask_attributes);
+	/* init code for USB_DEVICE */
+	HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
+	osDelay(500);
 
-  //cmdToFTaskHandle = osThreadNew( CmdToFTask, NULL, &cmdToFTask_attributes);
-#endif
-  /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
-  #if ENABLE_CDC_DEVCTLR_LOAD_PRINT
-    //#error "CPU load task"
-    osThreadNew( UsbCpuLoadTask, NULL, &usbCpuLoadTask_attributes);
-  #endif
-#if ENABLE_IMU
-  ImuSensorHandle = osThreadNew( ImuSensorTask, NULL, &ImuSensorTask_attributes);
-#endif
-  I2C1_Lock = xSemaphoreCreateBinary();
-  if (I2C1_Lock != NULL) {
-          xSemaphoreGive(I2C1_Lock);
-  }
-  MainTaskHandle = osThreadNew(MainTask, NULL, &MainTask_attributes);
-  /* This is in fact a never leave loop. */
-  usbLoop();
+	usbInit();
 
-  /* USER CODE END UsbTxTask */
+	MX_USB_DEVICE_Init();
+	osDelay(500);
+
+	/* creation of ImuSensorTask */
+	ImuSensorTaskHandle = osThreadNew(StartImuSensorTask, NULL, &ImuSensorTask_attributes);
+
+	I2C1_Lock = xSemaphoreCreateBinary();
+	if (I2C1_Lock != NULL)
+	{
+		xSemaphoreGive(I2C1_Lock);
+	}
+
+	/* creation of MainTask */
+	MainTaskHandle = osThreadNew(StartMainTask, NULL, &MainTask_attributes);
+
+	/* USER CODE BEGIN StartUsbTxTask */
+	/* Infinite loop */
+	usbLoop();
+
+	/* USER CODE END StartUsbTxTask */
 }
 
-/* USER CODE BEGIN Header_CmdToFTask */
+#if ENABLE_TOF
+/* USER CODE BEGIN Header_StartTofTask */
 /**
-* @brief Function implementing the cmdToFTask thread.
-* @param argument: Not used
-* @retval None
-*/
-
-#define ALS_REPORT_TIME_IN_MS       200
-#define TIME_2_SEND_ALS_TICK        (ALS_REPORT_TIME_IN_MS/CE_LOOP_MS)
-
-void IsrToFTask(void *argument)
+ * @brief Function implementing the TofTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartTofTask */
+void StartTofTask(void *argument)
 {
-    nExecs_IsrToF = 0;
-    usb_waitUntilInited();
+	/* USER CODE BEGIN StartTofTask */
+	static VL53L8CX_ResultsData Results;
+	uint8_t resolution;
+	uint8_t status;
 
-  /* Infinite loop */
-    while(1)
-    {
-        // Wait until isr triggered.
-        xSemaphoreTake( isrToFLock, portMAX_DELAY);
-        /* Do ToF callback. */
-        nExecs_IsrToF += 1;
-        if(tof_callback)
-        {
-            tof_callback();
-        }
-    }
-}
+	osDelay(1000);
+	ResetTof();
 
+	/* Infinite loop */
+	for (;;)
+	{
+		// Wait until isr triggered.
+		xSemaphoreTake(isrToFLock, portMAX_DELAY);
 
+		/* Do ToF Get data. */
+		nExecs_IsrToF += 1;
+		if (bRangePacketUpdated)
+			continue;
 
-/* USER CODE END Header_CmdToFTask */
-void CmdToFTask(void *argument)
-{
-  /* USER CODE BEGIN CmdToFTask */
-    int nALSTickCount;
-  #if ENABLE_CDC_ENGINEERING_TEST
-    int nCount;
-    int nSeikoImuRptIdx = 0;
-    int nIterCount;
+		status = vl53l8cx_get_resolution(&Dev, &resolution);
+		status = vl53l8cx_get_ranging_data(&Dev, &Results);
+#if ENABLE_TOF_DEBUG
+		for (int i = 0; i < resolution; i++)
+		{
+			/* Print per zone results */
+			usbDebug(
+					"Zone : %2d, Nb targets : %2u, Ambient : %4lu Kcps/spads, \r\n",
+					i, Results.nb_target_detected[i],
+					Results.ambient_per_spad[i]);
 
-#define TEST_SEIKO_REPORTS      4
-    const char seiko_imu_STREAM_0[TEST_SEIKO_REPORTS][15] =
-    {
-        { 0x02, 0x02, 0x04, 0x00, 0xEA, 0x0B, 0x00, 0xE0, 0xBF, 0x13, 0xFA, 0x80, 0x29, 0x74, 0x00 },
-        { 0x02, 0x02, 0x04, 0x08, 0x5B, 0x0B, 0x00, 0xA8, 0x2F, 0x0B, 0xFA, 0x57, 0xFF, 0x70, 0x00 },
-
-        { 0x02, 0x02, 0x04, 0xA7, 0x19, 0x0C, 0x00, 0xE8, 0xAC, 0x0C, 0xFA, 0x07, 0xA0, 0x70, 0x00 },
-        { 0x02, 0x02, 0x04, 0x58, 0xBA, 0x0B, 0x00, 0xA8, 0x2F, 0x0B, 0xFA, 0x00, 0x2F, 0x71, 0x00 },
-    };
-  #endif
-
-  #if ENABLE_CDC_ENGINEERING_TEST
-    nIterCount = 0;
-    HAL_Delay(2000);
-  #endif
-
-    nExecs_CmdToF = 0x0;
-    nALSTickCount = 0;
-    ceLock   = xSemaphoreCreateBinary();
-  #if 0
-    ceTimers = xTimerCreate ( "Timer",        /* Just a text name, not used by the RTOS kernel. */
-                              (CE_LOOP_MS),   /* The timer period in ticks, must be greater than 0. */
-                              pdTRUE,         /* The timers will auto-reload themselves when they expire. */
-                              (void *)0,      /* The ID is used to store a count of the number of times the timer has expired, which is initialised to 0. */
-                              ceTimerCallback /* Each timer calls the same callback when it expires. */
-                            );
-
-    if(NULL == ceTimers)
-    {
-        /* The timer was not created. */
-    }
-    else
-    {
-        /* Start the timer.  No block time is specified, and
-        even if one was it would be ignored because the RTOS
-        scheduler has not yet been started. */
-        if(pdPASS != xTimerStart( ceTimers, 0))
-        {
-            /* The timer could not be set into the Active state. */
-        }
-    }
-  #endif
-
-    usb_waitUntilInited();
-
-  /* Infinite loop */
-    for(;;)
-    {
-        xSemaphoreTake( ceLock, CE_LOOP_MS);
-        nExecs_CmdToF += 1;
-        nALSTickCount += 1;
-
-  #if ENABLE_CDC_ENGINEERING_TEST
-        // ckhsu: Test send for debug purpose.
-#define MAX_RETRY_HID       100
-
-        if(bHidTest)
-        {
-            nIterCount += 1;
-#define TIME_2_SEND_IMU_TICK        (1000/CE_LOOP_MS)
-            if(TIME_2_SEND_IMU_TICK <= nIterCount)
-            {
-                nIterCount = 0;
-
-                // Send IMU
-                for( nCount = 0; nCount < 1; nCount++)
-                {
-                    //usb_printf("Prepare send IMU test [%d]\n", nSeikoImuRptIdx);
-                    report_usb.type               = USB_HID_IMU_INPUT_REPORT;
-                    report_usb.data.imuReport.len =  15;
-                    memcpy( report_usb.data.imuReport.report,
-                            &(seiko_imu_STREAM_0[nSeikoImuRptIdx][0]),
-                            report_usb.data.imuReport.len);
-                    usbSendMessage(&report_usb);
-
-                    //usb_printf("IMU len:[%d]\n", (int)report_usb.data.imuReport.len);
-                    //usb_printf("[%02X %02X %02X %02X %02X %02X %02X %02X]\n", (int)report_usb.data.imuReport.report[0],  (int)report_usb.data.imuReport.report[1], (int)report_usb.data.imuReport.report[2],  (int)report_usb.data.imuReport.report[3], (int)report_usb.data.imuReport.report[4],  (int)report_usb.data.imuReport.report[5], (int)report_usb.data.imuReport.report[6],  (int)report_usb.data.imuReport.report[7]);
-                    //usb_printf("[%02X %02X %02X %02X %02X %02X %02X]\n", (int)report_usb.data.imuReport.report[8],  (int)report_usb.data.imuReport.report[9], (int)report_usb.data.imuReport.report[10], (int)report_usb.data.imuReport.report[11], (int)report_usb.data.imuReport.report[12], (int)report_usb.data.imuReport.report[13], (int)report_usb.data.imuReport.report[14]);
-                    nSeikoImuRptIdx += 1;
-                    nSeikoImuRptIdx %= TEST_SEIKO_REPORTS;
-                }
-            }
-
-            if(TIME_2_SEND_ALS_TICK <= nALSTickCount)
-            {
-                nALSTickCount = 0;
-                ALS_SendReport_HS( &light_sensor);
-            }
-        }
-        else if(bScanI2c)
-        {
-            bScanI2c = 0;
-            i2c_detect_bus();
-        }
-        else if(bLT7911Test)
-        {
-            bLT7911Test = 0;
-            usb_printf("LT7911 start\n");
-            lt7911d_firmware_update_init();
-            usb_printf("LT7911 end\n\n");
-        }
-
-  #else
-    /* Original J7EF handler */
-        CE_Routine();
-        if(TIME_2_SEND_ALS_TICK <= nALSTickCount)
-        {
-            nALSTickCount = 0;
-        }
-  #endif /* #if ENABLE_CDC_ENGINEERING_TEST */
-        //taskYIELD();
-        //osDelay(1);
-    }
-  /* USER CODE END CmdToFTask */
-}
-
-
-/* Private application code --------------------------------------------------*/
-/* USER CODE BEGIN Application */
-
-#if ENABLE_CDC_DEVCTLR_LOAD_PRINT
-
-  #define MAX_SIZE_CPU_LOAD_INFO    512
-  static uint8_t szCpuRunInfo[MAX_SIZE_CPU_LOAD_INFO];
-
-static void UsbCpuLoadTask(void * argument)
-{
-//    USB_TX_STAT_T stat;
-    int           nTime = 0;
-
-#define STATS_FROM_BOOTUP     10
-    usb_waitUntilInited();
-    while(1)
-    {
-        if(nTime > STATS_FROM_BOOTUP)
-        {
-//            memset( szCpuRunInfo, 0x0, MAX_SIZE_CPU_LOAD_INFO);
-//
-//            vTaskList( (char *)&szCpuRunInfo);
-////            usbDebug("=========================================\r\n");
-////            usbDebug("Task   State   Prio   StackLeft   Id\r\n");
-////            usbDebug("%s", szCpuRunInfo);
-////            usbDebug("=========================================\r\n");
-//
-            memset( szCpuRunInfo, 0x0, MAX_SIZE_CPU_LOAD_INFO);
-            vTaskGetRunTimeStats((char *)&szCpuRunInfo);
-            usbDebug("=========================================\r\n");
-            usbDebug("Task           Oper.Count       Load\r\n");
-            usbDebug("%s", szCpuRunInfo);
-            usbDebug("=========================================\r\n\r\n");
-////            usbDebug("ToF cmd/isr [%d/%d]\r\n", nExecs_CmdToF, nExecs_IsrToF);
-////            usbDebug("INTs [%d/%d/%d]\r\n\r\n", nBno08xGpioInts, nTofGpioInts_1, nTofGpioInts_2);
-////            usbDebug("INTs [%d/%d/%d]\r\n\r\n", nBno08xGpioInts, nIMUHIDUsbOuts, nUsbAudioInts);
-//            usbDebug("nUsbAudioInts, nDMAAudioInts, nTaskAudioInts, nUsbAudioIntsNotReady \r\n");
-//            usbDebug("INTs [%d/%d/%d/%d]\r\n\r\n", nUsbAudioInts,
-//                        nDMAAudioInts, nTaskAudioInts, nUsbAudioIntsNotReady);
-//            nBno08xGpioInts = 0;
-//            nTofGpioInts_1  = 0;
-//            nTofGpioInts_2  = 0;
-//            nIMUHIDUsbOuts  = 0;
-//            nUsbAudioInts   = 0;
-//            nDMAAudioInts   = 0;
-//            nTaskAudioInts  = 0;
-//            nUsbAudioIntsNotReady = 0;
-//
-//            memset( &stat, 0x0, sizeof(stat));
-//            usbGetStatistics( &stat);
-            //usbDebug("nTxToF=Cplt+Fail: [%d= %d + %d]\r\n", stat.nTxToF,
-            //                                                stat.nTxCompleteToF,
-            //                                                stat.nTxFailToF);
-            //usbDebug("nTxDev=Cplt+Fail: [%d= %d + %d]\r\n", stat.nTxDevCtlr,
-            //                                                stat.nTxCompleteDevCtlr,
-            //                                                stat.nTxFailDevCtlr);
-            //usbDebug("nTxHid/Imu: [%d/%d]\r\n", stat.nTxHid, stat.nTxImu);
-            //usbDebug("SysTick:[%d]\r\n", xTaskGetTickCount());
-            //usbDebug("nTxImu:         [%d]\r\n", stat.nTxImu);
-            //usbDebug("nTxAls:         [%d]\r\n", stat.nTxAls);
-            //usbDebug("BUILD DATE:[%s %s]\r\n", __DATE__, __TIME__);
-//            usbDebug("p_threshold:[%d]\r\n", p_threshold);
-//            osDelay(9500);
-        }
-
-//        nExecs_CmdToF = 0;
-//        nExecs_IsrToF = 0;
-
-        osDelay(1000);
-        nTime += 1;
-    }
-}
-
-#endif /* ENABLE_CDC_DEVCTLR_LOAD_PRINT */
-
-static void ImuSensorTask(void * argument)
-{
-  /* USER CODE BEGIN 5 */
-  HAL_GPIO_WritePin(IMU_RST_GPIO_Port, IMU_RST_Pin, GPIO_PIN_SET);
-  osDelay(1000);
-  initSensor();
-  /* Infinite loop */
-  sensorLoop();
-  /* USER CODE END 5 */
-}
-
-/* USER CODE BEGIN Header_MicRxTask */
-/**
-* @brief Function implementing the micRxTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_MicRxTask */
-#if MIC_DOWNSAMPLING
-void MicRxTask(void *argument)
-{
-  /* USER CODE BEGIN MicRxTask */
-    rb_xSemaphore = xSemaphoreCreateBinary();
-  /* Infinite loop */
-  for(;;)
-  {
-//      void *pinpong_ptr;
-//      osThreadFlagsWait(0x01, osFlagsWaitAny, osWaitForever);
-//      nTaskAudioInts += 1;
-//      PingPongBuffer_GetWriteBuf(&pingPong, &pinpong_ptr);
-//        for (uint8_t i = 0; i < sizeof(data_i2s)/4 ; i++) {
-//            *((int16_t *)pinpong_ptr+i) = data_i2s[i*2];
-//            /*TODO: Check if it is faster by using memcpy()*/
-////            *((uint16_t *)pinpong_ptr+i) = *((uint16_t *)pinpong_ptr+i) << 1;
-//        }
-//        PingPongBuffer_SetWriteDone(&pingPong);
-      if(xSemaphoreTake(rb_xSemaphore, portMAX_DELAY) == pdPASS)
-      {
-
-          RingBuffer_Read(&reSample_rb, downSampleBuffer, downSample_size);
-          //outBuffer
-          downsampleAudioLinear(downSampleBuffer, downSample_size, outBuffer, out_size);
-//          downsampleAudioSimple(downSampleBuffer, downSample_size, outBuffer, out_size);
-          RingBuffer_Write(&rb, outBuffer, out_size);
-      }
-  }
-  /* USER CODE END MicRxTask */
-}
-#endif
-
-#if ENABLE_MIS
-
-void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s) //Get last 10ms data = 5ms
-{
-    nDMAAudioInts += 1;
-    memset( tmp_buffer, 0x0, sizeof(tmp_buffer)); //clear tmp_buffer
-    for (uint8_t i = 0; i < sizeof(data_i2s)/4 ; i++)
-    {
-        tmp_buffer[i] = (data_i2s[i*2]+average_volume)*2;
-    }
-#if MIC_DOWNSAMPLING
-    tmp_bufferIndex += 1;
-    RingBuffer_Write(&reSample_rb, tmp_buffer, tmp_size);
-    if(tmp_bufferIndex>=_DMA_LOOP)
-    {
-        tmp_bufferIndex = 0;
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        xSemaphoreGiveFromISR(rb_xSemaphore, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
+			/* Print per target results */
+			if (Results.nb_target_detected[i] > 0)
+			{
+				usbDebug("Target status : %3u, Distance : %4d mm \r\n",
+						Results.target_status[VL53L8CX_NB_TARGET_PER_ZONE * i],
+						Results.distance_mm[VL53L8CX_NB_TARGET_PER_ZONE * i]);
+			}
+			else
+			{
+				usbDebug("Target status : 255, Distance : No target\r\n");
+			}
+		}
+		usbDebug("\r\n");
 #else
-    RingBuffer_Write(&rb, tmp_buffer, tmp_size);
+		/*GOTO ToF CDC Process*/
+		TickType_t timestamp = xTaskGetTickCount();
+		tof_ranging_callback(&Results, timestamp);
+#if ENABLE_STACK_CHECK
+		//test: check high water
+		UBaseType_t uxHighWaterMark;
+		if (nExecs_IsrToF % 100 == 0)
+		{
+			uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+			usbDebug("ToF_task free stack：%lu\n", uxHighWaterMark);
+		}
 #endif
-
-//    RingBuffer_Write(&rb, tmp_buffer, tmp_size);
-//    for (int i = 0; i < tmp_buffer_size; i ++) {
-//        for(int j=0; j < 10; j++){
-//        *((int16_t *)pinpong_ptr+i+j) = test_buf[j];
-//        }
-//    }
-//    for (int i = 0; i < tmp_buffer_size; i += test_buf_size) {
-//        memcpy((int16_t*)pinpong_ptr + i, test_buf, sizeof(test_buf));
-//    }
-
-#if 0
-    if(nDMAAudioInts==1000 && medianFlag ){
-        memcpy(median_buf, (int16_t *)pinpong_ptr, 32);
-        average_volume = median_calc(median_buf, sizeof(median_buf)/2);
-        medianFlag = false;
-    }
-//    resample_linear(pinpong_ptr, _tmp);
+	}
 #endif
-
+	/* USER CODE END StartTofTask */
 }
 #endif
 
-void checkAndReduceBrightness(uint32_t* startTime, uint32_t* lastHighTempTime) {
-    const uint32_t checkInterval = 1000;
-    const uint32_t highTempThresholdTime = 60000;
-    static bool reduceBrightness = false;
-
-    uint32_t currentTick = osKernelGetTickCount();
-
-    if ((currentTick - *startTime) > checkInterval) {
-        *startTime = currentTick;
-
-        if (g_temperatureLeftSmoothed > 70.0f || g_temperatureRightSmoothed > 70.0f) {
-            if (*lastHighTempTime == 0) {
-                *lastHighTempTime = currentTick;
-            } else if ((currentTick - *lastHighTempTime) > highTempThresholdTime) {
-                reduceBrightness = true;
-            }
-        } else {
-            *lastHighTempTime = 0;
-        }
-    }
-
-    if (reduceBrightness) {
-        bool brightnessReduced = false;
-
-        if (ecx343_current_data.uLCD_LUXL > 350) {
-            ecx343_current_data.uLCD_LUXL -= 10;
-            brightnessReduced = true;
-        }
-
-        if (ecx343_current_data.uLCD_LUXR > 350) {
-            ecx343_current_data.uLCD_LUXR -= 10;
-            brightnessReduced = true;
-        }
-
-        if (brightnessReduced) {
-            executeTaskWithMutex(ADJUST_BRIGHTNESS);
-        }
-
-        if (ecx343_current_data.uLCD_LUXL <= 350 && ecx343_current_data.uLCD_LUXR <= 350) {
-            reduceBrightness = false;
-        }
-    }
-}
-
-void ALSensorTask(void * argument)
+#if ENABLE_IMU
+/* USER CODE BEGIN Header_StartImuSensorTask */
+/**
+ * @brief Function implementing the ImuSensorTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartImuSensorTask */
+void StartImuSensorTask(void *argument)
 {
-    static int current_lux = 0;
-    static int target_brightness = 0;
-    static int lux_index  = -3;
-    static int previous_lux_index = -3;
+	/* USER CODE BEGIN StartImuSensorTask */
+	HAL_GPIO_WritePin(IMU_RST_GPIO_Port, IMU_RST_Pin, GPIO_PIN_SET);
+	osDelay(1000);
 
-    for(;;)
-    {
-    	uint32_t thread_flag = osThreadFlagsWait(0x02, osFlagsNoClear, osWaitForever);
-        if (thread_flag == 0x02) {
-            if(xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE) {
-                AL3010_ReadData();
-                i2c1TxUnblock();
-                ALS_SendReport_FS();
-        	    if (AutoBrightness) {
-        	        if (light != current_lux) {
-        	            current_lux = light;
-        	            target_brightness = mapLuxToPanelBrightness(current_lux, &lux_index);
-
-        	            if (previous_lux_index != lux_index) {
-        	                previous_lux_index = lux_index;
-        	                usbDebug("Interval: %d\n", lux_index);
-        	            }
-        	            smoothlyChangeBrightness(target_brightness);
-        	        }
-        	    }
-                osThreadFlagsClear(0x02);
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
+	initSensor();
+	/* Infinite loop */
+	sensorLoop();
+	/* USER CODE END StartImuSensorTask */
 }
+#endif
 
 #if ENABLE_PS
-void PSensorTask(void * argument)
+/* USER CODE BEGIN Header_StartPSensorTask */
+/**
+ * @brief Function implementing the PSensorTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartPSensorTask */
+void StartPSensorTask(void *argument)
 {
-    uint16_t p_threshold = 0;
-    static TickType_t lastTransitionTick = 0;
-    for(;;)
-    {
-        uint32_t thread_flag = osThreadFlagsWait(0x01, osFlagsNoClear, osWaitForever); //osFlagsWaitAny
-        if (thread_flag == 0x01) {
-            if (xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE) {
-                p_threshold = RPR0521_ReadPS();
-                i2c1TxUnblock();
-                p_flag = (p_threshold > PROXIMITY_THRESHOLD) ? true : false;
-            	if (p_flag != on_flag) {
-            	    TickType_t currentTick = xTaskGetTickCount();
-            	    TickType_t debounceThreshold = on_flag ? OFF_DEBOUNCE_THRESHOLD : ON_DEBOUNCE_THRESHOLD;
+	/* USER CODE BEGIN StartPSensorTask */
+	uint16_t proximity_value = 0;
+	static TickType_t lastTransitionTick = 0;
 
-            	    if ((currentTick - lastTransitionTick) >= debounceThreshold) {
-            	        on_flag = !on_flag;
-            	        on_flag ? executeTaskWithMutex(POWER_ON, PANEL_BOTH) : executeTaskWithMutex(POWER_OFF, PANEL_BOTH);
-            	        lastTransitionTick = currentTick;
-            	    }
-            	} else {
-            	    lastTransitionTick = xTaskGetTickCount(); // Reset the timer if the condition is no longer met
-            	}
-                osThreadFlagsClear(0x01);
+	/* Infinite loop */
+	for (;;)
+	{
+		uint32_t thread_event_flag = osThreadFlagsWait(0x01, osFlagsNoClear, osWaitForever);
+		if (thread_event_flag == 0x01)
+		{
+			if (xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
+			{
+				proximity_value = RPR0521_ReadPS();
+				i2c1TxUnblock();
+
+				bool isObjectDetected = (proximity_value > PROXIMITY_THRESHOLD) ? true : false;
+
+				if (isObjectDetected != isPanelOn)
+				{
+					TickType_t currentTick = xTaskGetTickCount();
+					TickType_t debounceThreshold = isPanelOn ? OFF_DEBOUNCE_THRESHOLD : ON_DEBOUNCE_THRESHOLD;
+
+					if ((currentTick - lastTransitionTick) >= debounceThreshold)
+					{
+						isPanelOn = !isPanelOn;
+						isPanelOn ? executeTaskWithMutex(POWER_ON, PANEL_BOTH) : executeTaskWithMutex(POWER_OFF, PANEL_BOTH);
+						lastTransitionTick = currentTick;
+					}
+				}
+				else
+				{
+					lastTransitionTick = xTaskGetTickCount(); // Reset the timer if the condition is no longer met
+				}
+				osThreadFlagsClear(0x01);
 //                usbDebug("p_threshold: %d@\r\n", p_threshold);
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
+			}
+		}
+        osDelay(100);
+	}
+	/* USER CODE END StartPSensorTask */
 }
 #endif
 
-void MainTask(void * argument)
-{
-#if ENABLE_HID_KEYBOARD_TEST
-    JQueueMessage_t keyReport;
-    HID_Keypad_Report keypadReport;
-    uint8_t test_times = 0;
-#endif
-    //Move power on/off into usbTask
-//    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
-//    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
-//    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
-//    osDelay(1000);
-    HAL_GPIO_WritePin(LT7911_RSTN_GPIO_Port, LT7911_RSTN_Pin, GPIO_PIN_SET);
-    osDelay(10);
-    Ecx343_data_init_default();
-    osDelay(10);
-    ECX343EN_Init();
-    osDelay(1000);
-#if ENABLE_TOF
-    isrToFLock       = xSemaphoreCreateBinary();
-#if ENABLE_FAKE_DATA
-    ToFTaskHandle = osThreadNew( ToFFakeTask, NULL, &ToFTask_attributes);
-#else
-    ToFTaskHandle = osThreadNew( ToFTask, NULL, &ToFTask_attributes);
-    osThreadFlagsWait(0x02, osFlagsWaitAny, osWaitForever);
-#endif
-#endif
 #if ENABLE_ALS
-  ALSensorTaskHandle = osThreadNew(ALSensorTask, NULL, &ALSensorTask_attributes);
-  AL3010_Init();
-  osDelay(10);
-  //Enable ALS Int
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+/* USER CODE BEGIN Header_StartALSensorTask */
+/**
+ * @brief Function implementing the ALSensorTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartALSensorTask */
+void StartALSensorTask(void *argument)
+{
+	/* USER CODE BEGIN StartALSensorTask */
+	static int current_lux_value = 0;
+	static int target_panel_brightness = 0;
+	static int current_lux_index = -3;
+	static int previous_lux_index = -3;
+
+	/* Infinite loop */
+	for (;;)
+	{
+		uint32_t thread_event_flag = osThreadFlagsWait(0x02, osFlagsNoClear, osWaitForever);
+		if (thread_event_flag == 0x02)
+		{
+			if (xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
+			{
+				AL3010_ReadData();
+				i2c1TxUnblock();
+				ALS_SendReport_FS();
+
+				if (isAutoBrightnessEnabled)
+				{
+					if (ambientLight != current_lux_value)
+					{
+						current_lux_value = ambientLight;
+						target_panel_brightness = mapLuxToPanelBrightness(current_lux_value, &current_lux_index);
+
+						if (previous_lux_index != current_lux_index)
+						{
+							previous_lux_index = current_lux_index;
+							usbDebug("Interval: %d\n", current_lux_index);
+						}
+						smoothlyChangeBrightness(target_panel_brightness);
+					}
+				}
+				osThreadFlagsClear(0x02);
+			}
+		}
+        osDelay(100);
+	}
+	/* USER CODE END StartALSensorTask */
+}
 #endif
 
 #if ENABLE_ADC
-  ADCTaskHandle = osThreadNew(ADCTask, NULL, &ADCTask_attributes);
-#endif
+/* USER CODE BEGIN Header_StartADCTask */
+/**
+ * @brief Function implementing the ADCTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartADCTask */
+void StartADCTask(void *argument)
+{
+	/* USER CODE BEGIN StartADCTask */
+	TickType_t lastWakeUpTime = xTaskGetTickCount();
 
-#if ENABLE_PS
-  PSTaskHandle = osThreadNew(PSensorTask, NULL, &PSensorTask_attributes);
-  RPR0521_Init();
-  osDelay(10);
-  RPR0521_SetUp();
-  osDelay(10);
-  //Enable PS Int
-  HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
-  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+	/* Infinite loop */
+	for (;;)
+	{
+		if (isPanelOn)
+		{
+			if (isDebugModeEnabled)
+			{
+				usbDebug(
+						"LeftOrigTemperature: %.2f\r\nRightOrigTemperature: %.2f\r\n",
+						g_temperatureLeftRaw, g_temperatureRightRaw);
+			}
+			updatePanelTemperature();
+			if (isDebugModeEnabled)
+			{
+				usbDebug("LeftTemperature: %.2f\r\nRightTemperature: %.2f\r\n",
+						g_temperatureLeftSmoothed, g_temperatureRightSmoothed);
+			}
+		}
+
+		vTaskDelayUntil(&lastWakeUpTime, pdMS_TO_TICKS(5000));
+	}
+	/* USER CODE END StartADCTask */
+}
 #endif
 
 #if ENABLE_SCAN_I2C
-  I2CScanTaskHandle = osThreadNew(I2CScanTask, NULL, &I2CScanTask_attributes);
+/* USER CODE BEGIN Header_StartI2CScanTask */
+/**
+ * @brief Function implementing the I2CScanTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartI2CScanTask */
+void StartI2CScanTask(void *argument)
+{
+    /* USER CODE BEGIN StartI2CScanTask */
+    uint8_t result;
+    uint8_t deviceAddr;
+
+    /* Infinite loop */
+    for (;;)
+    {
+        for (uint16_t i = 1; i < 128; i++)
+        {
+            result = HAL_I2C_IsDeviceReady(I2C_BUS, (i << 1), 3, 5);
+            if (result == HAL_OK)
+            {
+                deviceAddr = (i << 1);
+                usbDebug("Ready deviceAddr: 0x[%02X]\r\n", deviceAddr);
+                osDelay(20);
+            }
+        }
+        osDelay(10000);
+    }
+    /* USER CODE END StartI2CScanTask */
+}
+#endif
+
+/* USER CODE BEGIN Header_StartMainTask */
+/**
+ * @brief Function implementing the MainTask thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_StartMainTask */
+void StartMainTask(void *argument)
+{
+	/* USER CODE BEGIN StartMainTask */
+	HAL_GPIO_WritePin(LT7911_RSTN_GPIO_Port, LT7911_RSTN_Pin, GPIO_PIN_SET);
+	osDelay(10);
+	Ecx343_data_init_default();
+	osDelay(10);
+	ECX343EN_Init();
+	osDelay(1000);
+
+#if ENABLE_TOF
+	isrToFLock = xSemaphoreCreateBinary();
+	/* creation of TofTask */
+	TofTaskHandle = osThreadNew(StartTofTask, NULL, &TofTask_attributes);
+
+	osThreadFlagsWait(0x02, osFlagsWaitAny, osWaitForever);
+#endif
+
+#if ENABLE_ALS
+	/* creation of ALSensorTask */
+	ALSensorTaskHandle = osThreadNew(StartALSensorTask, NULL, &ALSensorTask_attributes);
+
+	AL3010_Init();
+	osDelay(10);
+
+	//Enable ALS Int
+	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
+	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 #endif
 
 #if ENABLE_PANEL
-  	executeTaskWithMutex(POWER_ON, PANEL_BOTH);
-    osDelay(10);
-    on_flag = 1;
-    // CheckPanelState();
-    //  panel_reg_write(0, 0x80, 0x01, 0);
-    //  panel_reg_write(0, 0x80, 0x01, 1);
+	executeTaskWithMutex(POWER_ON, PANEL_BOTH);
+	osDelay(10);
+	isPanelOn = 1;
+#else
+	#if ENABLE_PS
+		/* creation of PSensorTask */
+		PSensorTaskHandle = osThreadNew(StartPSensorTask, NULL,	&PSensorTask_attributes);
+
+		RPR0521_Init();
+		osDelay(10);
+		RPR0521_SetUp();
+		osDelay(10);
+
+		//Enable PS Int
+		HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
+		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+	#endif
 #endif
 
-    uint32_t pressTime = 0, releaseTime = 0;
-    ButtonState buttonFuncCurrState = BUTTON_RELEASED;
-    ButtonState buttonFuncPrevState = BUTTON_RELEASED;
-    OperationMode currentMode = MODE_BRIGHTNESS;
-    PowerSave displayType = MODE_RELEASE;
-    ButtonClickType clickType = NO_CLICK;
-//    uint8_t pin_status=0;
+#if ENABLE_ADC
+	/* creation of ADCTask */
+	ADCTaskHandle = osThreadNew(StartADCTask, NULL, &ADCTask_attributes);
+#endif
+
+#if ENABLE_SCAN_I2C
+	/* creation of I2CScanTask */
+	I2CScanTaskHandle = osThreadNew(StartI2CScanTask, NULL, &I2CScanTask_attributes);
+#endif
+
+	uint32_t pressTime = 0, releaseTime = 0;
+	ButtonState buttonFuncCurrState = BUTTON_RELEASED;
+	ButtonState buttonFuncPrevState = BUTTON_RELEASED;
+	OperationMode currentMode = MODE_BRIGHTNESS;
+	PowerSave displayType = MODE_RELEASE;
+	ButtonClickType clickType = NO_CLICK;
 
 #if REDUCE_BRIGHTNESS_ON_HIGH_TEMP
-    uint32_t startTime = osKernelGetTickCount();
-    uint32_t lastHighTempTime = 0;
+	uint32_t startTime = osKernelGetTickCount();
+	uint32_t lastHighTempTime = 0;
 #endif
-    for(;;)
-    {
-//    	pin_status = HAL_GPIO_ReadPin(AUDIO_DET_GPIO_Port, AUDIO_DET_Pin);
 
-    	osDelay(100);
+	/* Infinite loop */
+	for (;;)
+	{
+		osDelay(100);
+
 #if ENABLE_TOF_FORCE_RESET
-    	nTofGpioInts_1 += 1;
-    	if (nTofGpioInts_1>=10 && interruptTofEnable) {
-    	    tofResetCount += 1;
-    	    Tof_Hard_reset();
+		nTofGpioInts_1 += 1;
+		if (nTofGpioInts_1 >= 10 && interruptTofEnable)
+		{
+			tofResetCount += 1;
+			Tof_Hard_reset();
 //    	    McuReset();
-    	}
-        if (tof_resetFlag)
-        {
-            Tof_Hard_reset();
-        }
+		}
+		if (tof_resetFlag)
+		{
+			Tof_Hard_reset();
+		}
 #endif
-        //IMU Debug
-        nBno08xGpioInts += 1;
-        nIMUHIDUsbOuts += 1;
-        if (nBno08xGpioInts > 40){
+
+		//IMU Debug
+		nBno08xGpioInts += 1;
+		nIMUHIDUsbOuts += 1;
+		if (nBno08xGpioInts > 40)
+		{
 //            usbDebug("IMU interrupt Dead \r\n");
-            nBno08xGpioInts = 0;
+			nBno08xGpioInts = 0;
 //            HAL_GPIO_WritePin(IMU_RST_GPIO_Port, IMU_RST_Pin, GPIO_PIN_RESET);
 //            osDelay(10);
 //            HAL_GPIO_WritePin(IMU_RST_GPIO_Port, IMU_RST_Pin, GPIO_PIN_SET);
 //
 //            initSensor();
-        }
-        if (nIMUHIDUsbOuts > 40){
+		}
+		if (nIMUHIDUsbOuts > 40)
+		{
 //            usbDebug("IMU HID OutPut Dead \r\n");
-            nIMUHIDUsbOuts=0;
-        }
-#if ENABLE_FAKE_DATA
-        ALS_SendFAKE_FS();
-#endif
+			nIMUHIDUsbOuts = 0;
+		}
 
-    	if (!on_flag) continue;
+		if (!isPanelOn) continue;
 
-        if (command_flag)
-        {
-            command_flag = false;
-            switchMode();
-        }
+		/* ButtonEvent */
+		bool isReleased = false;
+		bool newEventOccurred = UpdateButtonState(&buttonFuncPrevState, &buttonFuncCurrState, &pressTime, &releaseTime, &isReleased);
 
-        /* ButtonEvent */
-        bool isReleased = false;
-        bool newEventOccurred = UpdateButtonState(&buttonFuncPrevState, &buttonFuncCurrState, &pressTime, &releaseTime, &isReleased);
+		if (newEventOccurred)
+		{
+			clickType = isReleased ? GetButtonClickType(pressTime, releaseTime) : LONG_PRESS;
+			ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
+		}
+		else if (possibleSingleClick && (osKernelGetTickCount() - lastClickTime > CLICK_DETECTION_PERIOD))
+		{
+			possibleSingleClick = false;
+			clickType = SINGLE_CLICK;
+			ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
+		}
 
-        if (newEventOccurred) {
-            clickType = isReleased ? GetButtonClickType(pressTime, releaseTime) : LONG_PRESS;
-            ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
-        } else if (possibleSingleClick && (osKernelGetTickCount() - lastClickTime > CLICK_DETECTION_PERIOD)) {
-            possibleSingleClick = false;
-            clickType = SINGLE_CLICK;
-            ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
-        }
-
-        uint8_t buttonEvent = 0;
-        buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_MINUS_GPIO_Port, PNL_VOL_MINUS_Pin) == GPIO_PIN_RESET) << 1;
-        buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_PLUS_GPIO_Port, PNL_VOL_PLUS_Pin) == GPIO_PIN_RESET) << 2;
-        if (buttonEvent) {
-            ProcessButtonEvent(buttonEvent, &clickType, &currentMode, &displayType);
-        }
-        /**/
-#if ENABLE_HID_KEYBOARD_TEST
-        if (test_times < 5)
-        {
-             for(uint32_t i = 0; i < 29; i++)
-             {
-                 keypadReport.reportId = 0x11;
-                 keypadReport.keys = (1 << i);
-                 keyReport.type = USB_HID_KEY_INPUT_REPORT;
-                 keyReport.data.keyReport.len = sizeof(HID_Keypad_Report);
-                 memcpy(keyReport.data.keyReport.report, (void *)&keypadReport, sizeof(keypadReport));
-                 usbSendMessage(&keyReport);
-                 osDelay(20);
-                 keypadReport.keys = 0x00000000;
-                 memcpy(keyReport.data.keyReport.report, (void *)&keypadReport, sizeof(keypadReport));
-                 usbSendMessage(&keyReport);
-                 osDelay(100);
-             }
-             test_times += 1;
-        }
-#endif
+		uint8_t buttonEvent = 0;
+		buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_MINUS_GPIO_Port, PNL_VOL_MINUS_Pin) == GPIO_PIN_RESET) << 1;
+		buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_PLUS_GPIO_Port, PNL_VOL_PLUS_Pin) == GPIO_PIN_RESET) << 2;
+		if (buttonEvent)
+		{
+			ProcessButtonEvent(buttonEvent, &clickType, &currentMode, &displayType);
+		}
 
 #if REDUCE_BRIGHTNESS_ON_HIGH_TEMP
-        /* Reduce brightness by 1000 when panel exceeds 90 degrees. */
-        checkAndReduceBrightness(&startTime, &lastHighTempTime);
-        /**/
+		/* Reduce brightness to 3500 when the panel exceeds 70 degrees. */
+		checkAndReduceBrightness(&startTime, &lastHighTempTime);
 #endif
-    }
+	}
+	/* USER CODE END StartMainTask */
 }
 
-void ADCTask(void *argument)
+/* Private application code --------------------------------------------------*/
+/* USER CODE BEGIN Application */
+/* Functions needed when configGENERATE_RUN_TIME_STATS is on */
+__weak void configureTimerForRunTimeStats(void)
 {
-    TickType_t lastWakeTime = xTaskGetTickCount();
-
-    for (;;)
-    {
-        if (on_flag)
-        {
-            if(DebugSwitch)
-            {
-                usbDebug("LeftOrigTemperature: %.2f\r\nRightOrigTemperature: %.2f\r\n", g_temperatureLeftRaw, g_temperatureRightRaw);
-            }
-            updatePanelTemperature();
-            if(DebugSwitch)
-            {
-                usbDebug("LeftTemperature: %.2f\r\nRightTemperature: %.2f\r\n", g_temperatureLeftSmoothed, g_temperatureRightSmoothed);
-            }
-        }
-
-        vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(5000));
-    }
+	ulHighFrequencyTimerTicks = 0;
+	HAL_TIM_Base_Start_IT(&htim13);
 }
 
-void I2CScanTask(void * argument)
+__weak unsigned long getRunTimeCounterValue(void)
 {
-	uint8_t result;
-	uint8_t deviceAddr;
+	return ulHighFrequencyTimerTicks;
+}
 
-	for(;;)
+void isrToFTaskTrigger(void)
+{
+	static BaseType_t xHigherPriorityTaskWoken;
+
+	xHigherPriorityTaskWoken = pdFALSE;
+	xSemaphoreGiveFromISR(isrToFLock, &xHigherPriorityTaskWoken);
+
+	/* If xHigherPriorityTaskWoken was set to true we should yield. */
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+static inline void i2c1TxBlock(void)
+{
+	xSemaphoreTake(I2C1_Lock, portMAX_DELAY);
+}
+
+static inline void i2c1TxUnblock(void)
+{
+	xSemaphoreGive(I2C1_Lock);
+}
+
+void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime)
+{
+	const uint32_t checkInterval = 1000;
+	const uint32_t highTempThresholdTime = 60000;
+	static bool reduceBrightness = false;
+
+	uint32_t currentTick = osKernelGetTickCount();
+
+	if ((currentTick - *startTime) > checkInterval)
 	{
-	    if(xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE){
-            for (uint16_t i=1; i<128; i++)
-            {
-                result = HAL_I2C_IsDeviceReady(I2C_BUS, (i<<1), 3, 5);
-                if (result == HAL_OK)
-                {
-                    deviceAddr = (i<<1);
-                    usbDebug("Ready deviceAddr: [%02x]\r\n", deviceAddr);
-                }
-            }
-		i2c1TxUnblock();
-	    }
-		vTaskDelay(pdMS_TO_TICKS(100));
+		*startTime = currentTick;
+
+		if (g_temperatureLeftSmoothed > 70.0f
+				|| g_temperatureRightSmoothed > 70.0f)
+		{
+			if (*lastHighTempTime == 0)
+			{
+				*lastHighTempTime = currentTick;
+			}
+			else if ((currentTick - *lastHighTempTime) > highTempThresholdTime)
+			{
+				reduceBrightness = true;
+			}
+		}
+		else
+		{
+			*lastHighTempTime = 0;
+		}
+	}
+
+	if (reduceBrightness)
+	{
+		bool brightnessReduced = false;
+
+		if (ecx343_current_data.uLCD_LUXL > 350)
+		{
+			ecx343_current_data.uLCD_LUXL -= 10;
+			brightnessReduced = true;
+		}
+
+		if (ecx343_current_data.uLCD_LUXR > 350)
+		{
+			ecx343_current_data.uLCD_LUXR -= 10;
+			brightnessReduced = true;
+		}
+
+		if (brightnessReduced)
+		{
+			executeTaskWithMutex(ADJUST_BRIGHTNESS);
+		}
+
+		if (ecx343_current_data.uLCD_LUXL <= 350
+				&& ecx343_current_data.uLCD_LUXR <= 350)
+		{
+			reduceBrightness = false;
+		}
 	}
 }
 
-#if ENABLE_TOF
-#if ENABLE_FAKE_DATA
-static void ToFFakeTask(void * argument)
-{
-    usb_waitUntilInited();
-    vTaskDelay(pdMS_TO_TICKS(500));
-    while(1)
-    {
-        if(interruptTofEnable)
-        {
-            TickType_t timestamp = xTaskGetTickCount();
-            tof_fake_data(timestamp);
-        }
-        osDelay(100);
-
-    }
-
-}
-#else
-static void ToFTask(void * argument)
-{
-
-    static VL53L8CX_ResultsData   Results;
-    uint8_t resolution;
-    uint8_t status;
-
-//    UBaseType_t uxHighWaterMark;
-//    uint8_t isAlive, status;
-//    uint8_t p_data_ready;
-    /*ToF Initialize*/
-//    HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
-//    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
-//    HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
-    osDelay(1000);
-    ResetTof();
-  /* Infinite loop */
-    while(1)
-    {
-        // Wait until isr triggered.
-        xSemaphoreTake( isrToFLock, portMAX_DELAY);
-        /* Do ToF Get data. */
-
-        nExecs_IsrToF += 1;
-        if (bRangePacketUpdated) continue;
-
-		status = vl53l8cx_get_resolution(&Dev, &resolution);
-		status = vl53l8cx_get_ranging_data(&Dev, &Results);
-
-#if ENABLE_TOF_DEBUG
-		for(int i = 0; i < resolution;i++){
-			/* Print per zone results */
-			usbDebug("Zone : %2d, Nb targets : %2u, Ambient : %4lu Kcps/spads, \r\n",
-					i,
-					Results.nb_target_detected[i],
-					Results.ambient_per_spad[i]);
-
-			/* Print per target results */
-			if(Results.nb_target_detected[i] > 0){
-				usbDebug("Target status : %3u, Distance : %4d mm \r\n",
-						Results.target_status[VL53L8CX_NB_TARGET_PER_ZONE * i],
-						Results.distance_mm[VL53L8CX_NB_TARGET_PER_ZONE * i]);
-			}else{
-				usbDebug("Target status : 255, Distance : No target\r\n");
-			}
-		}
-		usbDebug("\r\n");
-
-#else
-        /*GOTO ToF CDC Process*/
-            TickType_t timestamp = xTaskGetTickCount();
-            tof_ranging_callback(&Results, timestamp);
-#if ENABLE_STACK_CHECK
-            //test: check high water
-            UBaseType_t uxHighWaterMark;
-            if(nExecs_IsrToF%100==0)
-            {
-                uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-                usbDebug("ToF_task free stack：%lu\n", uxHighWaterMark);
-            }
-#endif
-        }
-#endif
-
-}
-#endif
-
 void ResetTof(void)
 {
-    uint8_t isAlive, status;
-    Dev.platform.address = VL53L8CX_DEFAULT_I2C_ADDRESS;
-//    Hard_reset();
-    Reset_Sensor(&(Dev.platform));
-    while(1)
-    {
+	uint8_t isAlive, status;
+	Dev.platform.address = VL53L8CX_DEFAULT_I2C_ADDRESS;
+	Reset_Sensor(&(Dev.platform));
+	while (1)
+	{
 
 		status = vl53l8cx_is_alive(&Dev, &isAlive);
 
-        if(!isAlive)
-        {
-//            usbDebug("VL53L8CX not detected at requested address (0x%x) \r\n", Dev.platform.address);
-            Reset_Sensor(&(Dev.platform));
-            vTaskDelay(pdMS_TO_TICKS(500));
-        }
-        else break;
+		if (!isAlive)
+		{
+//        	usbDebug("VL53L8CX not detected at requested address (0x%x) \r\n", Dev.platform.address);
+			Reset_Sensor(&(Dev.platform));
+			vTaskDelay(pdMS_TO_TICKS(500));
+		}
+		else
+			break;
 
-    }
-//    usbDebug("Sensor initializing, please wait few seconds \r\n");
+	}
+//	usbDebug("Sensor initializing, please wait few seconds \r\n");
 
 	status = vl53l8cx_init(&Dev);
 	status = vl53l8cx_set_resolution(&Dev, VL53L8CX_RESOLUTION_8X8);
@@ -1329,23 +818,22 @@ void ResetTof(void)
 #else
 	status = vl53l8cx_set_ranging_frequency_hz(&Dev, 8);
 #endif
-	status = vl53l8cx_set_ranging_mode(&Dev, VL53L8CX_RANGING_MODE_CONTINUOUS);  // Set mode continuous
-//        usbDebug("Ranging starts \r\n");
+	status = vl53l8cx_set_ranging_mode(&Dev, VL53L8CX_RANGING_MODE_CONTINUOUS); // Set mode continuous
+//	usbDebug("Ranging starts \r\n");
 	status = vl53l8cx_start_ranging(&Dev);
 
-
-    nExecs_IsrToF = 0;
-//    usbDebug("Ranging status:%d \r\n", status);
-//    HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
-//    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-    osThreadFlagsSet(MainTaskHandle, 0x02);
+	nExecs_IsrToF = 0;
+//	usbDebug("Ranging status:%d \r\n", status);
+//	HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
+//	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+	osThreadFlagsSet(MainTaskHandle, 0x02);
 }
 
 void Tof_Hard_reset(void)
 {
-    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
-    xSemaphoreGive(isrToFLock);
-    xSemaphoreTake( isrToFLock, portMAX_DELAY);
+	HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+	xSemaphoreGive(isrToFLock);
+	xSemaphoreTake(isrToFLock, portMAX_DELAY);
 //    osDelay(2000);
 
 	I2C2_SoftwareReset();
@@ -1355,71 +843,6 @@ void Tof_Hard_reset(void)
 	osDelay(20);
 	HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
 	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-
-}
-#endif
-
-void gradualMixing(int16_t* buffer1, int16_t* buffer2, int numSamples, int mixLength)
-{
-
-    if (mixLength > numSamples) mixLength = numSamples;
-
-    int16_t endSampleBuffer1 = buffer1[numSamples - 1];
-
-    int16_t startMixValue = endSampleBuffer1;
-
-    for (int i = 0; i < mixLength; ++i)
-    {
-        float mixFactor = (float)i / mixLength;
-        buffer2[i] = (int16_t)((1 - mixFactor) * startMixValue + mixFactor * buffer2[i]);
-    }
-}
-
-void gradualAdjustment(int16_t* buffer1, int16_t* buffer2, int numSamples, int adjustmentLength)
-{
-
-    if (adjustmentLength > numSamples) adjustmentLength = numSamples;
-
-    int16_t lastSampleBuffer1 = buffer1[numSamples - 1];
-    int16_t originalFirstSampleBuffer2 = buffer2[0];
-
-    float step = (float)(originalFirstSampleBuffer2 - lastSampleBuffer1) / adjustmentLength;
-
-    for (int i = 0; i < adjustmentLength; ++i) {
-        buffer2[i] = lastSampleBuffer1 + (int16_t)(step * (i + 1));
-    }
-}
-
-void downsampleAudioLinear(const int16_t* inputBuffer, int inputSize, int16_t* outputBuffer, int outputSize)
-{
-
-    float step = (float)(inputSize - 1) / (outputSize - 1);
-
-    for (int i = 0; i < outputSize; i++) {
-        float index = i * step;
-        int lowerIndex = (int)index;
-        int upperIndex = lowerIndex + 1;
-        if (upperIndex >= inputSize) upperIndex = inputSize - 1;
-
-        float fraction = index - lowerIndex;
-        outputBuffer[i] = inputBuffer[lowerIndex] + (int16_t)((inputBuffer[upperIndex] - inputBuffer[lowerIndex]) * fraction);
-    }
-}
-
-void downsampleAudioSimple(const int16_t* inputBuffer, int inputSize, int16_t* outputBuffer, int outputSize)
-{
-    int stepAccumulator = 0;
-    int stepSize = inputSize;
-    int threshold = outputSize;
-    int j = 0;
-
-    for (int i = 0; i < inputSize && j < outputSize; ++i) {
-        if ((stepAccumulator += stepSize) >= threshold) {
-            stepAccumulator -= threshold;
-            continue;
-        }
-        outputBuffer[j++] = inputBuffer[i];
-    }
 }
 /* USER CODE END Application */
 

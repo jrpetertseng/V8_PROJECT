@@ -11,7 +11,7 @@
 #include "usbd_custom_hid_if_imu.h"
 #include "usb.h"
 
-uint32_t light = 0;
+uint32_t ambientLight = 0;
 static JQueueMessage_t imuReport;
 
 #define ALS_REPORT_LENGTH       7
@@ -102,7 +102,7 @@ HAL_StatusTypeDef AL3010_ReadData(void)
 
     scals.GAIN_SCALE = AL3010_GAIN_SCALE_2;
 
-    light = (uint32_t) (tmp * scals.GAIN_SCALE / 10000);
+    ambientLight = (uint32_t) (tmp * scals.GAIN_SCALE / 10000);
 
     return status;
 
@@ -127,7 +127,7 @@ HAL_StatusTypeDef AL3010_ReadData_ISR(void)
 
     scals.GAIN_SCALE = AL3010_GAIN_SCALE_2;
 
-    light = (uint32_t) (tmp * scals.GAIN_SCALE / 10000);
+    ambientLight = (uint32_t) (tmp * scals.GAIN_SCALE / 10000);
 
     return status;
 
@@ -138,7 +138,7 @@ void ALS_SendReport_FS(void)
     imuReport.type               = USB_HID_IMU_INPUT_REPORT;
     imuReport.data.imuReport.len = ALS_REPORT_LENGTH;
 
-    memcpy( seiko_als_STREAM_1+3, &light, sizeof(int32_t));
+    memcpy( seiko_als_STREAM_1+3, &ambientLight, sizeof(int32_t));
     memcpy( imuReport.data.imuReport.report, seiko_als_STREAM_1,
     		imuReport.data.imuReport.len);
     usbSendMessage( &imuReport);

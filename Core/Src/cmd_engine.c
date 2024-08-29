@@ -35,8 +35,8 @@ bool bPresenceEnabled = false;
 bool command_flag = false;
 bool bRangePacketUpdated = false;
 
-extern uint8_t DebugSwitch;
-extern uint8_t AutoBrightness;
+extern uint8_t isDebugModeEnabled;
+extern uint8_t isAutoBrightnessEnabled;
 uint8_t tof_resetFlag = 0;
 
 ECX343_DATA ecx343_data;
@@ -818,8 +818,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             ecx343_current_data = ecx343_data;
 
             currentPanelMode = ecx343_current_data.uLCD_MODE;
-
-            Lcd_swMode(ecx343_current_data.uLCD_MODE);
+            switchMode();
 
             executeTaskWithMutex(WRITE_REGISTERS, &ecx343_current_data);
         }
@@ -854,22 +853,23 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         } else {
         	currentPanelMode = value;
-            command_flag = true;
+        	switchMode();
+
             reply += sprintf(reply, "OK");
         }
         break;
     case CE_SET_ADC_DEBUG:
         if (!args_len) {
-            DebugSwitch = !DebugSwitch;
-            reply += sprintf(reply, "Set ADC DEBUG: %d", DebugSwitch);
+            isDebugModeEnabled = !isDebugModeEnabled;
+            reply += sprintf(reply, "Set ADC DEBUG: %d", isDebugModeEnabled);
         } else {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
         break;
     case CE_SET_AUTO_BRIGHTNESS:
         if (!args_len) {
-        	AutoBrightness = !AutoBrightness;
-            reply += sprintf(reply, "Set AutoBrightness: %d", AutoBrightness);
+        	isAutoBrightnessEnabled = !isAutoBrightnessEnabled;
+            reply += sprintf(reply, "Set AutoBrightness: %d", isAutoBrightnessEnabled);
         } else {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
@@ -1159,12 +1159,7 @@ int Check_Ecx343_data_checksum(ECX343_DATA data)
         return CheckSum_FAIL;
     else return CheckSum_OK;
 }
-void Lcd_swMode(uint8_t lcdmode)
-{
-	executeTaskWithMutex(POWER_OFF, PANEL_BOTH);
-    LT7911_Mode_Switch(lcdmode);
-    executeTaskWithMutex(POWER_ON, PANEL_BOTH);
-}
+
 uint8_t LcdHorbit(int value) {
     uint8_t tmp = 0;
     if (value / 100 == 0) {
@@ -1174,6 +1169,7 @@ uint8_t LcdHorbit(int value) {
     }
     return tmp;
 }
+
 uint8_t LcdVorbit(int value) {
     uint8_t tmp = 0;
     if (value / 100 == 0) {
