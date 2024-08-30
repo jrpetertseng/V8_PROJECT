@@ -414,11 +414,11 @@ typedef enum {
 
 #define VREF                 	1.8f
 #define ADC_RESOLUTION       	((1 << 12) - 1)
-#define MAX_BUFFER_SIZE      	20
+#define MAX_BUFFER_SIZE      	10
 #define SOME_THRESHOLD       	5
-#define ALPHA                	0.1f
-#define MIN_TEMPERATURE      	-65.0f
-#define MAX_TEMPERATURE      	115.0f
+#define ALPHA                	0.05f
+#define MIN_TEMPERATURE      	-40.0f
+#define MAX_TEMPERATURE      	90.0f
 #define TEMPERATURE_THRESHOLD 	10.0f
 
 typedef struct {
