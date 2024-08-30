@@ -26,7 +26,6 @@
 #define TOF_DATA_SUFFIX 0x0a0d4445 /* "ED\r\n" */
 static uint8_t tofNumOfTargets[MAX_TOF_DATA_COUNT];
 uint8_t TofRangePacket[TOF_8X8_DATA_PACKET_SIZE];
-uint16_t tofResetCount = 0;
 
 bool bPresenceSent = false;
 bool bGestureEnabled = false;

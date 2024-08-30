@@ -51,7 +51,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+#define STR(x) #x
+#define XSTR(x) STR(x)
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/

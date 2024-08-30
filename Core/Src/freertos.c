@@ -76,16 +76,12 @@ extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c3;
 extern TIM_HandleTypeDef htim13;
-extern uint16_t tofResetCount;
-extern uint32_t nTofGpioInts_1;
-extern uint32_t ambientLight;
 extern ECX343_DATA ecx343_current_data;
-uint32_t nExecs_IsrToF;
-uint8_t isPanelOn = 0;
+VL53L8CX_Configuration Dev;
 uint8_t isDebugModeEnabled = 0;
 uint8_t isAutoBrightnessEnabled = 0;
-VL53L8CX_Configuration Dev;
 
+uint8_t isPanelOn = 0;
 static SemaphoreHandle_t I2C1_Lock;
 static SemaphoreHandle_t isrToFLock;
 volatile unsigned long ulHighFrequencyTimerTicks;
@@ -640,6 +636,7 @@ void StartMainTask(void *argument)
 		}
 #endif
 
+#if defined DEBUG
 		//IMU Debug
 		nBno08xGpioInts += 1;
 		nIMUHIDUsbOuts += 1;
@@ -658,7 +655,7 @@ void StartMainTask(void *argument)
 //            usbDebug("IMU HID OutPut Dead \r\n");
 			nIMUHIDUsbOuts = 0;
 		}
-
+#endif
 		if (!isPanelOn) continue;
 
 		/* ButtonEvent */

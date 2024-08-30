@@ -371,17 +371,23 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, 0, 0x80);
 
   // CDC ToF
+#pragma message "CDC_IN_EP: " XSTR(CDC_IN_EP)
+#pragma message "CDC_CMD_EP: " XSTR(CDC_CMD_EP)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_IN_EP & 0x7F), 0x80);
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_CMD_EP & 0x7F), 0x80);
 
   // CDC ACM Device Controller
+#pragma message "CDC_DEVCTLR_IN_EP: " XSTR(CDC_DEVCTLR_IN_EP)
+#pragma message "CDC_DEVCTLR_CMD_EP: " XSTR(CDC_DEVCTLR_CMD_EP)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_IN_EP & 0x7F), 0x80);
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_CMD_EP & 0x7F), 0x80);
 
   // CUSTOM HID Sensor
+#pragma message "CUSTOM_HID_SENSOR_EPIN_ADDR: " XSTR(CUSTOM_HID_SENSOR_EPIN_ADDR)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_SENSOR_EPIN_ADDR & 0x7F), 0x80);
 
   // CUSTOM HID Keyboard
+#pragma message "CUSTOM_HID_KEYBOARD_EPIN_ADDR: " XSTR(CUSTOM_HID_KEYBOARD_EPIN_ADDR)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_KEYBOARD_EPIN_ADDR & 0x7F), 0x20);
   }
   return USBD_OK;

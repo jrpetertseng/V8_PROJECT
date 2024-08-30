@@ -72,13 +72,20 @@ extern I2C_HandleTypeDef hi2c3;
 extern USBD_HandleTypeDef hUsbDeviceHS;
 extern osThreadId_t ALSensorTaskHandle;
 extern osThreadId_t PSensorTaskHandle;
-uint32_t nBno08xGpioInts;
-uint32_t nAlsGpioInts;
-uint32_t nPsGpioInts;
-uint32_t nTofGpioInts_1;
-uint32_t nIMUHIDUsbOuts;
-uint8_t interruptTofEnable = 0;
 
+// Interrupt Management
+uint32_t nBno08xGpioInts = 0;
+uint32_t nAlsGpioInts = 0;
+uint32_t nPsGpioInts = 0;
+uint32_t nTofGpioInts_1 = 0;
+
+// IMU Communication Management
+uint32_t nIMUHIDUsbOuts = 0;
+
+// ToF Sensor Management
+uint8_t  interruptTofEnable = 0;
+uint16_t tofResetCount = 0;
+uint32_t nExecs_IsrToF = 0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MPU_Config(void);
@@ -179,10 +186,6 @@ int main(void)
   MX_ADC2_Init();
 
   /* USER CODE BEGIN 2 */
-  nBno08xGpioInts   = 0;
-  nAlsGpioInts      = 0;
-  nPsGpioInts       = 0;
-  nIMUHIDUsbOuts    = 0;
 
   /* USER CODE END 2 */
 
@@ -282,22 +285,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if(IMU_INTN_Pin == GPIO_Pin)
     {
-        SH2_GPIO_EXTI_Callback( GPIO_Pin);
-//        nBno08xGpioInts += 1;
         nBno08xGpioInts = 0;
+        SH2_GPIO_EXTI_Callback( GPIO_Pin);
+        // nBno08xGpioInts += 1;
     }
 #if ENABLE_ALS
     else if(ALS_INT_Pin == GPIO_Pin)
     {
         osThreadFlagsSet(ALSensorTaskHandle, 0x02);
-        nAlsGpioInts += 1;
+        // nAlsGpioInts += 1;
     }
 #endif
 #if ENABLE_PS
     else if(PS_INT_Pin == GPIO_Pin)
     {
         osThreadFlagsSet(PSensorTaskHandle, 0x01);
-        nPsGpioInts += 1;
+        // nPsGpioInts += 1;
     }
 #endif
 #if ENABLE_TOF

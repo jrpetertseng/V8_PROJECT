@@ -114,8 +114,8 @@ extern I2C_HandleTypeDef hi2c1;
 // * FUNCTION FORWARD DECLARATION *
 // ********************************
 HAL_StatusTypeDef AL3010_Init(void);
-void ALS_SendReport_HS(void);
 HAL_StatusTypeDef AL3010_ReadData(void);
 HAL_StatusTypeDef AL3010_ReadData_ISR(void);
-
+void ALS_SendReport_HS(void);
+extern uint32_t ambientLight;
 #endif /* INC_AL3010_H_ */

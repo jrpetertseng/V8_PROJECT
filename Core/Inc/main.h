@@ -45,8 +45,12 @@ extern "C" {
 extern uint32_t nBno08xGpioInts;
 extern uint32_t nAlsGpioInts;
 extern uint32_t nPsGpioInts;
+extern uint32_t nTofGpioInts_1;
 extern uint32_t nIMUHIDUsbOuts;
-extern uint8_t interruptTofEnable;
+extern uint8_t  interruptTofEnable;
+extern uint16_t tofResetCount;
+extern uint32_t nExecs_IsrToF;
+
 extern void (* tof_callback)(void);
 /* USER CODE END EC */
 
@@ -59,7 +63,7 @@ extern void (* tof_callback)(void);
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-#define USE_USB_TX_TASK			1
+#define USE_USB_TX_TASK 1
 
 extern void usb_printf(const char *format, ...);
 extern void isrToFTaskTrigger( void);
@@ -192,16 +196,14 @@ PUTCHAR_PROTOTYPE;
 
 #define V_MAJOR 0
 #define V_MINOR 2
-#define V_PATCH 3
+#define V_PATCH 4
 /* Model Code Rules:
  *  1st character: J, Jorjin
  *  2nd character: 8, J8 series
- *  3rd character: L,
+ *  3rd character: L, Letin
  */
 #define MODEL_SUFFIX "J8L"
 
-void resample_linear(uint16_t *pbuf, uint32_t* tmp );
-int16_t median_calc(int16_t arr[], int size);
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
