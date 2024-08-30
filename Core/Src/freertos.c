@@ -679,6 +679,7 @@ void StartMainTask(void *argument)
 		buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_PLUS_GPIO_Port, PNL_VOL_PLUS_Pin) == GPIO_PIN_RESET) << 2;
 		if (buttonEvent)
 		{
+			if (isAutoBrightnessEnabled && currentMode==MODE_BRIGHTNESS) continue;
 			ProcessButtonEvent(buttonEvent, &clickType, &currentMode, &displayType);
 		}
 
@@ -737,8 +738,7 @@ void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime)
 	{
 		*startTime = currentTick;
 
-		if (g_temperatureLeftSmoothed > 70.0f
-				|| g_temperatureRightSmoothed > 70.0f)
+		if (g_temperatureLeftSmoothed > 70.0f || g_temperatureRightSmoothed > 70.0f)
 		{
 			if (*lastHighTempTime == 0)
 			{
@@ -773,11 +773,11 @@ void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime)
 
 		if (brightnessReduced)
 		{
+			isAutoBrightnessEnabled = 0;
 			executeTaskWithMutex(ADJUST_BRIGHTNESS);
 		}
 
-		if (ecx343_current_data.uLCD_LUXL <= 350
-				&& ecx343_current_data.uLCD_LUXR <= 350)
+		if (ecx343_current_data.uLCD_LUXL <= 350 && ecx343_current_data.uLCD_LUXR <= 350)
 		{
 			reduceBrightness = false;
 		}

@@ -711,6 +711,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             // No number found, the value is outside the allowed range, or not a multiple of 100
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         } else {
+        	if (isAutoBrightnessEnabled) break;
             // Valid value processing
             value /= 10;
             ecx343_current_data.uLCD_LUXL = (uint16_t)value;
@@ -725,6 +726,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             // No number found, the value is outside the allowed range, or not a multiple of 100
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         } else {
+        	if (isAutoBrightnessEnabled) break;
             // Valid value processing
             value /= 10;
             ecx343_current_data.uLCD_LUXR = (uint16_t)value;
@@ -800,6 +802,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
     case CE_SET_LCD_DEFAULT:
         if (!args_len)
         {
+        	isDebugModeEnabled = 0;
+        	isAutoBrightnessEnabled = 0;
             memset(ecx343RW_buf, 0, sizeof(ecx343RW_buf));
             memcpy(ecx343RW_buf, (void *)&ecx343_data, sizeof(ECX343_DATA));
             if (Flash_Write_Data(0x08010000 , ecx343RW_buf, sizeof(ecx343RW_buf)/4))
