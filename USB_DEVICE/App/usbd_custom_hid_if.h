@@ -62,10 +62,10 @@
   */
 
 /* USER CODE BEGIN EXPORTED_TYPES */
-typedef __PACKED_STRUCT _HID_Keyboard_Report {
+typedef __PACKED_STRUCT _HID_KeyboardReport {
 	uint8_t report_id;
 	uint32_t keys;
-} HID_Keyboard_Report;
+} HID_KeyboardReport;
 /* USER CODE END EXPORTED_TYPES */
 
 /**
@@ -94,7 +94,7 @@ typedef __PACKED_STRUCT _HID_Keyboard_Report {
 extern USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_Keyboard_fops_HS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-extern HID_Keyboard_Report HID_keyboard_report;
+extern HID_KeyboardReport HID_keyboard_report;
 /* USER CODE END EXPORTED_VARIABLES */
 
 /**

@@ -232,7 +232,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_Keyboard_ReportDesc_HS[USBD_CUSTOM_HID_K
 extern USBD_HandleTypeDef hUsbDeviceHS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-HID_Keyboard_Report HID_keyboard_report = {0};
+HID_KeyboardReport HID_keyboard_report = {0};
 /* USER CODE END EXPORTED_VARIABLES */
 /**
   * @}

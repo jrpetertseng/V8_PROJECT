@@ -1036,15 +1036,15 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         if (HID_keyboard_report.report_id == 0x01 && bPresenceSent)
         	HID_keyboard_report.keys += precenseKey;
 
-        usbhid_sendReport( (char *)&HID_keyboard_report, sizeof(HID_Keyboard_Report));
+        usbhid_sendReport( (char *)&HID_keyboard_report, sizeof(HID_KeyboardReport));
 
         // create a new event for the number input if it hasn't been sent
         if (value && cmd >= CE_CR_BASE) {
-            HID_Keyboard_Report temp;
+        	HID_KeyboardReport temp;
             temp.keys = (uint8_t)value;
             temp.report_id = 1;
 
-            usbhid_sendReport( (char *)&temp, sizeof(HID_Keyboard_Report));
+            usbhid_sendReport( (char *)&temp, sizeof(HID_KeyboardReport));
         }
         reply += sprintf(reply, "OK");
         break;
@@ -1102,16 +1102,16 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         if (HID_keyboard_report.report_id == 0x01 && bPresenceSent)
         	HID_keyboard_report.keys += precenseKey;
 
-        usbhid_sendReport( (char *)&HID_keyboard_report, sizeof(HID_Keyboard_Report));
+        usbhid_sendReport( (char *)&HID_keyboard_report, sizeof(HID_KeyboardReport));
 
         if (value && cmd >= CE_CR_BASE) {
-            HID_Keyboard_Report temp;
+            HID_KeyboardReport temp;
             temp.keys = 0;
             temp.report_id = 1;
             if (HID_keyboard_report.report_id == 0x01 && bPresenceSent)
             	HID_keyboard_report.keys += precenseKey;
 
-            usbhid_sendReport( (char *)&temp, sizeof(HID_Keyboard_Report));
+            usbhid_sendReport( (char *)&temp, sizeof(HID_KeyboardReport));
         }
     }
 }

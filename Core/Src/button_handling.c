@@ -10,6 +10,9 @@
 #include "usb.h"
 
 #include "cmd_engine.h"
+#include "usbd_custom_hid_if.h"
+#include "debug_defs.h"
+JQueueMessage_t keyReport;
 extern ECX343_DATA ecx343_current_data;
 
 uint32_t lastClickTime = 0;
@@ -77,20 +80,31 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
         case NO_CLICK:
             break;
         case SINGLE_CLICK:
-        	uint8_t mode_state;
 
-            // CheckPanelState();
+        #if ENABLE_KEYBOARD_BUTTON_TEST
+            keyReport.type = USB_HID_KEY_INPUT_REPORT;
 
-            // *displayType = !(*displayType);
-            // ECX343EN_PowerSaving(*displayType);
-            // usbDebug("#power %d@\r\n", *displayType);
+        	HID_keyboard_report.report_id = 0x01;
+        	HID_keyboard_report.keys = 0x00000001;
+            keyReport.data.keyReport.len = sizeof(HID_KeyboardReport);
+            memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
+            usbSendMessage(&keyReport);
+            osDelay(20);
+            HID_keyboard_report.keys = 0x00000000;
+            memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
+            usbSendMessage(&keyReport);
+            osDelay(100);
+		#else
+			uint8_t mode_state;
 
-            mode_state = (ecx343_current_data.uLCD_MODE + 1) % 4;
-            currentPanelMode = mode_state;
-            switchMode();
-            usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
+//			CheckPanelState();
 
-            break;
+			mode_state = (ecx343_current_data.uLCD_MODE + 1) % 4;
+			currentPanelMode = mode_state;
+			switchMode();
+			usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
+        #endif
+			break;
         case DOUBLE_CLICK:
             *currentMode = (*currentMode == MODE_BRIGHTNESS) ? MODE_VOLUME : MODE_BRIGHTNESS;
 //            usbDebug("#btmode %d@\r\n", *currentMode);

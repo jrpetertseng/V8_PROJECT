@@ -22,6 +22,8 @@
 #define ENABLE_PANEL                    0
 #define REDUCE_BRIGHTNESS_ON_HIGH_TEMP  0
 
+#define ENABLE_KEYBOARD_BUTTON_TEST     0
+
 #if defined DEBUG
   /* When this is enabled, MUST open the CDC else it will lock!!! */
   //#define ENABLE_CDC_DEVCTLR_LOAD_PRINT   1
