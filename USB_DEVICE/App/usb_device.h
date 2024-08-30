@@ -32,8 +32,6 @@
 #include "usbd_def.h"
 
 /* USER CODE BEGIN INCLUDE */
-#define XSTR(x) STR(x)
-#define STR(x) #x
 
 /* USER CODE END INCLUDE */
 

@@ -6,9 +6,6 @@
 #include "debug_defs.h"
 #include "vl53l8cx_api.h"
 // Override USB configurations
-//#define CUSTOM_HID_EPIN_SIZE  0x08U
-//#define CUSTOM_HID_EPOUT_SIZE 0x08U
-
 
 typedef enum {
     CE_INVALID_CMD      = 0x0U,
@@ -151,17 +148,12 @@ void CE_Parse_Devctlr_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len);
 void Ecx343_data_init_default(void);
 uint32_t Cal_Ecx343_data_checksum(ECX343_DATA data);
 int Check_Ecx343_data_checksum(ECX343_DATA data);
-void Lcd_swMode(uint8_t lcdmode);
 uint8_t LcdHorbit(int value);
 uint8_t LcdVorbit(int value);
 
 #if ENABLE_TOF
 extern bool bRangePacketUpdated;
-#if ENABLE_FAKE_DATA
-void tof_fake_data(uint32_t timeStamp);
-#else
 void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp);
-#endif
 extern uint8_t tof_resetFlag;
 #endif
 

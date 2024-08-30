@@ -42,7 +42,7 @@ extern "C" {
   * @{
   */
 #define CUSTOM_HID_KEYBOARD_EPIN_ADDR                         0x86U
-#define CUSTOM_HID_KEYBOARD_EPIN_SIZE                         0x10U
+#define CUSTOM_HID_KEYBOARD_EPIN_SIZE                         0x20U
 
 #define CUSTOM_HID_KEYBOARD_EPOUT_ADDR                        0x06U
 #define CUSTOM_HID_KEYBOARD_EPOUT_SIZE                        0x10U
@@ -131,7 +131,7 @@ typedef struct
   * @{
   */
 
-extern USBD_ClassTypeDef USBD_CUSTOM_HID_Keyboard;
+extern USBD_ClassTypeDef USBD_CUSTOM_HID_KEYBOARD;
 #define USBD_CUSTOM_HID_Keyboard_CLASS &USBD_CUSTOM_HID_Keyboard
 /**
   * @}

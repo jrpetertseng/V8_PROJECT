@@ -37,9 +37,9 @@
 #include "usbd_cdc.h"
 #include "usbd_cdc_devctlr.h"
 #include "usbd_customhid.h"
-#include "usbd_customhid_imu.h"
+#include "usbd_customhid_sensor.h"
 #include "usbd_custom_hid_if.h"
-#include "usbd_custom_hid_if_imu.h"
+#include "usbd_custom_hid_sensor_if.h"
 
 #include "al3010.h"
 #include "rpr0521.h"
@@ -289,7 +289,6 @@ void StartTofTask(void *argument)
 	uint8_t resolution;
 	uint8_t status;
 
-	osDelay(1000);
 	ResetTof();
 
 	/* Infinite loop */
@@ -446,7 +445,7 @@ void StartALSensorTask(void *argument)
 			{
 				AL3010_ReadData();
 				i2c1TxUnblock();
-				ALS_SendReport_FS();
+				ALS_SendReport_HS();
 
 				if (isAutoBrightnessEnabled)
 				{
@@ -795,7 +794,6 @@ void ResetTof(void)
 	Reset_Sensor(&(Dev.platform));
 	while (1)
 	{
-
 		status = vl53l8cx_is_alive(&Dev, &isAlive);
 
 		if (!isAlive)
@@ -806,7 +804,6 @@ void ResetTof(void)
 		}
 		else
 			break;
-
 	}
 //	usbDebug("Sensor initializing, please wait few seconds \r\n");
 

@@ -19,8 +19,8 @@
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __USBD_CDC_IF_H__
-#define __USBD_CDC_IF_H__
+#ifndef __USBD_CDC_IF_DEVCTLR_H__
+#define __USBD_CDC_IF_DEVCTLR_H__
 
 #ifdef __cplusplus
  extern "C" {
@@ -48,8 +48,8 @@
   * @{
   */
 /* Define size for the receive and transmit buffer over CDC */
-#define DEVCTLR_APP_RX_DATA_SIZE  128
-#define DEVCTLR_APP_TX_DATA_SIZE  512
+#define DEVCTLR_APP_RX_DATA_SIZE  128 //2048
+#define DEVCTLR_APP_TX_DATA_SIZE  512 //2048
 /* USER CODE BEGIN EXPORTED_DEFINES */
 
 /* USER CODE END EXPORTED_DEFINES */

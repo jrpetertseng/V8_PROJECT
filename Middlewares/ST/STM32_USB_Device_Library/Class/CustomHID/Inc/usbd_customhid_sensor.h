@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * @file    usbd_customhid.h
+  * @file    usbd_customhid_sensor.h
   * @author  MCD Application Team
-  * @brief   header file for the usbd_customhid.c file.
+  * @brief   header file for the usbd_customhid_sensor.c file.
   ******************************************************************************
   * @attention
   *
@@ -19,7 +19,7 @@
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __USB_CUSTOMHID_SENSOR_H
-#define __USB_CUSTOMHID_SENSORIMU_H
+#define __USB_CUSTOMHID_SENSOR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -154,7 +154,7 @@ uint8_t USBD_CUSTOM_HID_Sensor_RegisterInterface(USBD_HandleTypeDef *pdev,
 }
 #endif
 
-#endif  /* __USB_CUSTOMHID_H */
+#endif  /* __USB_CUSTOMHID_SENSOR_H */
 /**
   * @}
   */

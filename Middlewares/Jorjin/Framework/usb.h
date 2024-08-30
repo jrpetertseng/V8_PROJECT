@@ -6,7 +6,7 @@
 #include "semphr.h"
 
 #include "usbd_customhid.h"
-#include "usbd_customhid_imu.h"
+#include "usbd_customhid_sensor.h"
 #include "config.h"
 #include "sensor_hid.h"
 #include "usbd_cdc.h"
@@ -54,12 +54,12 @@ struct UsbHidInputReport {
 
 struct UsbHidImuReport {
     int len;
-    uint8_t report[CUSTOM_HID_IMU_EPIN_SIZE];
+    uint8_t report[CUSTOM_HID_SENSOR_EPIN_SIZE];
 };
 
 struct UsbHidKeyReport {
     int len;
-    uint8_t report[CUSTOM_HID_KEY_EPIN_SIZE];
+    uint8_t report[CUSTOM_HID_KEYBOARD_EPIN_SIZE];
 };
 
 struct UsbCDCRx {

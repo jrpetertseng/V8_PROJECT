@@ -150,7 +150,7 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Keyboard_CfgFSDesc[USB_CUSTOM_HID_K
   /******************** Descriptor of CUSTOM_HID *************************/
   /* 18 */
   0x09,                                               /* bLength: CUSTOM_HID Descriptor size */
-  CUSTOM_HID_DESCRIPTOR_TYPE,                         /* bDescriptorType: CUSTOM_HID */
+  CUSTOM_HID_KEYBOARD_DESCRIPTOR_TYPE,                         /* bDescriptorType: CUSTOM_HID */
   0x11,                                               /* bCUSTOM_HIDUSTOM_HID: CUSTOM_HID Class Spec release number */
   0x01,
   0x00,                                               /* bCountryCode: Hardware target country */
@@ -181,7 +181,7 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Keyboard_CfgFSDesc[USB_CUSTOM_HID_K
 };
 
 /* USB CUSTOM_HID device HS Configuration Descriptor */
-__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_CfgHSDesc[USB_CUSTOM_HID_KEYBOARD_CONFIG_DESC_SIZ] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Keyboard_CfgHSDesc[USB_CUSTOM_HID_KEYBOARD_CONFIG_DESC_SIZ] __ALIGN_END =
 {
   0x09,                                               /* bLength: Configuration Descriptor size */
   USB_DESC_TYPE_CONFIGURATION,                        /* bDescriptorType: Configuration */
@@ -297,7 +297,7 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Keyboard_OtherSpeedCfgDesc[USB_CUST
 };
 
 /* USB CUSTOM_HID device Configuration Descriptor */
-__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Desc[USB_CUSTOM_HID_KEYBOARD_DESC_SIZ] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Keyboard_Desc[USB_CUSTOM_HID_KEYBOARD_DESC_SIZ] __ALIGN_END =
 {
   /* 18 */
   0x09,                                               /* bLength: CUSTOM_HID Descriptor size */
@@ -333,7 +333,6 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Keyboard_DeviceQualifierDesc[USB_LE
 /** @defgroup USBD_CUSTOM_HID_Private_Functions
   * @{
   */
-static USBD_CUSTOM_HID_Keyboard_HandleTypeDef hhidkeyboard;
 /**
   * @brief  USBD_CUSTOM_HID_Init
   *         Initialize the CUSTOM_HID interface
@@ -341,12 +340,14 @@ static USBD_CUSTOM_HID_Keyboard_HandleTypeDef hhidkeyboard;
   * @param  cfgidx: Configuration index
   * @retval status
   */
+static USBD_CUSTOM_HID_Keyboard_HandleTypeDef hhidKeyboard;
+
 static uint8_t USBD_CUSTOM_HID_Keyboard_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 {
   UNUSED(cfgidx);
   USBD_CUSTOM_HID_Keyboard_HandleTypeDef *hhid;
 
-  hhid = &hhidkeyboard
+  hhid = &hhidKeyboard;
 
   pdev->pClassData = (void *)hhid;
 
@@ -441,23 +442,23 @@ static uint8_t USBD_CUSTOM_HID_Keyboard_Setup(USBD_HandleTypeDef *pdev,
   case USB_REQ_TYPE_CLASS:
     switch (req->bRequest)
     {
-    case CUSTOM_HID_REQ_SET_PROTOCOL:
+    case CUSTOM_HID_KEYBOARD_REQ_SET_PROTOCOL:
       hhid->Protocol = (uint8_t)(req->wValue);
       break;
 
-    case CUSTOM_HID_REQ_GET_PROTOCOL:
+    case CUSTOM_HID_KEYBOARD_REQ_GET_PROTOCOL:
       (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->Protocol, 1U);
       break;
 
-    case CUSTOM_HID_REQ_SET_IDLE:
+    case CUSTOM_HID_KEYBOARD_REQ_SET_IDLE:
       hhid->IdleState = (uint8_t)(req->wValue >> 8);
       break;
 
-    case CUSTOM_HID_REQ_GET_IDLE:
+    case CUSTOM_HID_KEYBOARD_REQ_GET_IDLE:
       (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
       break;
 
-    case CUSTOM_HID_REQ_SET_REPORT:
+    case CUSTOM_HID_KEYBOARD_REQ_SET_REPORT:
       hhid->IsReportAvailable = 1U;
       (void)USBD_CtlPrepareRx(pdev, hhid->Report_buf, req->wLength);
       break;

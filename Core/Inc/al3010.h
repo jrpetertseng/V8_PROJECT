@@ -114,8 +114,7 @@ extern I2C_HandleTypeDef hi2c1;
 // * FUNCTION FORWARD DECLARATION *
 // ********************************
 HAL_StatusTypeDef AL3010_Init(void);
-void ALS_SendReport_FS(void);
-void ALS_SendFAKE_FS(void);
+void ALS_SendReport_HS(void);
 HAL_StatusTypeDef AL3010_ReadData(void);
 HAL_StatusTypeDef AL3010_ReadData_ISR(void);
 

@@ -22,13 +22,13 @@
 #include "usbd_cdc_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-#include "usbd_composite.h"
-#include "usb.h"
+#include <stdarg.h>
+
 #include "main.h"
 #include "debug_defs.h"
-
-#include <stdarg.h>
 #include "cmd.h"
+#include "usb.h"
+#include "usbd_composite.h"
 
 /* USER CODE END INCLUDE */
 
@@ -38,6 +38,7 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+#define CDC_MAX_RX_MSGS     4
 static JISRQueueMessage_t cdcRxMsg[CDC_MAX_RX_MSGS];
 static int                nCdcRxIdx;
 
@@ -71,7 +72,6 @@ static int                nCdcRxIdx;
   */
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
-#define CDC_MAX_RX_MSGS     4
 /* USER CODE END PRIVATE_DEFINES */
 
 /**

@@ -8,7 +8,7 @@
 #include "al3010.h"
 #include "i2c.h"
 #include <string.h>
-#include "usbd_custom_hid_if_imu.h"
+#include "usbd_custom_hid_sensor_if.h"
 #include "usb.h"
 
 uint32_t ambientLight = 0;
@@ -133,7 +133,7 @@ HAL_StatusTypeDef AL3010_ReadData_ISR(void)
 
 }
 
-void ALS_SendReport_FS(void)
+void ALS_SendReport_HS(void)
 {
     imuReport.type               = USB_HID_IMU_INPUT_REPORT;
     imuReport.data.imuReport.len = ALS_REPORT_LENGTH;
@@ -144,17 +144,6 @@ void ALS_SendReport_FS(void)
     usbSendMessage( &imuReport);
 }
 
-void ALS_SendFAKE_FS(void)
-{
-    imuReport.type               = USB_HID_IMU_INPUT_REPORT;
-    imuReport.data.imuReport.len = ALS_REPORT_LENGTH;
-
-//    memcpy( seiko_als_STREAM_1+3, 100, sizeof(int32_t));
-    seiko_als_STREAM_1[3] = 0x64;
-    memcpy( imuReport.data.imuReport.report, seiko_als_STREAM_1,
-            imuReport.data.imuReport.len);
-    usbSendMessage( &imuReport);
-}
 
 static HAL_StatusTypeDef AL3010_WriteRegister(uint16_t reg, uint8_t *data)
 {

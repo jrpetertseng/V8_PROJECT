@@ -96,10 +96,10 @@ static int                nCdcDevCtlrRxIdx;
 /* Create buffer for reception and transmission           */
 /* It's up to user to redefine and/or remove those define */
 /** Received data over USB are stored in this buffer      */
-static uint8_t DEVCTLR_UserRxBufferFS[DEVCTLR_APP_RX_DATA_SIZE];
+static uint8_t DEVCTLR_UserRxBufferHS[DEVCTLR_APP_RX_DATA_SIZE];
 
 /** Data to send over USB CDC are stored in this buffer   */
-static uint8_t DEVCTLR_UserTxBufferFS[DEVCTLR_APP_TX_DATA_SIZE];
+static uint8_t DEVCTLR_UserTxBufferHS[DEVCTLR_APP_TX_DATA_SIZE];
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
 

@@ -3,7 +3,7 @@
 #include "usbd_cdc.h"
 #include "usbd_cdc_devctlr.h"
 #include "usbd_customhid.h"
-#include "usbd_customhid_imu.h"
+#include "usbd_customhid_sensor.h"
 
 static USBD_CDC_HandleTypeDef *pCDCData_Tof;
 static USBD_CDC_DEVCTLR_HandleTypeDef *pCDCData_Devctlr;
@@ -47,7 +47,11 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE] __ALIGN
 	USBD_MAX_NUM_INTERFACES,                    /* bNumInterfaces */
 	0x01,                                       /* bConfigurationValue */
 	0x00,                                       /* iConfiguration */
-	0x80,                                       /* bmAttributes: bus powered */
+#if (USBD_SELF_POWERED == 1U)
+	0xC0,                                       /* bmAttributes: Bus Powered according to user configuration */
+#else
+	0x80,                                       /* bmAttributes: Bus Powered according to user configuration */
+#endif
 	0x96,                                       /* bMaxPower: 300 mA */
 	/* 9 */
 
@@ -55,7 +59,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE] __ALIGN
 	USBD_IAD_DESC_SIZE,                         /* bLength: Interface Association Descriptor size */
 	USBD_IAD_DESCRIPTOR_TYPE,                   /* bDescriptorType: Interface Association */
 	USBD_CDC_FIRST_INTERFACE,                   /* bFirstInterface */
-	USBD_CDC_INTERFACE_COUNT,                     /* bInterfaceCount */
+	USBD_CDC_INTERFACE_COUNT,                   /* bInterfaceCount */
 	0x02,                                       /* bFunctionClass */
 	0x02,                                       /* bFunctionSubClass */
 	0x01,                                       /* bInterfaceProtocol */
@@ -141,7 +145,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE] __ALIGN
 	USBD_IAD_DESC_SIZE,                         /* bLength: Interface Association Descriptor size */
 	USBD_IAD_DESCRIPTOR_TYPE,                   /* bDescriptorType: Interface Association */
 	USBD_CDC_DEVCTLR_FIRST_INTERFACE,           /* bFirstInterface */
-	USBD_CDC_DEVCTLR_INTERFACE_COUNT,             /* bInterfaceCount */
+	USBD_CDC_DEVCTLR_INTERFACE_COUNT,           /* bInterfaceCount */
 	0x02,                                       /* bFunctionClass */
 	0x02,                                       /* bFunctionSubClass */
 	0x01,                                       /* bInterfaceProtocol */
@@ -281,7 +285,8 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE] __ALIGN
 	CUSTOM_HID_KEYBOARD_EPIN_ADDR,                      /* bEndpointAddress: Endpoint Address (IN) */
 	0x03,                                               /* bmAttributes: Interrupt endpoint */
 	CUSTOM_HID_KEYBOARD_EPIN_SIZE,                      /* wMaxPacketSize: 2 Byte max */
-	0x00,                                               /* bInterval: Polling Interval */
+	0x00,                                               /* wMaxPacketSize: High Byte (if needed) */
+	CUSTOM_HID_KEYBOARD_HS_BINTERVAL,                   /* bInterval: Polling Interval */
 	/* 7 */
 
 	0x07,                                               /* bLength: Endpoint Descriptor size */
@@ -428,7 +433,7 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
 					return(USBD_CDC_DEVCTLR.Setup (pdev, req));
 
 				case USBD_HID_INTERFACE_SENSOR:
-					pdev->pClassData = pHIDData_SENSOR;
+					pdev->pClassData = pHIDData_Sensor;
 					pdev->pUserData =  &USBD_CustomHID_Sensor_fops_HS;
 					return(USBD_CUSTOM_HID_SENSOR.Setup (pdev, req));
 

@@ -38,14 +38,10 @@
 #include "usbd_cdc.h"
 #include "usbd_cdc_devctlr.h"
 #include "usbd_customhid.h"
-#include "usbd_customhid_imu.h"
+#include "usbd_customhid_sensor.h"
 #include "usbd_custom_hid_if.h"
-#include "usbd_custom_hid_if_imu.h"
-#include "usbd_audio_if.h"
+#include "usbd_custom_hid_sensor_if.h"
 
-  #ifdef PRINTF_VIA_CDC_ENABLED
-#include "usbd_cdc_if.h"
-  #endif
 #include "flash_rw_process.h"
 #include "ecx343.h"
 #include "rpr0521.h"
@@ -78,24 +74,10 @@ extern osThreadId_t ALSensorTaskHandle;
 extern osThreadId_t PSensorTaskHandle;
 uint32_t nBno08xGpioInts;
 uint32_t nAlsGpioInts;
-
 uint32_t nPsGpioInts;
-uint32_t nIMUHIDUsbOuts;
-uint32_t nDMAAudioInts;
 uint32_t nTofGpioInts_1;
-uint32_t nTaskAudioInts;
+uint32_t nIMUHIDUsbOuts;
 uint8_t interruptTofEnable = 0;
-
-
-#if ENABLE_MIS
-/*new Ring Buffer*/
-RingBuffer rb;
-RingBuffer reSample_rb;
-int16_t rb_buf[RING_BUFFER_SIZE];
-int16_t reSample_buf[RESAMPLE_BUFFER_SIZE];
-extern int16_t data_i2s[AUDIO_IN_PACKET*_DMA_SIZE]; //1ms data x 10 = 10ms
-/* USER CODE END PV */
-#endif
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -107,7 +89,6 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 void boot_UserDFU(void)
 {
     USBD_Stop(&hUsbDeviceHS);
@@ -128,6 +109,7 @@ void boot_UserDFU(void)
     /* Should never reach!!! */
     while(1);
 }
+
 void McuReset(void)
 {
     USBD_Stop(&hUsbDeviceHS);
@@ -146,8 +128,6 @@ void McuReset(void)
     /* Should never reach!!! */
     while(1);
 }
-/* ENABLE_CDC_ENGINEERING_TEST */
-
 /* USER CODE END 0 */
 
 /**
@@ -197,7 +177,6 @@ int main(void)
 #endif
   MX_ADC1_Init();
   MX_ADC2_Init();
-//  MX_USB_OTG_HS_PCD_Init();
 
   /* USER CODE BEGIN 2 */
   nBno08xGpioInts   = 0;
@@ -205,18 +184,6 @@ int main(void)
   nPsGpioInts       = 0;
   nIMUHIDUsbOuts    = 0;
 
-  /* Calculate the step of our sin wave */
-#if ENABLE_MIS
-//  PingPongBuffer_Init(&pingPong, pingpong_1, pingpong_2);
-  RingBuffer_Init(&rb, rb_buf);
-  RingBuffer_Init(&reSample_rb, reSample_buf);
-  if (HAL_I2S_Receive_DMA(&hi2s3, (uint16_t *)data_i2s, sizeof(data_i2s)/2) != HAL_OK) {
-       Error_Handler();
-  }
-#endif
-//  HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
-//  HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
-//  HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -341,22 +308,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     }
 #endif
 }
-#if 0
-void HAL_I2S_RxCpltCallback(I2S_HandleTypeDef *hi2s)
-{
-  void *pinpong_ptr;
-  PingPongBuffer_GetWriteBuf(&pingPong, &pinpong_ptr);
-  for (uint8_t i = 0; i < sizeof(data_i2s)/4 ; i++) {
-          *((uint16_t *)pinpong_ptr+i) = (data_i2s[i*2]+1600)*2 ;
-  }
-  PingPongBuffer_SetWriteDone(&pingPong);
-
-//    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-//    xSemaphoreGiveFromISR(micLock, &xHigherPriorityTaskWoken);
-//    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-
-}
-#endif
 // redirect printf() to USB CDC_DEVCTLR
 PUTCHAR_PROTOTYPE
 {

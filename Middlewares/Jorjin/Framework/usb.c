@@ -6,8 +6,8 @@
 #include "config.h"
 #include "usbd_cdc_if.h"
 #include "usbd_cdc_if_devctlr.h"
-#include "usbd_custom_hid_if_imu.h"
-#include "usbd_custom_hid_if_als.h"
+#include "usbd_custom_hid_if.h"
+#include "usbd_custom_hid_sensor_if.h"
 #include "debug_defs.h"
 
 #include "cmsis_os.h"
@@ -20,8 +20,6 @@
 static JQueueMessage_t msg;
 
 static JUsb_t gCtx;
-
-extern int8_t USBD_CUSTOM_HID_SendReport_HS(uint8_t *report, uint16_t len);
 
 static void UsbEscapeISRTask(void * argument);
 
@@ -280,7 +278,7 @@ void usbLoop() {
                 nIMUHIDUsbOuts = 0;
 //                usbImu_TxBlock();
                 usbTx_inc_imu_report();
-                ret = USBD_CUSTOM_HID_IMU_SendReport_HS(msg.data.imuReport.report, msg.data.imuReport.len);
+                ret = USBD_CUSTOM_HID_Sensor_SendReport_HS(msg.data.imuReport.report, msg.data.imuReport.len);
                 if(USBD_OK != ret)
                 {
                     /* Fail, release the lock. */
@@ -293,7 +291,7 @@ void usbLoop() {
 //               usbAls_TxBlock();
                usbTx_inc_key_report();
                //ret = USBD_OK;
-               ret = USBD_CUSTOM_HID_KEY_SendReport_HS(msg.data.keyReport.report, msg.data.keyReport.len);
+               ret = USBD_CUSTOM_HID_Keyboard_SendReport_HS(msg.data.keyReport.report, msg.data.keyReport.len);
                if(USBD_OK != ret)
                {
                    /* Fail, release the lock. */

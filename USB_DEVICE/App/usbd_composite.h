@@ -14,8 +14,8 @@
 #include "usbd_cdc_if_devctlr.h"
 #include "usbd_customhid.h"
 #include "usbd_custom_hid_if.h"
-#include "usbd_customhid_imu.h"
-#include "usbd_custom_hid_if_imu.h"
+#include "usbd_customhid_sensor.h"
+#include "usbd_custom_hid_sensor_if.h"
 
 #define WBVAL(x) (x & 0xFF),((x >> 8) & 0xFF)
 #define DBVAL(x) (x & 0xFF),((x >> 8) & 0xFF),((x >> 16) & 0xFF),((x >> 24) & 0xFF)

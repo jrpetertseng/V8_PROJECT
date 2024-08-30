@@ -262,8 +262,12 @@ __ALIGN_BEGIN static uint8_t USBD_CDC_CfgFSDesc[USB_CDC_CONFIG_DESC_SIZ] __ALIGN
   0x02,                                       /* bNumInterfaces: 2 interface */
   0x01,                                       /* bConfigurationValue: Configuration value */
   0x00,                                       /* iConfiguration: Index of string descriptor describing the configuration */
-  0x80,                                       /* bmAttributes: self powered */
-  USBD_MAX_POWER,                                       /* MaxPower 100 mA */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                       /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                       /* bmAttributes: Bus Powered according to user configuration */
+#endif
+  USBD_MAX_POWER,                             /* MaxPower 100 mA */
 
   /*---------------------------------------------------------------------------*/
 
@@ -355,8 +359,12 @@ __ALIGN_BEGIN static uint8_t USBD_CDC_OtherSpeedCfgDesc[USB_CDC_CONFIG_DESC_SIZ]
   0x02,                                       /* bNumInterfaces: 2 interfaces */
   0x01,                                       /* bConfigurationValue: */
   0x04,                                       /* iConfiguration: */
-  0x80,                                       /* bmAttributes: */
-  USBD_MAX_POWER,                                       /* MaxPower 100 mA */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                       /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                       /* bmAttributes: Bus Powered according to user configuration */
+#endif
+  USBD_MAX_POWER,                             /* MaxPower 100 mA */
 
   /*Interface Descriptor */
   0x09,                                       /* bLength: Interface Descriptor size */

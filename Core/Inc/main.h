@@ -46,11 +46,7 @@ extern uint32_t nBno08xGpioInts;
 extern uint32_t nAlsGpioInts;
 extern uint32_t nPsGpioInts;
 extern uint32_t nIMUHIDUsbOuts;
-extern uint32_t nUsbAudioInts;
-extern uint32_t nDMAAudioInts;
-extern uint32_t nTaskAudioInts;
 extern uint8_t interruptTofEnable;
-//extern uint32_t nTofGpioInts_1;
 extern void (* tof_callback)(void);
 /* USER CODE END EC */
 
@@ -63,15 +59,12 @@ extern void (* tof_callback)(void);
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
 #define USE_USB_TX_TASK			1
 
-
 extern void usb_printf(const char *format, ...);
-extern void boot_UserDFU(void);
 extern void isrToFTaskTrigger( void);
+extern void boot_UserDFU(void);
 extern void McuReset(void);
-bool ifReadOccupy(void **process_buf);
 
 // ref: https://stackoverflow.com/questions/49820288/stm32-printf-over-usb-cdc
 #ifdef __GNUC__
@@ -199,7 +192,7 @@ PUTCHAR_PROTOTYPE;
 
 #define V_MAJOR 0
 #define V_MINOR 2
-#define V_PATCH 2
+#define V_PATCH 3
 /* Model Code Rules:
  *  1st character: J, Jorjin
  *  2nd character: 8, J8 series

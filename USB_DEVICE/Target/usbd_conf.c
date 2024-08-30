@@ -25,7 +25,7 @@
 #include "usbd_core.h"
 #include "usb_device.h"
 #include "usbd_customhid.h"
-#include "usbd_customhid_imu.h"
+#include "usbd_customhid_sensor.h"
 #include "usbd_cdc.h"
 #include "usbd_cdc_devctlr.h"
 
@@ -60,7 +60,6 @@ USBD_StatusTypeDef USBD_Get_USB_Status(HAL_StatusTypeDef hal_status);
 /* Private functions ---------------------------------------------------------*/
 
 /* USER CODE BEGIN 1 */
-static void SystemClockConfig_Resume(void);
 /* USER CODE END 1 */
 
 /*******************************************************************************
@@ -372,12 +371,12 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, 0, 0x80);
 
   // CDC ToF
-  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_CMD_EP & 0x7F), 0x80);
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_IN_EP & 0x7F), 0x80);
+  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_CMD_EP & 0x7F), 0x80);
 
   // CDC ACM Device Controller
-  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_CMD_EP & 0x7F), 0x80);
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_IN_EP & 0x7F), 0x80);
+  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_CMD_EP & 0x7F), 0x80);
 
   // CUSTOM HID Sensor
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_SENSOR_EPIN_ADDR & 0x7F), 0x80);

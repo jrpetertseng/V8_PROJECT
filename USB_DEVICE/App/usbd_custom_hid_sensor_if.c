@@ -1,7 +1,7 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file           : usbd_custom_hid_if.c
+  * @file           : usbd_custom_hid_sensor_if.c
   * @version        : v1.0_Cube
   * @brief          : USB Device Custom HID interface file.
   ******************************************************************************
@@ -19,11 +19,11 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "usbd_custom_hid_if.h"
+#include "usbd_custom_hid_sensor_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-#include "HidSensorSpec.h"
 #include "usbd_composite.h"
+#include "HidSensorSpec.h"
 #include "sensor_hid.h"
 /* USER CODE END INCLUDE */
 

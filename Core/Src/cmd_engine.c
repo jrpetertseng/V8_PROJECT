@@ -2,7 +2,6 @@
 #include "cmd_engine.h"
 #include "usbd_cdc_if.h"
 #include "usbd_custom_hid_if.h"
-//#include "vl53l5_ctrl.h"
 #include "string.h"
 #include "stm32f7xx_hal.h"
 #include "usbd_desc.h"
@@ -599,14 +598,8 @@ static Command string_to_command(char* str, uint32_t len) {
                 }
             }
         } else if (!strncmp(str, "enter", 5)) {
-  #if ENABLE_CDC_PRINT_CMD_ENGINE
-            usb_printf(" enter ");
-  #endif
             if (!strncmp(str+5, "bootloader", 10)) {
                 cmd.Cmd =  CE_ENTER_BOOTLOADER;
-  #if ENABLE_CDC_PRINT_CMD_ENGINE
-                usb_printf(" CE_ENTER_BOOTLOADER ");
-  #endif
                 buf_offset = 15;
             }
         }
@@ -1035,24 +1028,24 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             } else
                 value = (1UL << (CE_KEY_1 - CE_KEY_BASE + (value + 9) % 10));
         }
-        HID_Keyboard_Report.report_id = (cmd < CE_CR_BASE)? 0x01 :
+        HID_keyboard_report.report_id = (cmd < CE_CR_BASE)? 0x01 :
                 (cmd < CE_GPAD_BASE)? 0x02 : 0x03;
-        HID_Keyboard_Report.keys = (1UL << (cmd - ((cmd < CE_CR_BASE)? CE_KEY_BASE :
+        HID_keyboard_report.keys = (1UL << (cmd - ((cmd < CE_CR_BASE)? CE_KEY_BASE :
                         (cmd < CE_GPAD_BASE)? CE_CR_BASE : CE_GPAD_BASE)));
         // merge the number input with the existing keyboard event
-        if (value && cmd < CE_CR_BASE) HID_Keyboard_Report.keys |= (uint8_t)value;
-        if (HID_Keyboard_Report.report_id == 0x01 && bPresenceSent)
-            HID_Keyboard_Report.keys += precenseKey;
+        if (value && cmd < CE_CR_BASE) HID_keyboard_report.keys |= (uint8_t)value;
+        if (HID_keyboard_report.report_id == 0x01 && bPresenceSent)
+        	HID_keyboard_report.keys += precenseKey;
 
-        usbhid_sendReport( (char *)&HID_Keyboard_Report, sizeof(HID_Keyboard_Ipnput_Report));
+        usbhid_sendReport( (char *)&HID_keyboard_report, sizeof(HID_Keyboard_Report));
 
         // create a new event for the number input if it hasn't been sent
         if (value && cmd >= CE_CR_BASE) {
-            HID_Keyboard_Ipnput_Report temp;
+            HID_Keyboard_Report temp;
             temp.keys = (uint8_t)value;
             temp.report_id = 1;
 
-            usbhid_sendReport( (char *)&temp, sizeof(HID_Keyboard_Ipnput_Report));
+            usbhid_sendReport( (char *)&temp, sizeof(HID_Keyboard_Report));
         }
         reply += sprintf(reply, "OK");
         break;
@@ -1106,20 +1099,20 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
 //    usbDebug((char *)CeCmdRespTxBuffer);
     // send sync key if needed
     if (cmd >= CE_HID_MIN && cmd <= CE_HID_MAX) {
-        HID_Keyboard_Report.keys = 0;
-        if (HID_Keyboard_Report.report_id == 0x01 && bPresenceSent)
-            HID_Keyboard_Report.keys += precenseKey;
+    	HID_keyboard_report.keys = 0;
+        if (HID_keyboard_report.report_id == 0x01 && bPresenceSent)
+        	HID_keyboard_report.keys += precenseKey;
 
-        usbhid_sendReport( (char *)&HID_Keyboard_Report, sizeof(HID_Keyboard_Ipnput_Report));
+        usbhid_sendReport( (char *)&HID_keyboard_report, sizeof(HID_Keyboard_Report));
 
         if (value && cmd >= CE_CR_BASE) {
-            HID_Keyboard_Ipnput_Report temp;
+            HID_Keyboard_Report temp;
             temp.keys = 0;
             temp.report_id = 1;
-            if (HID_Keyboard_Report.report_id == 0x01 && bPresenceSent)
-                HID_Keyboard_Report.keys += precenseKey;
+            if (HID_keyboard_report.report_id == 0x01 && bPresenceSent)
+            	HID_keyboard_report.keys += precenseKey;
 
-            usbhid_sendReport( (char *)&temp, sizeof(HID_Keyboard_Ipnput_Report));
+            usbhid_sendReport( (char *)&temp, sizeof(HID_Keyboard_Report));
         }
     }
 }
@@ -1181,78 +1174,6 @@ uint8_t LcdVorbit(int value) {
 }
 
 #if ENABLE_TOF
-#if ENABLE_FAKE_DATA
-void tof_fake_data(uint32_t timeStamp)
-{
-    uint8_t *ptr = TofRangePacket,zone_idx;
-    uint32_t checksum = 0;
-    uint16_t target_idx;
-    uint8_t data_count = MAX_TOF_DATA_COUNT;
-
-    // add the "DATA" prefix
-    *((uint32_t *)ptr) = TOF_DATA_PREFIX;
-    ptr+=4;
-    // add the number of zone
-    *(ptr++) = data_count;
-    // add the silicon temperature (degree Celsius)
-    *(ptr++) = (int8_t)20;
-    // add the timestamp
-    *((uint32_t *)ptr) = timeStamp;
-    ptr+=4;
-    // add per zone/target data
-    for (target_idx=0, zone_idx=0;
-            target_idx < data_count*N_TARGETS_PER_ZONE;
-            target_idx+=N_TARGETS_PER_ZONE, zone_idx++) {
-        uint8_t offset = 0;
-        // add the number of targets
-        if (target_idx % 4 == 0)
-            *ptr = (uint8_t)1;
-        else
-            *ptr = (uint8_t)0;
-//        tofNumOfTargets[zone_idx] = *ptr;
-        // pick the strongest signal for output if there're multiple targets
-
-        checksum += *(ptr++);
-        // add the peak signal rate (kcps/SPAD)
-        if (target_idx % 4 == 0)
-            *((int32_t*)ptr) = (uint32_t)300;
-        else
-            *((int32_t*)ptr) = (uint32_t)20;
-//        tofPeakRate[zone_idx] = *((int32_t*)ptr);
-        checksum += *((uint32_t*)ptr);
-        ptr+=4;
-        // add the median range (mm)
-        if (target_idx % 4 == 0)
-            *((int16_t*)ptr) = (int16_t)500;
-        else
-            *((int16_t*)ptr) = (int16_t)4000;
-//        tofMedianRange[zone_idx] =
-//                ((tofPeakRate[zone_idx]<MIN_SIGNAL_RATE) || tofNumOfTargets[zone_idx] == 0)?
-//                        -1 : *((int16_t*)ptr);
-        checksum += *((uint16_t*)ptr);
-        ptr+=2;
-        // add the reflectance (%)
-        if (target_idx % 4 == 0)
-            *ptr = (uint8_t)50;
-        else
-            *ptr = (uint8_t)10;
-//        *ptr = range_data->reflectance[target_idx+offset];
-        checksum += *(ptr++);
-        // add the target status
-        *ptr = (uint8_t)5;
-        checksum += *(ptr++);
-    }
-    // add checksum
-    *((uint32_t *)ptr) = checksum;
-    // add the "ED\r\n" suffix
-    *((uint32_t *)(ptr+4)) = TOF_DATA_SUFFIX;
-    // set the updated flag
-    bRangePacketUpdated = true;
-    usbcdc_sendData( TofRangePacket, TOF_8X8_DATA_PACKET_SIZE);
-
-    return;
-}
-#else
 void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp) {
 
     uint8_t *ptr = TofRangePacket,zone_idx;
@@ -1327,5 +1248,4 @@ void tof_ranging_callback(VL53L8CX_ResultsData *range_data, uint32_t timeStamp) 
 
     return;
 }
-#endif
 #endif

@@ -62,15 +62,14 @@
   * @{
   */
 
-#define USBD_VID     0x350E
-#define USBD_LANGID_STRING     1033
-#define USBD_MANUFACTURER_STRING     "JORJIN TECHNOLOGIES INC."
-#define USBD_PID_HS     0x3801
-#define USBD_PRODUCT_STRING_HS     "J8L USB HS Composite Device"
-#define USBD_CONFIGURATION_STRING_HS     "Default Composite Config"
-#define USBD_INTERFACE_STRING_HS     "2xCDC, HID Sensor, HID Keyboard, CDC Control"
-
-#define USB_SIZ_BOS_DESC            0x0C
+#define USBD_VID                      0x350E
+#define USBD_LANGID_STRING            1033
+#define USBD_MANUFACTURER_STRING      "JORJIN TECHNOLOGIES INC."
+#define USBD_PID_HS                   0x3801
+#define USBD_PRODUCT_STRING_HS        "J8L USB HS Composite Device"
+#define USBD_CONFIGURATION_STRING_HS  "Default Composite Config"
+#define USBD_INTERFACE_STRING_HS      "2xCDC, HID Sensor, HID Keyboard"
+#define USB_SIZ_BOS_DESC              0x0C
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
 

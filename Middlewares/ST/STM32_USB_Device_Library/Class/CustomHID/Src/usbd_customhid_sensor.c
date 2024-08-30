@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    usbd_customhid.c
+  * @file    usbd_customhid_sensor.c
   * @author  MCD Application Team
   * @brief   This file provides the CUSTOM_HID core functions.
   *
@@ -43,7 +43,7 @@
 EndBSPDependencies */
 
 /* Includes ------------------------------------------------------------------*/
-#include "usbd_customhid_imu.h"
+#include "usbd_customhid_sensor.h"
 #include "usbd_ctlreq.h"
 
 #include "sensor_hid.h"
@@ -269,7 +269,7 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_OtherSpeedCfgDesc[USB_CUSTOM
   /******************** Descriptor of CUSTOM_HID *************************/
   /* 18 */
   0x09,                                               /* bLength: CUSTOM_HID Descriptor size */
-  CUSTOM_HID_DESCRIPTOR_TYPE,                         /* bDescriptorType: CUSTOM_HID */
+  CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE,                         /* bDescriptorType: CUSTOM_HID */
   0x11,                                               /* bCUSTOM_HIDUSTOM_HID: CUSTOM_HID Class Spec release number */
   0x01,
   0x00,                                               /* bCountryCode: Hardware target country */
@@ -304,7 +304,7 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_Desc[USB_CUSTOM_HID_SENSOR_D
 {
   /* 18 */
   0x09,                                               /* bLength: CUSTOM_HID Descriptor size */
-  CUSTOM_HID_DESCRIPTOR_TYPE,                         /* bDescriptorType: CUSTOM_HID */
+  CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE,                         /* bDescriptorType: CUSTOM_HID */
   0x11,                                               /* bCUSTOM_HIDUSTOM_HID: CUSTOM_HID Class Spec release number */
   0x01,
   0x00,                                               /* bCountryCode: Hardware target country */
@@ -339,15 +339,6 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_DeviceQualifierDesc[USB_LEN_
 static USBD_CUSTOM_HID_Sensor_HandleTypeDef hhidSensor;
 
 #define SEIKO_FEATURE_REPORT_LENGTH    15
-/*
-    0x01, 0x02, 0x00, 0x06, 0x02, 0x0A, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-*/
-static char seiko_feature_report_response[SEIKO_FEATURE_REPORT_LENGTH] =
-{
-    0x01, 0x02, 0x00, 0x06, 0x02, 0x05, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-};
 /*
     0x01, 0x02, 0x00, 0x06, 0x02, 0x0A, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -492,28 +483,28 @@ static uint8_t USBD_CUSTOM_HID_Sensor_Setup(USBD_HandleTypeDef *pdev,
   case USB_REQ_TYPE_CLASS:
     switch (req->bRequest)
     {
-    case CUSTOM_HID_REQ_SET_PROTOCOL:
+    case CUSTOM_HID_SENSOR_REQ_SET_PROTOCOL:
       hhid->Protocol = (uint8_t)(req->wValue);
       break;
 
-    case CUSTOM_HID_REQ_GET_PROTOCOL:
+    case CUSTOM_HID_SENSOR_REQ_GET_PROTOCOL:
       (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->Protocol, 1U);
       break;
 
-    case CUSTOM_HID_REQ_SET_IDLE:
+    case CUSTOM_HID_SENSOR_REQ_SET_IDLE:
       hhid->IdleState = (uint8_t)(req->wValue >> 8);
       break;
 
-    case CUSTOM_HID_REQ_GET_IDLE:
+    case CUSTOM_HID_SENSOR_REQ_GET_IDLE:
       (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
       break;
 
-    case CUSTOM_HID_REQ_SET_REPORT:
+    case CUSTOM_HID_SENSOR_REQ_SET_REPORT:
       hhid->IsReportAvailable = 1U;
       (void)USBD_CtlPrepareRx(pdev, hhid->Report_buf, req->wLength);
       break;
 
-    case CUSTOM_HID_REQ_GET_REPORT:
+    case CUSTOM_HID_SENSOR_REQ_GET_REPORT:
       // Mimic the Seiko Response
       report_type = req->wValue >> 8;
       report_id = req->wValue & 0xFF;
@@ -649,7 +640,7 @@ static uint8_t USBD_CUSTOM_HID_Sensor_Setup(USBD_HandleTypeDef *pdev,
       {
         if ((req->wValue >> 8) == CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE)
         {
-          pbuf = USBD_CUSTOM_HID_SENSOR_Desc;
+          pbuf = USBD_CUSTOM_HID_Sensor_Desc;
           len = MIN(USB_CUSTOM_HID_SENSOR_DESC_SIZ, req->wLength);
         }
       }

@@ -9,7 +9,6 @@
 #include "ecx343.h"
 #include "usb.h"
 
-#include "usbd_custom_hid_if_als.h"
 #include "cmd_engine.h"
 extern ECX343_DATA ecx343_current_data;
 

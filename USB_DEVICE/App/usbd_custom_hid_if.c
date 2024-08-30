@@ -88,9 +88,9 @@
   */
 
 /** Usb custom HID report descriptor. */
-__ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_HS[USBD_CUSTOM_HID_KEYBOARD_REPORT_DESC_SIZE] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t CUSTOM_HID_Keyboard_ReportDesc_HS[USBD_CUSTOM_HID_KEYBOARD_REPORT_DESC_SIZE] __ALIGN_END =
 {
-  /* USER CODE BEGIN 1 */
+  /* USER CODE BEGIN 0 */
   // ref: see https://github.com/torvalds/linux/blob/master/drivers/hid/hid-input.c for the kernel code
   // ref: see https://source.android.com/devices/input/keyboard-devices for details
   /* Keypad */
@@ -140,7 +140,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_HS[USBD_CUSTOM_HID_KEYBOARD_R
   0x15, 0x00,		// LOGICAL_MINIMUM (0)
   0x25, 0x01,		// LOGICAL_MAXIMUM (1)
   0x81, 0x02,		// Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  0x95, 0x04,		// REPORT_COUNT (4)
+  0x95, 0x03,		// REPORT_COUNT (3)
   0x81, 0x03,		// Input (Cnst,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
   0xC0,			// END_COLLECTION
   /* consumer keys */
@@ -200,7 +200,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_HS[USBD_CUSTOM_HID_KEYBOARD_R
   0x05, 0x01,	// USAGE_PAGE (Generic Desktop)
   0x09, 0x05,	// USAGE (Gamepad)
   0xA1, 0x01,	// COLLECTION (Application)
-  0x85, 0x03,		// Report ID (2)
+  0x85, 0x03,		// Report ID (3)
   0x05, 0x09,		// USAGE_PAGE (Button)
   0x75, 0x01,		// REPORT_SIZE (1)
   0x95, 0x0F,		// REPORT_COUNT (15)
@@ -213,7 +213,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_HS[USBD_CUSTOM_HID_KEYBOARD_R
   0x81, 0x02,		// Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
   0x95, 0x11,		// REPORT_COUNT (17)
   0x81, 0x03,		// Input (Cnst,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-  /* USER CODE END 1 */
+  /* USER CODE END 0 */
    0xC0    /*     END_COLLECTION             */
 };
 /* USER CODE BEGIN PRIVATE_VARIABLES */
@@ -232,7 +232,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_HS[USBD_CUSTOM_HID_KEYBOARD_R
 extern USBD_HandleTypeDef hUsbDeviceHS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-HID_Keyboard_Ipnput_Report HID_Keyboard_Report = {0};
+HID_Keyboard_Report HID_keyboard_report = {0};
 /* USER CODE END EXPORTED_VARIABLES */
 /**
   * @}
@@ -323,6 +323,7 @@ int8_t USBD_CUSTOM_HID_Keyboard_SendReport_HS(uint8_t *report, uint16_t len)
    * We need manually switch the USB interface during the Tx data preparation
    * because this process is not part of operations in USBD_COMPOSITE.
    */
+  USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CUSTOMHID_KEYBOARD_INTERFACE);
   return USBD_CUSTOM_HID_Keyboard_SendReport(&hUsbDeviceHS, report, len);
 }
 
