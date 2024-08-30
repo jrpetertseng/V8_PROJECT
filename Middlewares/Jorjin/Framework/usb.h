@@ -7,7 +7,6 @@
 
 #include "usbd_customhid.h"
 #include "usbd_customhid_imu.h"
-#include "usbd_customhid_als.h"
 #include "config.h"
 #include "sensor_hid.h"
 #include "usbd_cdc.h"

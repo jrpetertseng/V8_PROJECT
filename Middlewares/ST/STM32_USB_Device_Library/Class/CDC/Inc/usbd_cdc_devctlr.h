@@ -1,8 +1,8 @@
 /**
   ******************************************************************************
-  * @file    usbd_cdc_devctlr.h
+  * @file    usbd_cdc.h
   * @author  MCD Application Team
-  * @brief   header file for the usbd_cdc_devctlr.c file.
+  * @brief   header file for the usbd_cdc.c file.
   ******************************************************************************
   * @attention
   *
@@ -18,8 +18,8 @@
   */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __USB_CDC_DEVVTLR_H__6ed06e96_4456_11ed_88a5_7b215148ad21_
-#define __USB_CDC_DEVVTLR_H__6ed06e96_4456_11ed_88a5_7b215148ad21_
+#ifndef __USB_CDC_DEVCTLR_H
+#define __USB_CDC_DEVCTLR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,9 +41,9 @@ extern "C" {
 /** @defgroup usbd_cdc_Exported_Defines
   * @{
   */
-#define CDC_DEVCTLR_IN_EP                                   0x87U  /* EP1 for data IN */
-#define CDC_DEVCTLR_OUT_EP                                  0x07U  /* EP1 for data OUT */
-#define CDC_DEVCTLR_CMD_EP                                  0x86U  /* EP2 for CDC commands */
+#define CDC_DEVCTLR_IN_EP                                   0x83U  /* EP1 for data IN */
+#define CDC_DEVCTLR_OUT_EP                                  0x03U  /* EP1 for data OUT */
+#define CDC_DEVCTLR_CMD_EP                                  0x84U  /* EP2 for CDC commands */
 
 #ifndef CDC_DEVCTLR_HS_BINTERVAL
 #define CDC_DEVCTLR_HS_BINTERVAL                            0x10U
@@ -93,13 +93,13 @@ extern "C" {
   */
 typedef struct
 {
-  uint32_t  data[CDC_DEVCTLR_DATA_HS_MAX_PACKET_SIZE / 4U];      /* Force 32bits alignment */
-  uint8_t   CmdOpCode;
-  uint8_t   CmdLength;
+  uint32_t data[CDC_DEVCTLR_DATA_HS_MAX_PACKET_SIZE / 4U];      /* Force 32bits alignment */
+  uint8_t  CmdOpCode;
+  uint8_t  CmdLength;
   uint8_t  *RxBuffer;
   uint8_t  *TxBuffer;
-  uint32_t  RxLength;
-  uint32_t  TxLength;
+  uint32_t RxLength;
+  uint32_t TxLength;
 
   __IO uint32_t TxState;
   __IO uint32_t RxState;
@@ -145,7 +145,7 @@ uint8_t USBD_CDC_DEVCTLR_TransmitPacket(USBD_HandleTypeDef *pdev);
 }
 #endif
 
-#endif  /* __USB_CDC_DEVVTLR_H__6ed06e96_4456_11ed_88a5_7b215148ad21_ */
+#endif  /* __USB_CDC_H */
 /**
   * @}
   */

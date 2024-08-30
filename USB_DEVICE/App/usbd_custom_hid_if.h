@@ -7,13 +7,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -92,10 +91,9 @@ typedef __PACKED_STRUCT _HID_Keyboard_Ipnput_Report {
   */
 
 /** CUSTOMHID Interface callback. */
-extern USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_HS;
+extern USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_Keyboard_fops_HS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-// keys for ToF
 extern HID_Keyboard_Ipnput_Report HID_Keyboard_Report;
 /* USER CODE END EXPORTED_VARIABLES */
 
@@ -109,7 +107,7 @@ extern HID_Keyboard_Ipnput_Report HID_Keyboard_Report;
   */
 
 /* USER CODE BEGIN EXPORTED_FUNCTIONS */
-int8_t USBD_CUSTOM_HID_SendReport_HS(uint8_t *report, uint16_t len);
+int8_t USBD_CUSTOM_HID_Keyboard_SendReport_HS(uint8_t *report, uint16_t len);
 /* USER CODE END EXPORTED_FUNCTIONS */
 
 /**
@@ -130,4 +128,3 @@ int8_t USBD_CUSTOM_HID_SendReport_HS(uint8_t *report, uint16_t len);
 
 #endif /* __USBD_CUSTOM_HID_IF_H__ */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

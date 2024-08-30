@@ -62,15 +62,15 @@
   * @{
   */
 
-#define USBD_VID                        0x350E
-#define USBD_LANGID_STRING              1033
-#define USBD_MANUFACTURER_STRING        "JORJIN TECHNOLOGIES INC."
-#define USBD_PID_HS                     0x3801 //J8L   //0x3503 //A5   //0x3801 //J8L
-#define USBD_PRODUCT_STRING_HS          "JORJIN J8L"
-#define USBD_CONFIGURATION_STRING_HS    "HID_VCP_AUD Config"
-#define USBD_INTERFACE_STRING_HS        "HID_VCP_AUD Interface"
-#define USB_SIZ_BOS_DESC                0x0C
+#define USBD_VID     0x350E
+#define USBD_LANGID_STRING     1033
+#define USBD_MANUFACTURER_STRING     "JORJIN TECHNOLOGIES INC."
+#define USBD_PID_HS     0x3801
+#define USBD_PRODUCT_STRING_HS     "J8L USB HS Composite Device"
+#define USBD_CONFIGURATION_STRING_HS     "Default Composite Config"
+#define USBD_INTERFACE_STRING_HS     "2xCDC, HID Sensor, HID Keyboard, CDC Control"
 
+#define USB_SIZ_BOS_DESC            0x0C
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
 
@@ -389,7 +389,9 @@ uint8_t * USBD_HS_USR_BOSDescriptor(USBD_SpeedTypeDef speed, uint16_t *length)
   */
 static void Get_SerialNum(void)
 {
-  uint32_t deviceserial0, deviceserial1, deviceserial2;
+  uint32_t deviceserial0;
+  uint32_t deviceserial1;
+  uint32_t deviceserial2;
 
   deviceserial0 = *(uint32_t *) DEVICE_ID1;
   deviceserial1 = *(uint32_t *) DEVICE_ID2;

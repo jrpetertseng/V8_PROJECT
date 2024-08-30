@@ -1,6 +1,6 @@
 /**
   ******************************************************************************
-  * @file    usbd_customhid_imu.c
+  * @file    usbd_customhid.c
   * @author  MCD Application Team
   * @brief   This file provides the CUSTOM_HID core functions.
   *
@@ -70,7 +70,7 @@ EndBSPDependencies */
 /** @defgroup USBD_CUSTOM_HID_Private_Defines
   * @{
   */
-
+#define WBVAL(x) (x & 0xFF),((x >> 8) & 0xFF)
 /**
   * @}
   */
@@ -86,20 +86,18 @@ EndBSPDependencies */
   * @{
   */
 
-static uint8_t USBD_CUSTOM_HID_IMU_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
-static uint8_t USBD_CUSTOM_HID_IMU_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
-static uint8_t USBD_CUSTOM_HID_IMU_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req);
+static uint8_t USBD_CUSTOM_HID_Sensor_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
+static uint8_t USBD_CUSTOM_HID_Sensor_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx);
+static uint8_t USBD_CUSTOM_HID_Sensor_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req);
 
-static uint8_t USBD_CUSTOM_HID_IMU_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum);
-static uint8_t USBD_CUSTOM_HID_IMU_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum);
-static uint8_t USBD_CUSTOM_HID_IMU_EP0_RxReady(USBD_HandleTypeDef  *pdev);
+static uint8_t USBD_CUSTOM_HID_Sensor_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum);
+static uint8_t USBD_CUSTOM_HID_Sensor_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum);
+static uint8_t USBD_CUSTOM_HID_Sensor_EP0_RxReady(USBD_HandleTypeDef  *pdev);
 
-static uint8_t *USBD_CUSTOM_HID_IMU_GetFSCfgDesc(uint16_t *length);
-static uint8_t *USBD_CUSTOM_HID_IMU_GetHSCfgDesc(uint16_t *length);
-static uint8_t *USBD_CUSTOM_HID_IMU_GetOtherSpeedCfgDesc(uint16_t *length);
-static uint8_t *USBD_CUSTOM_HID_IMU_GetDeviceQualifierDesc(uint16_t *length);
-
-#define WBVAL(x) (x & 0xFF),((x >> 8) & 0xFF)
+static uint8_t *USBD_CUSTOM_HID_Sensor_GetFSCfgDesc(uint16_t *length);
+static uint8_t *USBD_CUSTOM_HID_Sensor_GetHSCfgDesc(uint16_t *length);
+static uint8_t *USBD_CUSTOM_HID_Sensor_GetOtherSpeedCfgDesc(uint16_t *length);
+static uint8_t *USBD_CUSTOM_HID_Sensor_GetDeviceQualifierDesc(uint16_t *length);
 
 /**
   * @}
@@ -109,39 +107,36 @@ static uint8_t *USBD_CUSTOM_HID_IMU_GetDeviceQualifierDesc(uint16_t *length);
   * @{
   */
 
-USBD_ClassTypeDef  USBD_CUSTOM_HID_IMU =
+USBD_ClassTypeDef  USBD_CUSTOM_HID_SENSOR =
 {
-  USBD_CUSTOM_HID_IMU_Init,
-  USBD_CUSTOM_HID_IMU_DeInit,
-  USBD_CUSTOM_HID_IMU_Setup,
+  USBD_CUSTOM_HID_Sensor_Init,
+  USBD_CUSTOM_HID_Sensor_DeInit,
+  USBD_CUSTOM_HID_Sensor_Setup,
   NULL, /*EP0_TxSent*/
-  USBD_CUSTOM_HID_IMU_EP0_RxReady, /*EP0_RxReady*/ /* STATUS STAGE IN */
-  USBD_CUSTOM_HID_IMU_DataIn, /*DataIn*/
-  USBD_CUSTOM_HID_IMU_DataOut,
+  USBD_CUSTOM_HID_Sensor_EP0_RxReady, /*EP0_RxReady*/ /* STATUS STAGE IN */
+  USBD_CUSTOM_HID_Sensor_DataIn, /*DataIn*/
+  USBD_CUSTOM_HID_Sensor_DataOut,
   NULL, /*SOF */
   NULL,
   NULL,
-  USBD_CUSTOM_HID_IMU_GetHSCfgDesc,
-  USBD_CUSTOM_HID_IMU_GetFSCfgDesc,
-  USBD_CUSTOM_HID_IMU_GetOtherSpeedCfgDesc,
-  USBD_CUSTOM_HID_IMU_GetDeviceQualifierDesc,
+  USBD_CUSTOM_HID_Sensor_GetHSCfgDesc,
+  USBD_CUSTOM_HID_Sensor_GetFSCfgDesc,
+  USBD_CUSTOM_HID_Sensor_GetOtherSpeedCfgDesc,
+  USBD_CUSTOM_HID_Sensor_GetDeviceQualifierDesc,
 };
 
 /* USB CUSTOM_HID device FS Configuration Descriptor */
-__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_CfgFSDesc[USB_CUSTOM_HID_IMU_CONFIG_DESC_SIZ] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_CfgFSDesc[USB_CUSTOM_HID_SENSOR_CONFIG_DESC_SIZ] __ALIGN_END =
 {
   0x09,                                               /* bLength: Configuration Descriptor size */
   USB_DESC_TYPE_CONFIGURATION,                        /* bDescriptorType: Configuration */
-  USB_CUSTOM_HID_IMU_CONFIG_DESC_SIZ,                 /* wTotalLength: Bytes returned */
+  USB_CUSTOM_HID_SENSOR_CONFIG_DESC_SIZ,
+                                                      /* wTotalLength: Bytes returned */
   0x00,
   0x01,                                               /* bNumInterfaces: 1 interface */
   0x01,                                               /* bConfigurationValue: Configuration value */
   0x00,                                               /* iConfiguration: Index of string descriptor describing the configuration */
-#if (USBD_SELF_POWERED == 1U)
-  0xC0,                                               /* bmAttributes: Bus Powered according to user configuration */
-#else
-  0x80,                                               /* bmAttributes: Bus Powered according to user configuration */
-#endif
+  0x80,                                               /* bmAttributes: bus powered */
   USBD_MAX_POWER,                                     /* MaxPower 100 mA: this current is used for detecting Vbus */
 
   /************** Descriptor of CUSTOM HID interface ****************/
@@ -158,51 +153,48 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_CfgFSDesc[USB_CUSTOM_HID_IMU_CO
   /******************** Descriptor of CUSTOM_HID *************************/
   /* 18 */
   0x09,                                               /* bLength: CUSTOM_HID Descriptor size */
-  CUSTOM_HID_IMU_DESCRIPTOR_TYPE,                     /* bDescriptorType: CUSTOM_HID */
+  CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE,                  /* bDescriptorType: CUSTOM_HID */
   0x11,                                               /* bCUSTOM_HIDUSTOM_HID: CUSTOM_HID Class Spec release number */
   0x01,
   0x00,                                               /* bCountryCode: Hardware target country */
   0x01,                                               /* bNumDescriptors: Number of CUSTOM_HID class descriptors to follow */
   0x22,                                               /* bDescriptorType */
-  LOBYTE(USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE),               /* wItemLength: Total length of Report descriptor */
-  HIBYTE(USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE),
+  LOBYTE(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE),    /* wItemLength: Total length of Report descriptor */
+  HIBYTE(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE),
   /******************** Descriptor of Custom HID endpoints ********************/
   /* 27 */
   0x07,                                               /* bLength: Endpoint Descriptor size */
   USB_DESC_TYPE_ENDPOINT,                             /* bDescriptorType: */
 
-  CUSTOM_HID_IMU_EPIN_ADDR,                           /* bEndpointAddress: Endpoint Address (IN) */
+  CUSTOM_HID_SENSOR_EPIN_ADDR,                        /* bEndpointAddress: Endpoint Address (IN) */
   0x03,                                               /* bmAttributes: Interrupt endpoint */
-  CUSTOM_HID_IMU_EPIN_SIZE,                           /* wMaxPacketSize: 2 Byte max */
+  CUSTOM_HID_SENSOR_EPIN_SIZE,                        /* wMaxPacketSize: 2 Byte max */
   0x00,
-  CUSTOM_HID_IMU_FS_BINTERVAL,                        /* bInterval: Polling Interval */
+  CUSTOM_HID_SENSOR_FS_BINTERVAL,                     /* bInterval: Polling Interval */
   /* 34 */
 
   0x07,                                               /* bLength: Endpoint Descriptor size */
   USB_DESC_TYPE_ENDPOINT,                             /* bDescriptorType: */
-  CUSTOM_HID_IMU_EPOUT_ADDR,                          /* bEndpointAddress: Endpoint Address (OUT) */
+  CUSTOM_HID_SENSOR_EPOUT_ADDR,                       /* bEndpointAddress: Endpoint Address (OUT) */
   0x03,                                               /* bmAttributes: Interrupt endpoint */
-  CUSTOM_HID_IMU_EPOUT_SIZE,                          /* wMaxPacketSize: 2 Bytes max  */
+  CUSTOM_HID_SENSOR_EPOUT_SIZE,                       /* wMaxPacketSize: 2 Bytes max  */
   0x00,
-  CUSTOM_HID_IMU_FS_BINTERVAL,                        /* bInterval: Polling Interval */
+  CUSTOM_HID_SENSOR_FS_BINTERVAL,                     /* bInterval: Polling Interval */
   /* 41 */
 };
 
 /* USB CUSTOM_HID device HS Configuration Descriptor */
-__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_CfgHSDesc[USB_CUSTOM_HID_IMU_CONFIG_DESC_SIZ] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_CfgHSDesc[USB_CUSTOM_HID_SENSOR_CONFIG_DESC_SIZ] __ALIGN_END =
 {
   0x09,                                               /* bLength: Configuration Descriptor size */
   USB_DESC_TYPE_CONFIGURATION,                        /* bDescriptorType: Configuration */
-  USB_CUSTOM_HID_IMU_CONFIG_DESC_SIZ,                 /* wTotalLength: Bytes returned */
+  USB_CUSTOM_HID_SENSOR_CONFIG_DESC_SIZ,
+                                                      /* wTotalLength: Bytes returned */
   0x00,
   0x01,                                               /* bNumInterfaces: 1 interface */
   0x01,                                               /* bConfigurationValue: Configuration value */
   0x00,                                               /* iConfiguration: Index of string descriptor describing the configuration */
-#if (USBD_SELF_POWERED == 1U)
-  0xC0,                                               /* bmAttributes: Bus Powered according to user configuration */
-#else
-  0x80,                                               /* bmAttributes: Bus Powered according to user configuration */
-#endif
+  0x80,                                               /* bmAttributes: bus powered */
   USBD_MAX_POWER,                                     /* MaxPower 100 mA: this current is used for detecting Vbus */
 
   /************** Descriptor of CUSTOM HID interface ****************/
@@ -219,51 +211,48 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_CfgHSDesc[USB_CUSTOM_HID_IMU_CO
   /******************** Descriptor of CUSTOM_HID *************************/
   /* 18 */
   0x09,                                               /* bLength: CUSTOM_HID Descriptor size */
-  CUSTOM_HID_IMU_DESCRIPTOR_TYPE,                     /* bDescriptorType: CUSTOM_HID */
+  CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE,                  /* bDescriptorType: CUSTOM_HID */
   0x11,                                               /* bCUSTOM_HIDUSTOM_HID: CUSTOM_HID Class Spec release number */
   0x01,
   0x00,                                               /* bCountryCode: Hardware target country */
   0x01,                                               /* bNumDescriptors: Number of CUSTOM_HID class descriptors to follow */
   0x22,                                               /* bDescriptorType */
-  LOBYTE(USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE),       /* wItemLength: Total length of Report descriptor */
-  HIBYTE(USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE),
+  LOBYTE(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE),    /* wItemLength: Total length of Report descriptor */
+  HIBYTE(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE),
   /******************** Descriptor of Custom HID endpoints ********************/
   /* 27 */
   0x07,                                               /* bLength: Endpoint Descriptor size */
   USB_DESC_TYPE_ENDPOINT,                             /* bDescriptorType: */
 
-  CUSTOM_HID_IMU_EPIN_ADDR,                           /* bEndpointAddress: Endpoint Address (IN) */
+  CUSTOM_HID_SENSOR_EPIN_ADDR,                        /* bEndpointAddress: Endpoint Address (IN) */
   0x03,                                               /* bmAttributes: Interrupt endpoint */
-  CUSTOM_HID_IMU_EPIN_SIZE,                           /* wMaxPacketSize: 2 Byte max */
+  CUSTOM_HID_SENSOR_EPIN_SIZE,                        /* wMaxPacketSize: 2 Byte max */
   0x00,
-  CUSTOM_HID_IMU_HS_BINTERVAL,                        /* bInterval: Polling Interval */
+  CUSTOM_HID_SENSOR_HS_BINTERVAL,                     /* bInterval: Polling Interval */
   /* 34 */
 
   0x07,                                               /* bLength: Endpoint Descriptor size */
   USB_DESC_TYPE_ENDPOINT,                             /* bDescriptorType: */
-  CUSTOM_HID_IMU_EPOUT_ADDR,                          /* bEndpointAddress: Endpoint Address (OUT) */
+  CUSTOM_HID_SENSOR_EPOUT_ADDR,                       /* bEndpointAddress: Endpoint Address (OUT) */
   0x03,                                               /* bmAttributes: Interrupt endpoint */
-  CUSTOM_HID_IMU_EPOUT_SIZE,                          /* wMaxPacketSize: 2 Bytes max  */
+  CUSTOM_HID_SENSOR_EPOUT_SIZE,                       /* wMaxPacketSize: 2 Bytes max  */
   0x00,
-  CUSTOM_HID_IMU_HS_BINTERVAL,                        /* bInterval: Polling Interval */
+  CUSTOM_HID_SENSOR_HS_BINTERVAL,                     /* bInterval: Polling Interval */
   /* 41 */
 };
 
 /* USB CUSTOM_HID device Other Speed Configuration Descriptor */
-__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_OtherSpeedCfgDesc[USB_CUSTOM_HID_IMU_CONFIG_DESC_SIZ] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_OtherSpeedCfgDesc[USB_CUSTOM_HID_SENSOR_CONFIG_DESC_SIZ] __ALIGN_END =
 {
   0x09,                                               /* bLength: Configuration Descriptor size */
   USB_DESC_TYPE_CONFIGURATION,                        /* bDescriptorType: Configuration */
-  USB_CUSTOM_HID_IMU_CONFIG_DESC_SIZ,                 /* wTotalLength: Bytes returned */
+  USB_CUSTOM_HID_SENSOR_CONFIG_DESC_SIZ,
+                                                      /* wTotalLength: Bytes returned */
   0x00,
   0x01,                                               /* bNumInterfaces: 1 interface */
   0x01,                                               /* bConfigurationValue: Configuration value */
   0x00,                                               /* iConfiguration: Index of string descriptor describing the configuration */
-#if (USBD_SELF_POWERED == 1U)
-  0xC0,                                               /* bmAttributes: Bus Powered according to user configuration */
-#else
-  0x80,                                               /* bmAttributes: Bus Powered according to user configuration */
-#endif
+  0x80,                                               /* bmAttributes: bus powered */
   USBD_MAX_POWER,                                     /* MaxPower 100 mA: this current is used for detecting Vbus */
 
   /************** Descriptor of CUSTOM HID interface ****************/
@@ -286,32 +275,32 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_OtherSpeedCfgDesc[USB_CUSTOM_HI
   0x00,                                               /* bCountryCode: Hardware target country */
   0x01,                                               /* bNumDescriptors: Number of CUSTOM_HID class descriptors to follow */
   0x22,                                               /* bDescriptorType */
-  LOBYTE(USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE),       /* wItemLength: Total length of Report descriptor */
-  HIBYTE(USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE),
+  LOBYTE(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE),    /* wItemLength: Total length of Report descriptor */
+  HIBYTE(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE),
   /******************** Descriptor of Custom HID endpoints ********************/
   /* 27 */
   0x07,                                               /* bLength: Endpoint Descriptor size */
   USB_DESC_TYPE_ENDPOINT,                             /* bDescriptorType: */
 
-  CUSTOM_HID_IMU_EPIN_ADDR,                           /* bEndpointAddress: Endpoint Address (IN) */
+  CUSTOM_HID_SENSOR_EPIN_ADDR,                        /* bEndpointAddress: Endpoint Address (IN) */
   0x03,                                               /* bmAttributes: Interrupt endpoint */
-  CUSTOM_HID_IMU_EPIN_SIZE,                           /* wMaxPacketSize: 2 Bytes max */
+  CUSTOM_HID_SENSOR_EPIN_SIZE,                        /* wMaxPacketSize: 2 Bytes max */
   0x00,
-  CUSTOM_HID_IMU_FS_BINTERVAL,                        /* bInterval: Polling Interval */
+  CUSTOM_HID_SENSOR_FS_BINTERVAL,                     /* bInterval: Polling Interval */
   /* 34 */
 
   0x07,                                               /* bLength: Endpoint Descriptor size */
   USB_DESC_TYPE_ENDPOINT,                             /* bDescriptorType: */
-  CUSTOM_HID_IMU_EPOUT_ADDR,                          /* bEndpointAddress: Endpoint Address (OUT) */
+  CUSTOM_HID_SENSOR_EPOUT_ADDR,                       /* bEndpointAddress: Endpoint Address (OUT) */
   0x03,                                               /* bmAttributes: Interrupt endpoint */
-  CUSTOM_HID_IMU_EPOUT_SIZE,                          /* wMaxPacketSize: 2 Bytes max */
+  CUSTOM_HID_SENSOR_EPOUT_SIZE,                       /* wMaxPacketSize: 2 Bytes max */
   0x00,
-  CUSTOM_HID_IMU_FS_BINTERVAL,                        /* bInterval: Polling Interval */
+  CUSTOM_HID_SENSOR_FS_BINTERVAL,                     /* bInterval: Polling Interval */
   /* 41 */
 };
 
 /* USB CUSTOM_HID device Configuration Descriptor */
-__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_Desc[USB_CUSTOM_HID_IMU_DESC_SIZ] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_Desc[USB_CUSTOM_HID_SENSOR_DESC_SIZ] __ALIGN_END =
 {
   /* 18 */
   0x09,                                               /* bLength: CUSTOM_HID Descriptor size */
@@ -321,12 +310,12 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_Desc[USB_CUSTOM_HID_IMU_DESC_SI
   0x00,                                               /* bCountryCode: Hardware target country */
   0x01,                                               /* bNumDescriptors: Number of CUSTOM_HID class descriptors to follow */
   0x22,                                               /* bDescriptorType */
-  LOBYTE(USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE),               /* wItemLength: Total length of Report descriptor */
-  HIBYTE(USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE),
+  LOBYTE(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE),    /* wItemLength: Total length of Report descriptor */
+  HIBYTE(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE),
 };
 
 /* USB Standard Device Descriptor */
-__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_DESC] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_DESC] __ALIGN_END =
 {
   USB_LEN_DEV_QUALIFIER_DESC,
   USB_DESC_TYPE_DEVICE_QUALIFIER,
@@ -347,102 +336,7 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_IMU_DeviceQualifierDesc[USB_LEN_DEV
 /** @defgroup USBD_CUSTOM_HID_Private_Functions
   * @{
   */
-
-/**
-  * @brief  USBD_CUSTOM_HID_IMU_Init
-  *         Initialize the CUSTOM_HID interface
-  * @param  pdev: device instance
-  * @param  cfgidx: Configuration index
-  * @retval status
-  */
-static USBD_CUSTOM_HID_IMU_HandleTypeDef hhidImu;
-//static uint32_t nFeature_01_SetCount;
-//static uint32_t nFeature_09_SetCount;
-
-static uint8_t USBD_CUSTOM_HID_IMU_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
-{
-  UNUSED(cfgidx);
-  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
-
-  hhid = &hhidImu;
-
-  //nFeature_01_SetCount = 0x0;
-  //nFeature_09_SetCount = 0x0;
-
-  pdev->pClassData = (void *)hhid;
-
-  if (pdev->dev_speed == USBD_SPEED_HIGH)
-  {
-    pdev->ep_in[CUSTOM_HID_IMU_EPIN_ADDR & 0xFU].bInterval = CUSTOM_HID_IMU_HS_BINTERVAL;
-    pdev->ep_out[CUSTOM_HID_IMU_EPOUT_ADDR & 0xFU].bInterval = CUSTOM_HID_IMU_HS_BINTERVAL;
-  }
-  else   /* LOW and FULL-speed endpoints */
-  {
-    pdev->ep_in[CUSTOM_HID_IMU_EPIN_ADDR & 0xFU].bInterval = CUSTOM_HID_IMU_FS_BINTERVAL;
-    pdev->ep_out[CUSTOM_HID_IMU_EPOUT_ADDR & 0xFU].bInterval = CUSTOM_HID_IMU_FS_BINTERVAL;
-  }
-
-  /* Open EP IN */
-  (void)USBD_LL_OpenEP(pdev, CUSTOM_HID_IMU_EPIN_ADDR, USBD_EP_TYPE_INTR,
-                       CUSTOM_HID_IMU_EPIN_SIZE);
-
-  pdev->ep_in[CUSTOM_HID_IMU_EPIN_ADDR & 0xFU].is_used = 1U;
-
-  /* Open EP OUT */
-  (void)USBD_LL_OpenEP(pdev, CUSTOM_HID_IMU_EPOUT_ADDR, USBD_EP_TYPE_INTR,
-                       CUSTOM_HID_IMU_EPOUT_SIZE);
-
-  pdev->ep_out[CUSTOM_HID_IMU_EPOUT_ADDR & 0xFU].is_used = 1U;
-
-  hhid->state = CUSTOM_HID_IDLE;
-
-  ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->Init();
-
-  /* Prepare Out endpoint to receive 1st packet */
-  (void)USBD_LL_PrepareReceive(pdev, CUSTOM_HID_IMU_EPOUT_ADDR, hhid->Report_buf,
-                               USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE);
-
-  return (uint8_t)USBD_OK;
-}
-
-/**
-  * @brief  USBD_CUSTOM_HID_IMU_DeInit
-  *         DeInitialize the CUSTOM_HID layer
-  * @param  pdev: device instance
-  * @param  cfgidx: Configuration index
-  * @retval status
-  */
-static uint8_t USBD_CUSTOM_HID_IMU_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
-{
-  UNUSED(cfgidx);
-
-  /* Close CUSTOM_HID_IMU EP IN */
-  (void)USBD_LL_CloseEP(pdev, CUSTOM_HID_IMU_EPIN_ADDR);
-  pdev->ep_in[CUSTOM_HID_IMU_EPIN_ADDR & 0xFU].is_used = 0U;
-  pdev->ep_in[CUSTOM_HID_IMU_EPIN_ADDR & 0xFU].bInterval = 0U;
-
-  /* Close CUSTOM_HID_IMU EP OUT */
-  (void)USBD_LL_CloseEP(pdev, CUSTOM_HID_IMU_EPOUT_ADDR);
-  pdev->ep_out[CUSTOM_HID_IMU_EPOUT_ADDR & 0xFU].is_used = 0U;
-  pdev->ep_out[CUSTOM_HID_IMU_EPOUT_ADDR & 0xFU].bInterval = 0U;
-
-  /* Free allocated memory */
-  if (pdev->pClassData != NULL)
-  {
-    ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->DeInit();
-    pdev->pClassData = NULL;
-  }
-
-  return (uint8_t)USBD_OK;
-}
-
-/**
-  * @brief  USBD_CUSTOM_HID_IMU_Setup
-  *         Handle the CUSTOM_HID specific requests
-  * @param  pdev: instance
-  * @param  req: usb requests
-  * @retval status
-  */
+static USBD_CUSTOM_HID_Sensor_HandleTypeDef hhidSensor;
 
 #define SEIKO_FEATURE_REPORT_LENGTH    15
 /*
@@ -474,10 +368,10 @@ static char seiko_feature_report_response_09[SEIKO_FEATURE_REPORT_LENGTH] =
 };
 
 #define SEIKO_INPUT_REPORT_LENGTH_MAX  28
-#define SEIKO_INPUT_REPORT_LENGTH_14   28
-#define SEIKO_INPUT_REPORT_LENGTH_18   5
 #define SEIKO_INPUT_REPORT_LENGTH_12   28
+#define SEIKO_INPUT_REPORT_LENGTH_14   28
 #define SEIKO_INPUT_REPORT_LENGTH_16   28
+#define SEIKO_INPUT_REPORT_LENGTH_18   5
 
 static char seiko_input_report_response[SEIKO_INPUT_REPORT_LENGTH_MAX] =
 {
@@ -487,14 +381,102 @@ static char seiko_input_report_response[SEIKO_INPUT_REPORT_LENGTH_MAX] =
     0x00, 0x00, 0x00, 0x00
 };
 
+/**
+  * @brief  USBD_CUSTOM_HID_Init
+  *         Initialize the CUSTOM_HID interface
+  * @param  pdev: device instance
+  * @param  cfgidx: Configuration index
+  * @retval status
+  */
+static uint8_t USBD_CUSTOM_HID_Sensor_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
+{
+  UNUSED(cfgidx);
+  USBD_CUSTOM_HID_Sensor_HandleTypeDef *hhid;
 
-static uint8_t USBD_CUSTOM_HID_IMU_Setup(USBD_HandleTypeDef *pdev,
+  hhid = &hhidSensor;
+
+
+  pdev->pClassData = (void *)hhid;
+
+  if (pdev->dev_speed == USBD_SPEED_HIGH)
+  {
+    pdev->ep_in[CUSTOM_HID_SENSOR_EPIN_ADDR & 0xFU].bInterval = CUSTOM_HID_SENSOR_HS_BINTERVAL;
+    pdev->ep_out[CUSTOM_HID_SENSOR_EPOUT_ADDR & 0xFU].bInterval = CUSTOM_HID_SENSOR_HS_BINTERVAL;
+  }
+  else   /* LOW and FULL-speed endpoints */
+  {
+    pdev->ep_in[CUSTOM_HID_SENSOR_EPIN_ADDR & 0xFU].bInterval = CUSTOM_HID_SENSOR_FS_BINTERVAL;
+    pdev->ep_out[CUSTOM_HID_SENSOR_EPOUT_ADDR & 0xFU].bInterval = CUSTOM_HID_SENSOR_FS_BINTERVAL;
+  }
+
+  /* Open EP IN */
+  (void)USBD_LL_OpenEP(pdev, CUSTOM_HID_SENSOR_EPIN_ADDR, USBD_EP_TYPE_INTR,
+                       CUSTOM_HID_SENSOR_EPIN_SIZE);
+
+  pdev->ep_in[CUSTOM_HID_SENSOR_EPIN_ADDR & 0xFU].is_used = 1U;
+
+  /* Open EP OUT */
+  (void)USBD_LL_OpenEP(pdev, CUSTOM_HID_SENSOR_EPOUT_ADDR, USBD_EP_TYPE_INTR,
+                       CUSTOM_HID_SENSOR_EPOUT_SIZE);
+
+  pdev->ep_out[CUSTOM_HID_SENSOR_EPOUT_ADDR & 0xFU].is_used = 1U;
+
+  hhid->state = CUSTOM_HID_IDLE;
+
+  ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->Init();
+
+  /* Prepare Out endpoint to receive 1st packet */
+  (void)USBD_LL_PrepareReceive(pdev, CUSTOM_HID_SENSOR_EPOUT_ADDR, hhid->Report_buf,
+                               USBD_CUSTOMHID_SENSOR_OUTREPORT_BUF_SIZE);
+
+  return (uint8_t)USBD_OK;
+}
+
+/**
+  * @brief  USBD_CUSTOM_HID_DeInit
+  *         DeInitialize the CUSTOM_HID layer
+  * @param  pdev: device instance
+  * @param  cfgidx: Configuration index
+  * @retval status
+  */
+static uint8_t USBD_CUSTOM_HID_Sensor_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
+{
+  UNUSED(cfgidx);
+
+  /* Close CUSTOM_HID EP IN */
+  (void)USBD_LL_CloseEP(pdev, CUSTOM_HID_SENSOR_EPIN_ADDR);
+  pdev->ep_in[CUSTOM_HID_SENSOR_EPIN_ADDR & 0xFU].is_used = 0U;
+  pdev->ep_in[CUSTOM_HID_SENSOR_EPIN_ADDR & 0xFU].bInterval = 0U;
+
+  /* Close CUSTOM_HID EP OUT */
+  (void)USBD_LL_CloseEP(pdev, CUSTOM_HID_SENSOR_EPOUT_ADDR);
+  pdev->ep_out[CUSTOM_HID_SENSOR_EPOUT_ADDR & 0xFU].is_used = 0U;
+  pdev->ep_out[CUSTOM_HID_SENSOR_EPOUT_ADDR & 0xFU].bInterval = 0U;
+
+  /* Free allocated memory */
+  if (pdev->pClassData != NULL)
+  {
+    ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->DeInit();
+    pdev->pClassData = NULL;
+  }
+
+  return (uint8_t)USBD_OK;
+}
+
+/**
+  * @brief  USBD_CUSTOM_HID_Setup
+  *         Handle the CUSTOM_HID specific requests
+  * @param  pdev: instance
+  * @param  req: usb requests
+  * @retval status
+  */
+static uint8_t USBD_CUSTOM_HID_Sensor_Setup(USBD_HandleTypeDef *pdev,
                                      USBD_SetupReqTypedef *req)
 {
-  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid = (USBD_CUSTOM_HID_IMU_HandleTypeDef *)pdev->pClassData;
-  uint16_t  len = 0U;
+  USBD_CUSTOM_HID_Sensor_HandleTypeDef *hhid = (USBD_CUSTOM_HID_Sensor_HandleTypeDef *)pdev->pClassData;
+  uint16_t len = 0U;
   uint8_t  *pbuf = NULL;
-  uint16_t  status_info = 0U;
+  uint16_t status_info = 0U;
   uint8_t   report_type, report_id;
   char      report_content[SEIKO_INPUT_REPORT_LENGTH_MAX];
   uint32_t  report_length = 0U;
@@ -507,265 +489,131 @@ static uint8_t USBD_CUSTOM_HID_IMU_Setup(USBD_HandleTypeDef *pdev,
 
   switch (req->bmRequest & USB_REQ_TYPE_MASK)
   {
-    case USB_REQ_TYPE_CLASS:
-      switch (req->bRequest)
-      {
-        case CUSTOM_HID_REQ_SET_PROTOCOL:
-          hhid->Protocol = (uint8_t)(req->wValue);
-          break;
-
-        case CUSTOM_HID_REQ_GET_PROTOCOL:
-          (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->Protocol, 1U);
-          break;
-
-        case CUSTOM_HID_REQ_SET_IDLE:
-          hhid->IdleState = (uint8_t)(req->wValue >> 8);
-          break;
-
-        case CUSTOM_HID_REQ_GET_IDLE:
-          (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
-          break;
-
-        case CUSTOM_HID_REQ_SET_REPORT:
- /*         report_type = req->wValue >> 8;
-          report_id = req->wValue & 0xFF;
-          if(HID_REPORT_TYPE_FEATURE == report_type)
-          {
-              switch(report_id)
-              {
-              case SEIKO_FEATURE_REPORT_ID_01:
-                  nFeature_01_SetCount += 1;
-                  if(1 == nFeature_01_SetCount)
-                  {
-					  seiko_feature_report_response_01[3] = 0x03;
-				  }
-                  else if(2 == nFeature_01_SetCount)
-                  {
-					  seiko_feature_report_response_01[3] = 0x06;
-				  }
-                  else if(3 == nFeature_01_SetCount)
-                  {
-					  seiko_feature_report_response_01[3] = 0x03;
-				  }
-                  else if(4 == nFeature_01_SetCount)
-                  {
-					  seiko_feature_report_response_01[3] = 0x06;
-				  }
-                  else if(5 == nFeature_01_SetCount)
-                  {
-					  seiko_feature_report_response_01[3] = 0x02;
-				  }
-                  else
-                  {
-					  seiko_feature_report_response_01[3] = 0x06;
-				  }
-				  break;
-              case SEIKO_FEATURE_REPORT_ID_09:
-                  nFeature_09_SetCount += 1;
-                  if(1 == nFeature_09_SetCount)
-                  {
-					  seiko_feature_report_response_09[3] = 0x03;
-				  }
-				  else if(2 == nFeature_09_SetCount)
-				  {
-					  seiko_feature_report_response_09[3] = 0x06;
-				  }
-                  else if(3 == nFeature_09_SetCount)
-                  {
-					  seiko_feature_report_response_09[3] = 0x03;
-				  }
-                  else if(4 == nFeature_09_SetCount)
-                  {
-					  seiko_feature_report_response_09[3] = 0x06;
-				  }
-				  else
-				  {
-					  seiko_feature_report_response_09[3] = 0x02;
-				  }
-                  break;
-              }
-          }*/
-
-          hhid->IsReportAvailable = 1U;
-          (void)USBD_CtlPrepareRx(pdev, hhid->Report_buf, req->wLength);
-          break;
-        case CUSTOM_HID_REQ_GET_REPORT:
-          // Mimic the Seiko Response
-          report_type = req->wValue >> 8;
-          report_id = req->wValue & 0xFF;
-          if(HID_REPORT_TYPE_INPUT == report_type)
-          {
-              switch(report_id)
-              {
-              case SEIKO_INPUT_REPORT_ID_14:
-                  memcpy( report_content,
-                          seiko_input_report_response,
-                          SEIKO_INPUT_REPORT_LENGTH_14);
-                  report_length = SEIKO_INPUT_REPORT_LENGTH_14;
-                  break;
-              case SEIKO_INPUT_REPORT_ID_18:
-                  memcpy( report_content,
-                          seiko_input_report_response,
-                          SEIKO_INPUT_REPORT_LENGTH_18);
-                  report_length = SEIKO_INPUT_REPORT_LENGTH_18;
-                  break;
-              case SEIKO_INPUT_REPORT_ID_12:
-                  memcpy( report_content,
-                          seiko_input_report_response,
-                          SEIKO_INPUT_REPORT_LENGTH_12);
-                  report_length = SEIKO_INPUT_REPORT_LENGTH_12;
-                  break;
-              case SEIKO_INPUT_REPORT_ID_16:
-                  memcpy( report_content,
-                          seiko_input_report_response,
-                          SEIKO_INPUT_REPORT_LENGTH_16);
-                  report_length = SEIKO_INPUT_REPORT_LENGTH_16;
-                  break;
-              default:
-                  report_length = 0;
-                  break;
-              }
-          }
-          else if(HID_REPORT_TYPE_OUTPUT == report_type)
-          {
-          }
-          else if(HID_REPORT_TYPE_FEATURE == report_type)
-          {
-              memcpy( report_content,
-                      seiko_feature_report_response,
-                      SEIKO_FEATURE_REPORT_LENGTH);
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              switch(report_id)
-              {
-              case SEIKO_FEATURE_REPORT_ID_01:
-				  memcpy( report_content,
-						  seiko_feature_report_response_01,
-						  SEIKO_FEATURE_REPORT_LENGTH);
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_03:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_03;
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_09:
-				  memcpy( report_content,
-						  seiko_feature_report_response_09,
-						  SEIKO_FEATURE_REPORT_LENGTH);
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_05:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_05;
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_0B:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_0B;
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_0F:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_0F;
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_07:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_07;
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_0D:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_0D;
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_13:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_13;
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_17:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_17;
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_11:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_11;
-                  break;
-              case SEIKO_FEATURE_REPORT_ID_15:
-                  report_content[0] = SEIKO_FEATURE_REPORT_ID_15;
-                  break;
-              default:
-                  report_length = 0;
-                  break;
-              }
-          }
-          if(report_length > 0)
-          {
-              USBD_CtlSendData( pdev,
-                                (uint8_t *)report_content,
-                                report_length);
-          }
-          else
-          {
-              USBD_CtlError(pdev, req);
-              ret = USBD_FAIL;
-          }
-          break;
-
-        default:
-          USBD_CtlError(pdev, req);
-          ret = USBD_FAIL;
-          break;
-      }
+  case USB_REQ_TYPE_CLASS:
+    switch (req->bRequest)
+    {
+    case CUSTOM_HID_REQ_SET_PROTOCOL:
+      hhid->Protocol = (uint8_t)(req->wValue);
       break;
 
-    case USB_REQ_TYPE_STANDARD:
-      switch (req->bRequest)
+    case CUSTOM_HID_REQ_GET_PROTOCOL:
+      (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->Protocol, 1U);
+      break;
+
+    case CUSTOM_HID_REQ_SET_IDLE:
+      hhid->IdleState = (uint8_t)(req->wValue >> 8);
+      break;
+
+    case CUSTOM_HID_REQ_GET_IDLE:
+      (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
+      break;
+
+    case CUSTOM_HID_REQ_SET_REPORT:
+      hhid->IsReportAvailable = 1U;
+      (void)USBD_CtlPrepareRx(pdev, hhid->Report_buf, req->wLength);
+      break;
+
+    case CUSTOM_HID_REQ_GET_REPORT:
+      // Mimic the Seiko Response
+      report_type = req->wValue >> 8;
+      report_id = req->wValue & 0xFF;
+      
+      if (HID_REPORT_TYPE_INPUT == report_type)
       {
-        case USB_REQ_GET_STATUS:
-          if (pdev->dev_state == USBD_STATE_CONFIGURED)
+          switch (report_id)
           {
-            (void)USBD_CtlSendData(pdev, (uint8_t *)&status_info, 2U);
+          case SEIKO_INPUT_REPORT_ID_12:
+              memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_12);
+              report_length = SEIKO_INPUT_REPORT_LENGTH_12;
+              break;
+          case SEIKO_INPUT_REPORT_ID_14:
+              memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_14);
+              report_length = SEIKO_INPUT_REPORT_LENGTH_14;
+              break;
+          case SEIKO_INPUT_REPORT_ID_16:
+              memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_16);
+              report_length = SEIKO_INPUT_REPORT_LENGTH_16;
+              break;
+          case SEIKO_INPUT_REPORT_ID_18:
+              memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_18);
+              report_length = SEIKO_INPUT_REPORT_LENGTH_18;
+              break;
+          default:
+              report_length = 0;
+              break;
           }
-          else
+      }
+      else if (HID_REPORT_TYPE_FEATURE == report_type)
+      {
+          switch (report_id)
           {
-            USBD_CtlError(pdev, req);
-            ret = USBD_FAIL;
+          case SEIKO_FEATURE_REPORT_ID_01:
+              memcpy(report_content, seiko_feature_report_response_01, SEIKO_FEATURE_REPORT_LENGTH);
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_03:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_03;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_05:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_05;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_07:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_07;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_09:
+              memcpy(report_content, seiko_feature_report_response_09, SEIKO_FEATURE_REPORT_LENGTH);
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_0B:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_0B;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_0D:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_0D;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_0F:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_0F;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_11:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_11;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_13:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_13;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_15:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_15;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          case SEIKO_FEATURE_REPORT_ID_17:
+              report_content[0] = SEIKO_FEATURE_REPORT_ID_17;
+              report_length = SEIKO_FEATURE_REPORT_LENGTH;
+              break;
+          default:
+              report_length = 0;
+              break;
           }
-          break;
-
-        case USB_REQ_GET_DESCRIPTOR:
-          if ((req->wValue >> 8) == CUSTOM_HID_IMU_REPORT_DESC)
-          {
-            len = MIN(USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE, req->wLength);
-            pbuf = ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->pReport;
-          }
-          else
-          {
-            if ((req->wValue >> 8) == CUSTOM_HID_IMU_DESCRIPTOR_TYPE)
-            {
-              pbuf = USBD_CUSTOM_HID_IMU_Desc;
-              len = MIN(USB_CUSTOM_HID_IMU_DESC_SIZ, req->wLength);
-            }
-          }
-
-          (void)USBD_CtlSendData(pdev, pbuf, len);
-          break;
-
-        case USB_REQ_GET_INTERFACE:
-          if (pdev->dev_state == USBD_STATE_CONFIGURED)
-          {
-            (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->AltSetting, 1U);
-          }
-          else
-          {
-            USBD_CtlError(pdev, req);
-            ret = USBD_FAIL;
-          }
-          break;
-
-        case USB_REQ_SET_INTERFACE:
-          if (pdev->dev_state == USBD_STATE_CONFIGURED)
-          {
-            hhid->AltSetting = (uint8_t)(req->wValue);
-          }
-          else
-          {
-            USBD_CtlError(pdev, req);
-            ret = USBD_FAIL;
-          }
-          break;
-
-        case USB_REQ_CLEAR_FEATURE:
-          break;
-
-        default:
+      }
+      else if (HID_REPORT_TYPE_OUTPUT == report_type)
+      {
+          // Handle output reports if needed
+          report_length = 0;
+      }
+      
+      if (report_length > 0)
+      {
+          USBD_CtlSendData(pdev, (uint8_t *)report_content, report_length);
+      }
+      else
+      {
           USBD_CtlError(pdev, req);
           ret = USBD_FAIL;
-          break;
       }
       break;
 
@@ -773,35 +621,109 @@ static uint8_t USBD_CUSTOM_HID_IMU_Setup(USBD_HandleTypeDef *pdev,
       USBD_CtlError(pdev, req);
       ret = USBD_FAIL;
       break;
+    }
+    break;
+
+  case USB_REQ_TYPE_STANDARD:
+    switch (req->bRequest)
+    {
+    case USB_REQ_GET_STATUS:
+      if (pdev->dev_state == USBD_STATE_CONFIGURED)
+      {
+        (void)USBD_CtlSendData(pdev, (uint8_t *)&status_info, 2U);
+      }
+      else
+      {
+        USBD_CtlError(pdev, req);
+        ret = USBD_FAIL;
+      }
+      break;
+
+    case USB_REQ_GET_DESCRIPTOR:
+      if ((req->wValue >> 8) == CUSTOM_HID_SENSOR_REPORT_DESC)
+      {
+        len = MIN(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE, req->wLength);
+        pbuf = ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->pReport;
+      }
+      else
+      {
+        if ((req->wValue >> 8) == CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE)
+        {
+          pbuf = USBD_CUSTOM_HID_SENSOR_Desc;
+          len = MIN(USB_CUSTOM_HID_SENSOR_DESC_SIZ, req->wLength);
+        }
+      }
+
+      (void)USBD_CtlSendData(pdev, pbuf, len);
+      break;
+
+    case USB_REQ_GET_INTERFACE:
+      if (pdev->dev_state == USBD_STATE_CONFIGURED)
+      {
+        (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->AltSetting, 1U);
+      }
+      else
+      {
+        USBD_CtlError(pdev, req);
+        ret = USBD_FAIL;
+      }
+      break;
+
+    case USB_REQ_SET_INTERFACE:
+      if (pdev->dev_state == USBD_STATE_CONFIGURED)
+      {
+        hhid->AltSetting = (uint8_t)(req->wValue);
+      }
+      else
+      {
+        USBD_CtlError(pdev, req);
+        ret = USBD_FAIL;
+      }
+      break;
+
+    case USB_REQ_CLEAR_FEATURE:
+      break;
+
+    default:
+      USBD_CtlError(pdev, req);
+      ret = USBD_FAIL;
+      break;
+    }
+    break;
+
+  default:
+    USBD_CtlError(pdev, req);
+    ret = USBD_FAIL;
+    break;
   }
   return (uint8_t)ret;
 }
 
 /**
-  * @brief  USBD_CUSTOM_HID_IMU_SendReport
+  * @brief  USBD_CUSTOM_HID_SendReport
   *         Send CUSTOM_HID Report
   * @param  pdev: device instance
   * @param  buff: pointer to report
   * @retval status
   */
-uint8_t USBD_CUSTOM_HID_IMU_SendReport(USBD_HandleTypeDef *pdev,
+uint8_t USBD_CUSTOM_HID_Sensor_SendReport(USBD_HandleTypeDef *pdev,
                                    uint8_t *report, uint16_t len)
 {
-  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
+  USBD_CUSTOM_HID_Sensor_HandleTypeDef *hhid;
 
   if (pdev->pClassData == NULL)
   {
     return (uint8_t)USBD_FAIL;
   }
 
-  hhid = (USBD_CUSTOM_HID_IMU_HandleTypeDef *)pdev->pClassData;
+  hhid = (USBD_CUSTOM_HID_Sensor_HandleTypeDef*)pdev->pClassData;
 
   if (pdev->dev_state == USBD_STATE_CONFIGURED)
   {
     if (hhid->state == CUSTOM_HID_IDLE)
     {
       hhid->state = CUSTOM_HID_BUSY;
-      (void)USBD_LL_Transmit(pdev, CUSTOM_HID_IMU_EPIN_ADDR, report, len);
+      (void)USBD_LL_Transmit(pdev, CUSTOM_HID_SENSOR_EPIN_ADDR, report, len);
     }
     else
     {
@@ -812,17 +734,17 @@ uint8_t USBD_CUSTOM_HID_IMU_SendReport(USBD_HandleTypeDef *pdev,
 }
 
 /**
-  * @brief  USBD_CUSTOM_HID_IMU_GetFSCfgDesc
+  * @brief  USBD_CUSTOM_HID_GetFSCfgDesc
   *         return FS configuration descriptor
   * @param  speed : current device speed
   * @param  length : pointer data length
   * @retval pointer to descriptor buffer
   */
-static uint8_t *USBD_CUSTOM_HID_IMU_GetFSCfgDesc(uint16_t *length)
+static uint8_t *USBD_CUSTOM_HID_Sensor_GetFSCfgDesc(uint16_t *length)
 {
-  *length = (uint16_t)sizeof(USBD_CUSTOM_HID_IMU_CfgFSDesc);
+  *length = (uint16_t)sizeof(USBD_CUSTOM_HID_Sensor_CfgFSDesc);
 
-  return USBD_CUSTOM_HID_IMU_CfgFSDesc;
+  return USBD_CUSTOM_HID_Sensor_CfgFSDesc;
 }
 
 /**
@@ -832,11 +754,11 @@ static uint8_t *USBD_CUSTOM_HID_IMU_GetFSCfgDesc(uint16_t *length)
   * @param  length : pointer data length
   * @retval pointer to descriptor buffer
   */
-static uint8_t *USBD_CUSTOM_HID_IMU_GetHSCfgDesc(uint16_t *length)
+static uint8_t *USBD_CUSTOM_HID_Sensor_GetHSCfgDesc(uint16_t *length)
 {
-  *length = (uint16_t)sizeof(USBD_CUSTOM_HID_IMU_CfgHSDesc);
+  *length = (uint16_t)sizeof(USBD_CUSTOM_HID_Sensor_CfgHSDesc);
 
-  return USBD_CUSTOM_HID_IMU_CfgHSDesc;
+  return USBD_CUSTOM_HID_Sensor_CfgHSDesc;
 }
 
 /**
@@ -846,11 +768,11 @@ static uint8_t *USBD_CUSTOM_HID_IMU_GetHSCfgDesc(uint16_t *length)
   * @param  length : pointer data length
   * @retval pointer to descriptor buffer
   */
-static uint8_t *USBD_CUSTOM_HID_IMU_GetOtherSpeedCfgDesc(uint16_t *length)
+static uint8_t *USBD_CUSTOM_HID_Sensor_GetOtherSpeedCfgDesc(uint16_t *length)
 {
-  *length = (uint16_t)sizeof(USBD_CUSTOM_HID_IMU_OtherSpeedCfgDesc);
+  *length = (uint16_t)sizeof(USBD_CUSTOM_HID_Sensor_OtherSpeedCfgDesc);
 
-  return USBD_CUSTOM_HID_IMU_OtherSpeedCfgDesc;
+  return USBD_CUSTOM_HID_Sensor_OtherSpeedCfgDesc;
 }
 
 /**
@@ -860,35 +782,35 @@ static uint8_t *USBD_CUSTOM_HID_IMU_GetOtherSpeedCfgDesc(uint16_t *length)
   * @param  epnum: endpoint index
   * @retval status
   */
-static uint8_t USBD_CUSTOM_HID_IMU_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
+static uint8_t USBD_CUSTOM_HID_Sensor_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
   UNUSED(epnum);
 
   /* Ensure that the FIFO is empty before a new transfer, this condition could
   be caused by  a new transfer before the end of the previous transfer */
-  ((USBD_CUSTOM_HID_IMU_HandleTypeDef *)pdev->pClassData)->state = CUSTOM_HID_IDLE;
+  ((USBD_CUSTOM_HID_Sensor_HandleTypeDef *)pdev->pClassData)->state = CUSTOM_HID_IDLE;
 
   return (uint8_t)USBD_OK;
 }
 
 /**
-  * @brief  USBD_CUSTOM_HID_IMU_DataOut
+  * @brief  USBD_CUSTOM_HID_DataOut
   *         handle data OUT Stage
   * @param  pdev: device instance
   * @param  epnum: endpoint index
   * @retval status
   */
-static uint8_t USBD_CUSTOM_HID_IMU_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
+static uint8_t USBD_CUSTOM_HID_Sensor_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
   UNUSED(epnum);
-  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
+  USBD_CUSTOM_HID_Sensor_HandleTypeDef *hhid;
 
   if (pdev->pClassData == NULL)
   {
     return (uint8_t)USBD_FAIL;
   }
 
-  hhid = (USBD_CUSTOM_HID_IMU_HandleTypeDef *)pdev->pClassData;
+  hhid = (USBD_CUSTOM_HID_Sensor_HandleTypeDef *)pdev->pClassData;
 
   /* USB data will be immediately processed, this allow next USB traffic being
   NAKed till the end of the application processing */
@@ -900,39 +822,39 @@ static uint8_t USBD_CUSTOM_HID_IMU_DataOut(USBD_HandleTypeDef *pdev, uint8_t epn
 
 
 /**
-  * @brief  USBD_CUSTOM_HID_IMU_ReceivePacket
+  * @brief  USBD_CUSTOM_HID_ReceivePacket
   *         prepare OUT Endpoint for reception
   * @param  pdev: device instance
   * @retval status
   */
-uint8_t USBD_CUSTOM_HID_IMU_ReceivePacket(USBD_HandleTypeDef *pdev)
+uint8_t USBD_CUSTOM_HID_Sensor_ReceivePacket(USBD_HandleTypeDef *pdev)
 {
-  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid;
+  USBD_CUSTOM_HID_Sensor_HandleTypeDef *hhid;
 
   if (pdev->pClassData == NULL)
   {
     return (uint8_t)USBD_FAIL;
   }
 
-  hhid = (USBD_CUSTOM_HID_IMU_HandleTypeDef *)pdev->pClassData;
+  hhid = (USBD_CUSTOM_HID_Sensor_HandleTypeDef *)pdev->pClassData;
 
   /* Resume USB Out process */
-  (void)USBD_LL_PrepareReceive(pdev, CUSTOM_HID_IMU_EPOUT_ADDR, hhid->Report_buf,
-                               USBD_CUSTOMHID_IMU_OUTREPORT_BUF_SIZE);
+  (void)USBD_LL_PrepareReceive(pdev, CUSTOM_HID_SENSOR_EPOUT_ADDR, hhid->Report_buf,
+                               USBD_CUSTOMHID_SENSOR_OUTREPORT_BUF_SIZE);
 
   return (uint8_t)USBD_OK;
 }
 
 
 /**
-  * @brief  USBD_CUSTOM_HID_IMU_EP0_RxReady
+  * @brief  USBD_CUSTOM_HID_EP0_RxReady
   *         Handles control request data.
   * @param  pdev: device instance
   * @retval status
   */
-static uint8_t USBD_CUSTOM_HID_IMU_EP0_RxReady(USBD_HandleTypeDef *pdev)
+static uint8_t USBD_CUSTOM_HID_Sensor_EP0_RxReady(USBD_HandleTypeDef *pdev)
 {
-  USBD_CUSTOM_HID_IMU_HandleTypeDef *hhid = (USBD_CUSTOM_HID_IMU_HandleTypeDef *)pdev->pClassData;
+  USBD_CUSTOM_HID_Sensor_HandleTypeDef *hhid = (USBD_CUSTOM_HID_Sensor_HandleTypeDef *)pdev->pClassData;
   uint8_t report_type, report_id;
 
   if (hhid == NULL)
@@ -945,7 +867,7 @@ static uint8_t USBD_CUSTOM_HID_IMU_EP0_RxReady(USBD_HandleTypeDef *pdev)
 
   if (hhid->IsReportAvailable == 1U)
   {
-  #if 1
+
 	if(HID_REPORT_TYPE_FEATURE == report_type)
 	{
 		switch(report_id)
@@ -960,33 +882,6 @@ static uint8_t USBD_CUSTOM_HID_IMU_EP0_RxReady(USBD_HandleTypeDef *pdev)
 			break;
 		}
 	}
-  #else
-	if (report_type == 0x03) {
-	  switch (report_id) {
-	  case REPORT_ID_ACCEL3_FEATURE:
-	    memcpy((void *)&accel3FeatureReport,
-	    		hhid->Report_buf,
-				sizeof(ACCEL3_FEATURE_REPORT));
-	    int interval = 0;
-	    if (accel3FeatureReport.ucPowerState != SENSOR_POWER_STATE_D4_POWER_OFF) {
-	    	interval = accel3FeatureReport.ulReportInterval*1000;
-	    }
-		
-//    case REPORT_ID_ALS_FEATURE:
-//            memcpy((void *)&alsFeatureReport,
-//            hhid->Report_buf,
-//            sizeof(ALS_FEATURE_REPORT));
-//            interval = 0;
-//            if (alsFeatureReport.ucPowerState != SENSOR_POWER_STATE_D4_POWER_OFF) {
-//                interval = alsFeatureReport.ulReportInterval*100;
-//            }
-//            break;
-	    break;
-	  default:
-	  	break;
-	  }
-	}
-  #endif
 
     ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->OutEvent(hhid->Report_buf[0],
                                                               hhid->Report_buf[1]);
@@ -997,25 +892,25 @@ static uint8_t USBD_CUSTOM_HID_IMU_EP0_RxReady(USBD_HandleTypeDef *pdev)
 }
 
 /**
-  * @brief  DeviceQualifierDescriptor
-  *         return Device Qualifier descriptor
-  * @param  length : pointer data length
-  * @retval pointer to descriptor buffer
-  */
-static uint8_t *USBD_CUSTOM_HID_IMU_GetDeviceQualifierDesc(uint16_t *length)
+* @brief  DeviceQualifierDescriptor
+*         return Device Qualifier descriptor
+* @param  length : pointer data length
+* @retval pointer to descriptor buffer
+*/
+static uint8_t *USBD_CUSTOM_HID_Sensor_GetDeviceQualifierDesc(uint16_t *length)
 {
-  *length = (uint16_t)sizeof(USBD_CUSTOM_HID_IMU_DeviceQualifierDesc);
+  *length = (uint16_t)sizeof(USBD_CUSTOM_HID_Sensor_DeviceQualifierDesc);
 
-  return USBD_CUSTOM_HID_IMU_DeviceQualifierDesc;
+  return USBD_CUSTOM_HID_Sensor_DeviceQualifierDesc;
 }
 
 /**
-  * @brief  USBD_CUSTOM_HID_IMU_RegisterInterface
+* @brief  USBD_CUSTOM_HID_RegisterInterface
   * @param  pdev: device instance
   * @param  fops: CUSTOMHID Interface callback
   * @retval status
   */
-uint8_t USBD_CUSTOM_HID_IMU_RegisterInterface(USBD_HandleTypeDef *pdev,
+uint8_t USBD_CUSTOM_HID_Sensor_RegisterInterface(USBD_HandleTypeDef *pdev,
                                           USBD_CUSTOM_HID_ItfTypeDef *fops)
 {
   if (fops == NULL)

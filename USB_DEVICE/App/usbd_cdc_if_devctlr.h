@@ -1,27 +1,26 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file           : usbd_cdc_if_devctlr.h
+  * @file           : usbd_cdc_if.h
   * @version        : v1.0_Cube
-  * @brief          : Header for usbd_cdc_if_devctlr.c file.
+  * @brief          : Header for usbd_cdc_if.c file.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __USBD_CDC_IF_DEVCTLR_H__5d477b06_4460_11ed_9f96_0f2944f6a161_
-#define __USBD_CDC_IF_DEVCTLR_H__5d477b06_4460_11ed_9f96_0f2944f6a161_
+#ifndef __USBD_CDC_IF_H__
+#define __USBD_CDC_IF_H__
 
 #ifdef __cplusplus
  extern "C" {
@@ -49,8 +48,8 @@
   * @{
   */
 /* Define size for the receive and transmit buffer over CDC */
-#define DEVCTLR_APP_RX_DATA_SIZE  128   //2048
-#define DEVCTLR_APP_TX_DATA_SIZE  512   //2048
+#define DEVCTLR_APP_RX_DATA_SIZE  128
+#define DEVCTLR_APP_TX_DATA_SIZE  512
 /* USER CODE BEGIN EXPORTED_DEFINES */
 
 /* USER CODE END EXPORTED_DEFINES */
@@ -90,11 +89,10 @@
   * @{
   */
 
-/** CDC DEVCTLR Interface callback. */
+/** CDC Interface callback. */
 extern USBD_CDC_ItfTypeDef USBD_Interface_fops_DEVCTLR_HS;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-//extern uint8_t DEVCTLR_UserTxBufferFS[DEVCTLR_APP_TX_DATA_SIZE];
 extern bool CDC_DEVCTLR_Echo_Ctrl_Flag;
 /* USER CODE END EXPORTED_VARIABLES */
 
@@ -130,6 +128,5 @@ void CDC_DEVCTLR_SetEnableTransmit( uint8_t bEnable);
 }
 #endif
 
-#endif /* __USBD_CDC_IF_DEVCTLR_H__5d477b06_4460_11ed_9f96_0f2944f6a161_ */
+#endif /* __USBD_CDC_IF_H__ */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

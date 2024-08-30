@@ -26,11 +26,8 @@
 #include "usb_device.h"
 #include "usbd_customhid.h"
 #include "usbd_customhid_imu.h"
-#include "usbd_customhid_als.h"
 #include "usbd_cdc.h"
-#include "usbd_audio.h"
 #include "usbd_cdc_devctlr.h"
-#include "usbd_customhid_als.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -51,7 +48,7 @@ void Error_Handler(void);
 /* External functions --------------------------------------------------------*/
 
 /* USER CODE BEGIN 0 */
-void SystemClock_Config(void);
+
 /* USER CODE END 0 */
 
 /* USER CODE BEGIN PFP */
@@ -342,7 +339,7 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   pdev->pData = &hpcd_USB_OTG_HS;
 
   hpcd_USB_OTG_HS.Instance = USB_OTG_HS;
-  hpcd_USB_OTG_HS.Init.dev_endpoints = 10;
+  hpcd_USB_OTG_HS.Init.dev_endpoints = 9;
   hpcd_USB_OTG_HS.Init.dma_enable = DISABLE;
   hpcd_USB_OTG_HS.Init.phy_itface = USB_OTG_HS_EMBEDDED_PHY;
   hpcd_USB_OTG_HS.Init.Sof_enable = DISABLE;
@@ -351,10 +348,6 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   hpcd_USB_OTG_HS.Init.vbus_sensing_enable = DISABLE;
   hpcd_USB_OTG_HS.Init.use_dedicated_ep1 = DISABLE;
   hpcd_USB_OTG_HS.Init.use_external_vbus = DISABLE;
-#if FS_OVER_HS_CTRL
-    // ckhsu, UAC1 can only in FS.
-    hpcd_USB_OTG_HS.Init.speed = USBD_SPEED_FULL;
-#endif
   if (HAL_PCD_Init(&hpcd_USB_OTG_HS) != HAL_OK)
   {
     Error_Handler( );
@@ -375,24 +368,22 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   HAL_PCD_RegisterIsoOutIncpltCallback(&hpcd_USB_OTG_HS, PCD_ISOOUTIncompleteCallback);
   HAL_PCD_RegisterIsoInIncpltCallback(&hpcd_USB_OTG_HS, PCD_ISOINIncompleteCallback);
 #endif /* USE_HAL_PCD_REGISTER_CALLBACKS */
-  /* Composite CDCx2/HIDx3 Tx/Rx buffer setting. */
-  HAL_PCDEx_SetRxFiFo(&hpcd_USB_OTG_HS, 0x200);   // RX
-  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, 0, 0x80); // EP0 IN
- // AUDIO MIC
-  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (AUDIO_IN_EP & 0x7F), 0x80);
-  
-  // CDC ACM ToF
+  HAL_PCDEx_SetRxFiFo(&hpcd_USB_OTG_HS, 0x200);
+  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, 0, 0x80);
+
+  // CDC ToF
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_CMD_EP & 0x7F), 0x80);
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_IN_EP & 0x7F), 0x80);
-  // CUSTOM HID IMU
-  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_IMU_EPIN_ADDR & 0x7F), 0x80);
-  //   CUSTOM HID KEY
-  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_KEY_EPIN_ADDR & 0x7F), 0x40);
 
   // CDC ACM Device Controller
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_CMD_EP & 0x7F), 0x80);
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_IN_EP & 0x7F), 0x80);
 
+  // CUSTOM HID Sensor
+  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_SENSOR_EPIN_ADDR & 0x7F), 0x80);
+
+  // CUSTOM HID Keyboard
+  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_KEYBOARD_EPIN_ADDR & 0x7F), 0x20);
   }
   return USBD_OK;
 }
@@ -630,63 +621,6 @@ uint32_t USBD_LL_GetRxDataSize(USBD_HandleTypeDef *pdev, uint8_t ep_addr)
 }
 
 /**
-  * @brief  Send LPM message to user layer
-  * @param  hpcd: PCD handle
-  * @param  msg: LPM message
-  * @retval None
-  */
-void HAL_PCDEx_LPM_Callback(PCD_HandleTypeDef *hpcd, PCD_LPM_MsgTypeDef msg)
-{
-  switch (msg)
-  {
-  case PCD_LPM_L0_ACTIVE:
-    if (hpcd->Init.low_power_enable)
-    {
-      SystemClockConfig_Resume();
-
-      /* Reset SLEEPDEEP bit of Cortex System Control Register. */
-      SCB->SCR &= (uint32_t)~((uint32_t)(SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk));
-    }
-    __HAL_PCD_UNGATE_PHYCLOCK(hpcd);
-    USBD_LL_Resume(hpcd->pData);
-    break;
-
-  case PCD_LPM_L1_ACTIVE:
-    __HAL_PCD_GATE_PHYCLOCK(hpcd);
-    USBD_LL_Suspend(hpcd->pData);
-
-    /* Enter in STOP mode. */
-    if (hpcd->Init.low_power_enable)
-    {
-      /* Set SLEEPDEEP bit and SleepOnExit of Cortex System Control Register. */
-      SCB->SCR |= (uint32_t)((uint32_t)(SCB_SCR_SLEEPDEEP_Msk | SCB_SCR_SLEEPONEXIT_Msk));
-    }
-    break;
-  }
-}
-
-/**
-  * @brief  Static single allocation.
-  * @param  size: Size of allocated memory
-  * @retval None
-  */
-void *USBD_static_malloc(uint32_t size)
-{
-  static uint32_t mem[(sizeof(USBD_CUSTOM_HID_HandleTypeDef)/4+1)];/* On 32-bit boundary */
-  return mem;
-}
-
-/**
-  * @brief  Dummy memory free
-  * @param  p: Pointer to allocated  memory address
-  * @retval None
-  */
-void USBD_static_free(void *p)
-{
-
-}
-
-/**
   * @brief  Delays routine for the USB device library.
   * @param  Delay: Delay in ms
   * @retval None
@@ -696,17 +630,6 @@ void USBD_LL_Delay(uint32_t Delay)
   HAL_Delay(Delay);
 }
 
-/* USER CODE BEGIN 5 */
-/**
-  * @brief  Configures system clock after wake-up from USB resume callBack:
-  *         enable HSI, PLL and select PLL as system clock source.
-  * @retval None
-  */
-static void SystemClockConfig_Resume(void)
-{
-  SystemClock_Config();
-}
-/* USER CODE END 5 */
 /**
   * @brief  Returns the USB status depending on the HAL status:
   * @param  hal_status: HAL status
@@ -737,3 +660,23 @@ USBD_StatusTypeDef USBD_Get_USB_Status(HAL_StatusTypeDef hal_status)
   return usb_status;
 }
 
+/**
+  * @brief  Static single allocation.
+  * @param  size: Size of allocated memory
+  * @retval None
+  */
+void *USBD_static_malloc(uint32_t size)
+{
+  static uint32_t mem[(sizeof(USBD_CUSTOM_HID_Keyboard_HandleTypeDef)/4+1)];/* On 32-bit boundary */
+  return mem;
+}
+
+/**
+  * @brief  Dummy memory free
+  * @param  p: Pointer to allocated  memory address
+  * @retval None
+  */
+void USBD_static_free(void *p)
+{
+
+}

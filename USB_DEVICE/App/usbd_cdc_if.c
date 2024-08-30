@@ -7,13 +7,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -25,22 +24,11 @@
 /* USER CODE BEGIN INCLUDE */
 #include "usbd_composite.h"
 #include "usb.h"
-//ckhsu test
 #include "main.h"
 #include "debug_defs.h"
 
 #include <stdarg.h>
 #include "cmd.h"
-  #if ENABLE_CDC_DEBUG_HANDLER
-static void cdc_cmd_handler(uint8_t* Buf, uint32_t len);
-//#error
-  #endif
-  #if ENABLE_CDC_ENGINEERING_TEST
-//#error
-       int    bScanI2c       = 0;
-       int    bLT7911Test    = 0;
-extern int    bHidTest;
-  #endif
 
 /* USER CODE END INCLUDE */
 
@@ -50,11 +38,9 @@ extern int    bHidTest;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-#define CDC_MAX_RX_MSGS     4
-
 static JISRQueueMessage_t cdcRxMsg[CDC_MAX_RX_MSGS];
 static int                nCdcRxIdx;
-//extern void usbcmd_sendData( uint8_t *p, int nLength);
+
 /* USER CODE END PV */
 
 /** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
@@ -85,9 +71,7 @@ static int                nCdcRxIdx;
   */
 
 /* USER CODE BEGIN PRIVATE_DEFINES */
-/* Define size for the receive and transmit buffer over CDC */
-/* It's up to user to redefine and/or remove those define */
-
+#define CDC_MAX_RX_MSGS     4
 /* USER CODE END PRIVATE_DEFINES */
 
 /**
@@ -111,6 +95,7 @@ static int                nCdcRxIdx;
   * @brief Private variables.
   * @{
   */
+
 /* Create buffer for reception and transmission           */
 /* It's up to user to redefine and/or remove those define */
 /** Received data over USB are stored in this buffer      */
@@ -127,8 +112,6 @@ bool CDC_Echo_Ctrl_Flag = true;
 #else
 bool CDC_Echo_Ctrl_Flag = false;
 #endif
-
-
 
 USBD_CDC_LineCodingTypeDef LineCoding =
   {
@@ -187,30 +170,32 @@ USBD_CDC_ItfTypeDef USBD_Interface_fops_HS =
 };
 
 /* Private functions ---------------------------------------------------------*/
+
 /**
-  * @brief  Initializes the CDC media low layer over the FS USB IP
+  * @brief  Initializes the CDC media low layer over the USB HS IP
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
 static int8_t CDC_Init_HS(void)
 {
-  /* USER CODE BEGIN 3 */
+  /* USER CODE BEGIN 8 */
   nCdcRxIdx = 0;
   /* Set Application Buffers */
   USBD_CDC_SetTxBuffer(&hUsbDeviceHS, UserTxBufferHS, 0);
   USBD_CDC_SetRxBuffer(&hUsbDeviceHS, UserRxBufferHS);
   return (USBD_OK);
-  /* USER CODE END 3 */
+  /* USER CODE END 8 */
 }
 
 /**
   * @brief  DeInitializes the CDC media low layer
+  * @param  None
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
 static int8_t CDC_DeInit_HS(void)
 {
-  /* USER CODE BEGIN 4 */
+  /* USER CODE BEGIN 9 */
   return (USBD_OK);
-  /* USER CODE END 4 */
+  /* USER CODE END 9 */
 }
 
 /**
@@ -222,26 +207,26 @@ static int8_t CDC_DeInit_HS(void)
   */
 static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 {
-  /* USER CODE BEGIN 5 */
+  /* USER CODE BEGIN 10 */
   switch(cmd)
   {
-    case CDC_SEND_ENCAPSULATED_COMMAND:
+  case CDC_SEND_ENCAPSULATED_COMMAND:
 
     break;
 
-    case CDC_GET_ENCAPSULATED_RESPONSE:
+  case CDC_GET_ENCAPSULATED_RESPONSE:
 
     break;
 
-    case CDC_SET_COMM_FEATURE:
+  case CDC_SET_COMM_FEATURE:
 
     break;
 
-    case CDC_GET_COMM_FEATURE:
+  case CDC_GET_COMM_FEATURE:
 
     break;
 
-    case CDC_CLEAR_COMM_FEATURE:
+  case CDC_CLEAR_COMM_FEATURE:
 
     break;
 
@@ -262,7 +247,7 @@ static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
   /*                                        4 - Space                            */
   /* 6      | bDataBits  |   1   | Number Data bits (5, 6, 7, 8 or 16).          */
   /*******************************************************************************/
-    case CDC_SET_LINE_CODING:
+  case CDC_SET_LINE_CODING:
 
     	/* set the line coding from the host */
         LineCoding.bitrate = (uint32_t)(pbuf[0] | (pbuf[1] << 8) |\
@@ -275,7 +260,7 @@ static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
          */
     break;
 
-    case CDC_GET_LINE_CODING:
+  case CDC_GET_LINE_CODING:
 
     	/* report the current line coding to the host */
         pbuf[0] = (uint8_t)(LineCoding.bitrate);
@@ -287,11 +272,11 @@ static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
         pbuf[6] = LineCoding.datatype;
     break;
 
-    case CDC_SET_CONTROL_LINE_STATE:
+  case CDC_SET_CONTROL_LINE_STATE:
 
     break;
 
-    case CDC_SEND_BREAK:
+  case CDC_SEND_BREAK:
 
     break;
 
@@ -300,7 +285,7 @@ static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
   }
 
   return (USBD_OK);
-  /* USER CODE END 5 */
+  /* USER CODE END 10 */
 }
 
 /**
@@ -320,7 +305,7 @@ static int8_t CDC_Control_HS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
   */
 static int8_t CDC_Receive_HS(uint8_t* Buf, uint32_t *Len)
 {
-  /* USER CODE BEGIN 6 */
+  /* USER CODE BEGIN 11 */
   // always swap the buffers in ISR
   JISRQueueMessage_t *pMsg = &(cdcRxMsg[nCdcRxIdx]);
 
@@ -335,43 +320,24 @@ static int8_t CDC_Receive_HS(uint8_t* Buf, uint32_t *Len)
 
       usbSendMessageISR( pMsg);
   }
-
-  // start the next receive process
   USBD_CDC_SetRxBuffer(&hUsbDeviceHS, &Buf[0]);
-  //USBD_CDC_SetRxBuffer(&hUsbDeviceHS, &Buf[*Len]);
   USBD_CDC_ReceivePacket(&hUsbDeviceHS);
-
-  #if ENABLE_CDC_DEBUG_HANDLER
-  /*************************************************************/
-  /* ckhsu:                                                    */
-  /* User should use CDC_CmdBuff_IsUpdated below instead using */
-  /* this in the interrupt,however we just debug, not a big    */
-  /* deal.                                                     */
-  /*************************************************************/
-  cdc_cmd_handler( Buf, *Len);
-  #endif
-
   return (USBD_OK);
-  /* USER CODE END 6 */
+  /* USER CODE END 11 */
 }
 
 /**
-  * @brief  CDC_Transmit_FS
-  *         Data to send over USB IN endpoint are sent over CDC interface
+  * @brief  Data to send over USB IN endpoint are sent over CDC interface
   *         through this function.
-  *         @note
-  *
-  *
   * @param  Buf: Buffer of data to be sent
   * @param  Len: Number of data to be sent (in bytes)
-  * @retval USBD_OK if all operations are OK else USBD_FAIL or USBD_BUSY
+  * @retval Result of the operation: USBD_OK if all operations are OK else USBD_FAIL or USBD_BUSY
   */
 uint8_t CDC_Transmit_HS(uint8_t* Buf, uint16_t Len)
 {
   uint8_t result = USBD_OK;
-  /* USER CODE BEGIN 7 */
+  /* USER CODE BEGIN 12 */
   USBD_CDC_HandleTypeDef *hcdc;
-
   /* NOTE:
    * We need manually switch the USB interface during the Tx data preparation
    * because this process is not part of operations in USBD_COMPOSITE.
@@ -381,24 +347,9 @@ uint8_t CDC_Transmit_HS(uint8_t* Buf, uint16_t Len)
   if (hcdc->TxState != 0){
     return USBD_BUSY;
   }
-
-  //if (!CDC_Echo_Ctrl_Flag || !RxBuffIsSwapped) {
-    USBD_CDC_SetTxBuffer(&hUsbDeviceHS, Buf, Len);
-    result = USBD_CDC_TransmitPacket(&hUsbDeviceHS);
-  /*} else {
-    // add extra newline characters if the Rx buffer has been swapped
-    uint16_t new_len = Len+2;
-    uint8_t new_buf[new_len];
-    uint16_t offset = 0;
-
-    new_buf[offset++] = 0x0D;
-    new_buf[offset++] = 0x0A;
-    memcpy(new_buf + (offset % new_len), Buf, Len);
-    USBD_CDC_SetTxBuffer(&hUsbDeviceHS, new_buf, new_len);
-    result = USBD_CDC_TransmitPacket(&hUsbDeviceHS);
-    RxBuffIsSwapped = false;
-  }*/
-  /* USER CODE END 7 */
+  USBD_CDC_SetTxBuffer(&hUsbDeviceHS, Buf, Len);
+  result = USBD_CDC_TransmitPacket(&hUsbDeviceHS);
+  /* USER CODE END 12 */
   return result;
 }
 
@@ -417,14 +368,14 @@ uint8_t CDC_Transmit_HS(uint8_t* Buf, uint16_t Len)
 static int8_t CDC_TransmitCplt_HS(uint8_t *Buf, uint32_t *Len, uint8_t epnum)
 {
   uint8_t result = USBD_OK;
-  /* USER CODE BEGIN 13 */
+  /* USER CODE BEGIN 14 */
   static JISRQueueMessage_t cdcTxCpltMsg;
   UNUSED(Buf);
   UNUSED(Len);
   UNUSED(epnum);
   cdcTxCpltMsg.type = USB_CDC_TX_COMPLETE_MSG;
   usbSendMessageISR( &cdcTxCpltMsg);
-  /* USER CODE END 13 */
+  /* USER CODE END 14 */
   return result;
 }
 
@@ -454,58 +405,6 @@ void usb_printf(const char *format, ...)
     }
   #endif
 }
-
-  #if ENABLE_CDC_DEBUG_HANDLER
-
-void cdc_cmd_handler(uint8_t* Buf, uint32_t len)
-{
-  #if ENABLE_CDC_ENGINEERING_TEST
-    if( (7 == len) &&
-             ('k' == Buf[0]) &&
-             ('e' == Buf[1]) &&
-             ('y' == Buf[2]) &&
-             ('t' == Buf[3]) &&
-             ('e' == Buf[4]) &&
-             ('s' == Buf[5]) &&
-             ('t' == Buf[6]) )
-    {
-        bHidTest = 1;
-    }
-    else if( (9 == len) &&
-             ('i' == Buf[0]) &&
-             ('2' == Buf[1]) &&
-             ('c' == Buf[2]) &&
-             ('d' == Buf[3]) &&
-             ('e' == Buf[4]) &&
-             ('t' == Buf[5]) &&
-             ('e' == Buf[6]) &&
-             ('c' == Buf[7]) &&
-             ('t' == Buf[8]) )
-    {
-        usb_printf("Prepare to scan i2c bus, please wait\n");
-        bScanI2c = 1;
-    }
-    else if( (7 == len) &&
-             ('L' == Buf[0]) &&
-             ('T' == Buf[1]) &&
-             ('7' == Buf[2]) &&
-             ('9' == Buf[3]) &&
-             ('1' == Buf[4]) &&
-             ('1' == Buf[5]) &&
-             ('D' == Buf[6]) )
-    {
-        bLT7911Test = 1;
-    }
-    else
-    {
-        usb_printf("STM32 CDC recv: [%s]\n", Buf);
-    }
-  #else
-	usb_printf("STM32 CDC recv: [%s]\n", Buf);
-  #endif
-}
-  #endif
-
 /* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
 
 /**
@@ -516,4 +415,3 @@ void cdc_cmd_handler(uint8_t* Buf, uint32_t len)
   * @}
   */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

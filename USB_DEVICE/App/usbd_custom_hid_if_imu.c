@@ -1,26 +1,25 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file           : usbd_custom_hid_if_imu.c
+  * @file           : usbd_custom_hid_if.c
   * @version        : v1.0_Cube
-  * @brief          : USB Device Custom HID interface file for IMU.
+  * @brief          : USB Device Custom HID interface file.
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "usbd_custom_hid_if_imu.h"
+#include "usbd_custom_hid_if.h"
 
 /* USER CODE BEGIN INCLUDE */
 #include "HidSensorSpec.h"
@@ -91,7 +90,7 @@
   */
 
 /** Usb custom HID report descriptor. */
-__ALIGN_BEGIN static uint8_t CUSTOM_HID_IMU_ReportDesc_HS[USBD_CUSTOM_HID_IMU_REPORT_DESC_SIZE] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t CUSTOM_HID_Sensor_ReportDesc_HS[USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE] __ALIGN_END =
 {
 0x05, 0x20,                     /*  Usage Page (20h),                   */
 0x09, 0x73,                     /*  Usage (73h),                        */
@@ -1071,7 +1070,6 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_IMU_ReportDesc_HS[USBD_CUSTOM_HID_IMU_RE
 0x81, 0x02,                     /*      Input (Variable),               */
 0xC0                            /*  End Collection                      */
 };
-
 /* USER CODE BEGIN PRIVATE_VARIABLES */
 
 /* USER CODE END PRIVATE_VARIABLES */
@@ -1099,20 +1097,20 @@ extern USBD_HandleTypeDef hUsbDeviceHS;
   * @{
   */
 
-static int8_t CUSTOM_HID_IMU_Init_HS(void);
-static int8_t CUSTOM_HID_IMU_DeInit_HS(void);
-static int8_t CUSTOM_HID_IMU_OutEvent_HS(uint8_t event_idx, uint8_t state);
+static int8_t CUSTOM_HID_Sensor_Init_HS(void);
+static int8_t CUSTOM_HID_Sensor_DeInit_HS(void);
+static int8_t CUSTOM_HID_Sensor_OutEvent_HS(uint8_t event_idx, uint8_t state);
 
 /**
   * @}
   */
 
-USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_IMU_fops_HS =
+USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_Sensor_fops_HS =
 {
-  CUSTOM_HID_IMU_ReportDesc_HS,
-  CUSTOM_HID_IMU_Init_HS,
-  CUSTOM_HID_IMU_DeInit_HS,
-  CUSTOM_HID_IMU_OutEvent_HS
+  CUSTOM_HID_Sensor_ReportDesc_HS,
+  CUSTOM_HID_Sensor_Init_HS,
+  CUSTOM_HID_Sensor_DeInit_HS,
+  CUSTOM_HID_Sensor_OutEvent_HS
 };
 
 /** @defgroup USBD_CUSTOM_HID_Private_Functions USBD_CUSTOM_HID_Private_Functions
@@ -1126,7 +1124,7 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_IMU_fops_HS =
   * @brief  Initializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_IMU_Init_HS(void)
+static int8_t CUSTOM_HID_Sensor_Init_HS(void)
 {
   /* USER CODE BEGIN 8 */
   return (USBD_OK);
@@ -1137,7 +1135,7 @@ static int8_t CUSTOM_HID_IMU_Init_HS(void)
   * @brief  DeInitializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_IMU_DeInit_HS(void)
+static int8_t CUSTOM_HID_Sensor_DeInit_HS(void)
 {
   /* USER CODE BEGIN 9 */
   return (USBD_OK);
@@ -1150,14 +1148,14 @@ static int8_t CUSTOM_HID_IMU_DeInit_HS(void)
   * @param  state: Event state
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_IMU_OutEvent_HS(uint8_t event_idx, uint8_t state)
+static int8_t CUSTOM_HID_Sensor_OutEvent_HS(uint8_t event_idx, uint8_t state)
 {
   /* USER CODE BEGIN 10 */
   UNUSED(event_idx);
   UNUSED(state);
 
     /* Start next USB packet transfer once data processing is completed */
-  USBD_CUSTOM_HID_IMU_ReceivePacket(&hUsbDeviceHS);
+  USBD_CUSTOM_HID_Sensor_ReceivePacket(&hUsbDeviceHS);
 
   return (USBD_OK);
   /* USER CODE END 10 */
@@ -1170,14 +1168,15 @@ static int8_t CUSTOM_HID_IMU_OutEvent_HS(uint8_t event_idx, uint8_t state)
   * @param  len: The report length
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-int8_t USBD_CUSTOM_HID_IMU_SendReport_HS(uint8_t *report, uint16_t len)
+
+int8_t USBD_CUSTOM_HID_Sensor_SendReport_HS(uint8_t *report, uint16_t len)
 {
   /* NOTE:
    * We need manually switch the USB interface during the Tx data preparation
    * because this process is not part of operations in USBD_COMPOSITE.
    */
-  USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CUSTOMHID_IMU_INTERFACE);
-  return USBD_CUSTOM_HID_IMU_SendReport(&hUsbDeviceHS, report, len);
+  USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CUSTOMHID_SENSOR_INTERFACE);
+  return USBD_CUSTOM_HID_Sensor_SendReport(&hUsbDeviceHS, report, len);
 }
 /* USER CODE END 11 */
 
@@ -1195,6 +1194,4 @@ int8_t USBD_CUSTOM_HID_IMU_SendReport_HS(uint8_t *report, uint16_t len)
 /**
   * @}
   */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
 

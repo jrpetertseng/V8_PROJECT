@@ -7,13 +7,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2024 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -89,7 +88,7 @@
   */
 
 /** Usb custom HID report descriptor. */
-__ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_HS[USBD_CUSTOM_HID_REPORT_DESC_SIZE] __ALIGN_END =
+__ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_HS[USBD_CUSTOM_HID_KEYBOARD_REPORT_DESC_SIZE] __ALIGN_END =
 {
   /* USER CODE BEGIN 1 */
   // ref: see https://github.com/torvalds/linux/blob/master/drivers/hid/hid-input.c for the kernel code
@@ -217,7 +216,6 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_HS[USBD_CUSTOM_HID_REPORT_DES
   /* USER CODE END 1 */
    0xC0    /*     END_COLLECTION             */
 };
-
 /* USER CODE BEGIN PRIVATE_VARIABLES */
 
 /* USER CODE END PRIVATE_VARIABLES */
@@ -245,20 +243,20 @@ HID_Keyboard_Ipnput_Report HID_Keyboard_Report = {0};
   * @{
   */
 
-static int8_t CUSTOM_HID_Init_HS(void);
-static int8_t CUSTOM_HID_DeInit_HS(void);
-static int8_t CUSTOM_HID_OutEvent_HS(uint8_t event_idx, uint8_t state);
+static int8_t CUSTOM_HID_Keyboard_Init_HS(void);
+static int8_t CUSTOM_HID_Keyboard_DeInit_HS(void);
+static int8_t CUSTOM_HID_Keyboard_OutEvent_HS(uint8_t event_idx, uint8_t state);
 
 /**
   * @}
   */
 
-USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_HS =
+USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_Keyboard_fops_HS =
 {
-  CUSTOM_HID_ReportDesc_HS,
-  CUSTOM_HID_Init_HS,
-  CUSTOM_HID_DeInit_HS,
-  CUSTOM_HID_OutEvent_HS
+  CUSTOM_HID_Keyboard_ReportDesc_HS,
+  CUSTOM_HID_Keyboard_Init_HS,
+  CUSTOM_HID_Keyboard_DeInit_HS,
+  CUSTOM_HID_Keyboard_OutEvent_HS
 };
 
 /** @defgroup USBD_CUSTOM_HID_Private_Functions USBD_CUSTOM_HID_Private_Functions
@@ -272,7 +270,7 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_HS =
   * @brief  Initializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_Init_HS(void)
+static int8_t CUSTOM_HID_Keyboard_Init_HS(void)
 {
   /* USER CODE BEGIN 8 */
   return (USBD_OK);
@@ -283,7 +281,7 @@ static int8_t CUSTOM_HID_Init_HS(void)
   * @brief  DeInitializes the CUSTOM HID media low layer
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_DeInit_HS(void)
+static int8_t CUSTOM_HID_Keyboard_DeInit_HS(void)
 {
   /* USER CODE BEGIN 9 */
   return (USBD_OK);
@@ -296,19 +294,21 @@ static int8_t CUSTOM_HID_DeInit_HS(void)
   * @param  state: Event state
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-static int8_t CUSTOM_HID_OutEvent_HS(uint8_t event_idx, uint8_t state)
+static int8_t CUSTOM_HID_Keyboard_OutEvent_HS(uint8_t event_idx, uint8_t state)
 {
   /* USER CODE BEGIN 10 */
   UNUSED(event_idx);
   UNUSED(state);
 
     /* Start next USB packet transfer once data processing is completed */
-  USBD_CUSTOM_HID_ReceivePacket(&hUsbDeviceHS);
+  if (USBD_CUSTOM_HID_Keyboard_ReceivePacket(&hUsbDeviceHS) != (uint8_t)USBD_OK)
+  {
+    return -1;
+  }
 
   return (USBD_OK);
   /* USER CODE END 10 */
 }
-
 /* USER CODE BEGIN 11 */
 /**
   * @brief  Send the report to the Host
@@ -316,15 +316,16 @@ static int8_t CUSTOM_HID_OutEvent_HS(uint8_t event_idx, uint8_t state)
   * @param  len: The report length
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-int8_t USBD_CUSTOM_HID_SendReport_HS(uint8_t *report, uint16_t len)
+
+int8_t USBD_CUSTOM_HID_Keyboard_SendReport_HS(uint8_t *report, uint16_t len)
 {
   /* NOTE:
    * We need manually switch the USB interface during the Tx data preparation
    * because this process is not part of operations in USBD_COMPOSITE.
    */
-//  USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CUSTOMHID_INTERFACE);
-  return USBD_CUSTOM_HID_SendReport(&hUsbDeviceHS, report, len);
+  return USBD_CUSTOM_HID_Keyboard_SendReport(&hUsbDeviceHS, report, len);
 }
+
 /* USER CODE END 11 */
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
@@ -341,6 +342,4 @@ int8_t USBD_CUSTOM_HID_SendReport_HS(uint8_t *report, uint16_t len)
 /**
   * @}
   */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
 

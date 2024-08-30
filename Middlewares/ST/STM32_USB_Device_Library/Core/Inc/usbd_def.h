@@ -417,6 +417,6 @@ __STATIC_INLINE uint16_t SWAPBYTE(uint8_t *addr)
   */
 
 /**
-  * @}
-  */
+* @}
+*/
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

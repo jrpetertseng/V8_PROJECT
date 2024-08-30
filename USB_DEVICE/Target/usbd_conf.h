@@ -62,7 +62,7 @@
   */
 
 /*---------- -----------*/
-#define USBD_MAX_NUM_INTERFACES     8U
+#define USBD_MAX_NUM_INTERFACES     6U
 /*---------- -----------*/
 #define USBD_MAX_NUM_CONFIGURATION     1U
 /*---------- -----------*/
@@ -73,23 +73,11 @@
 #define USBD_LPM_ENABLED     0U
 /*---------- -----------*/
 #define USBD_SELF_POWERED     0U
-/*---------- -----------*/
-#define USBD_CUSTOMHID_OUTREPORT_BUF_SIZE     16U
-/*---------- -----------*/
-#define USBD_CUSTOM_HID_REPORT_DESC_SIZE     164U
-/*---------- -----------*/
-#define CUSTOM_HID_HS_BINTERVAL     0x5U
-#define USBD_AUDIO_FREQ     16000U
-#define USBD_AUDIO_CHANNEL  1U
-
-/* If we use UAC, this must be on */
-#define FS_OVER_HS_CTRL     0
 
 /****************************************/
 /* #define for FS and HS identification */
 #define DEVICE_FS 		0
 #define DEVICE_HS 		1
-
 
 /**
   * @}

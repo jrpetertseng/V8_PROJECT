@@ -46,12 +46,10 @@
   #ifdef PRINTF_VIA_CDC_ENABLED
 #include "usbd_cdc_if.h"
   #endif
-#include "pingpong_buf.h"
 #include "flash_rw_process.h"
 #include "ecx343.h"
 #include "rpr0521.h"
 #include "al3010.h"
-#include "ring_buffer.h"
 
 /* USER CODE END Includes */
 
