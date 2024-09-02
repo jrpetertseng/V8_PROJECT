@@ -107,10 +107,17 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
 			break;
         case DOUBLE_CLICK:
             *currentMode = (*currentMode == MODE_BRIGHTNESS) ? MODE_VOLUME : MODE_BRIGHTNESS;
-//            usbDebug("#btmode %d@\r\n", *currentMode);
+            usbDebug("#btmode %d@\r\n", *currentMode);
             break;
         case LONG_PRESS:
-//			usbDebug("#take a picture@\r\n");
+            *displayType = (*displayType == MODE_RELEASE) ? MODE_TRANSITION : MODE_RELEASE;
+            executeTaskWithMutex(POWER_SAVING, *displayType);
+
+            if (*displayType == MODE_RELEASE) {
+                usbDebug("#panel power release@\r\n");
+            } else {
+                usbDebug("#panel power transition@\r\n");
+            }
             break;
     }
     *clickType = NO_CLICK;

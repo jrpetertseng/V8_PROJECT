@@ -393,6 +393,7 @@ typedef enum {
     ORBIT_V,
     ADJUST_BRIGHTNESS,
 	UPDATE_TEMPERATURE,
+	POWER_SAVING,
 } TaskID;
 
 #define PANEL_WRITE_LENGTH                   (uint16_t)2

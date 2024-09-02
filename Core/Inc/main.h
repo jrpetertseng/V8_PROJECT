@@ -196,7 +196,7 @@ PUTCHAR_PROTOTYPE;
 
 #define V_MAJOR 0
 #define V_MINOR 2
-#define V_PATCH 5
+#define V_PATCH 6
 /* Model Code Rules:
  *  1st character: J, Jorjin
  *  2nd character: 8, J8 series

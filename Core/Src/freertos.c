@@ -726,62 +726,56 @@ static inline void i2c1TxUnblock(void)
 	xSemaphoreGive(I2C1_Lock);
 }
 
-void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime)
-{
-	const uint32_t checkInterval = 1000;
-	const uint32_t highTempThresholdTime = 60000;
-	static bool reduceBrightness = false;
+void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime) {
+	const uint8_t defaultLux = 250;
+	const uint8_t luxStep = 10;
+    const uint32_t checkInterval = 1000;
+    const uint32_t highTempThresholdTime = 60000;
+    static bool reduceBrightness = false;
 
-	uint32_t currentTick = osKernelGetTickCount();
+    uint32_t currentTick = osKernelGetTickCount();
 
-	if ((currentTick - *startTime) > checkInterval)
-	{
-		*startTime = currentTick;
+    if (!reduceBrightness && (currentTick - *startTime) <= checkInterval) {
+        return;
+    }
 
-		if (g_temperatureLeftSmoothed > 70.0f || g_temperatureRightSmoothed > 70.0f)
-		{
-			if (*lastHighTempTime == 0)
-			{
-				*lastHighTempTime = currentTick;
-			}
-			else if ((currentTick - *lastHighTempTime) > highTempThresholdTime)
-			{
-				reduceBrightness = true;
-			}
-		}
-		else
-		{
-			*lastHighTempTime = 0;
-		}
-	}
+    if (!reduceBrightness) {
+        *startTime = currentTick;
 
-	if (reduceBrightness)
-	{
-		bool brightnessReduced = false;
+        bool tempTooHigh = g_temperatureLeftSmoothed > 70.0f || g_temperatureRightSmoothed > 70.0f;
 
-		if (ecx343_current_data.uLCD_LUXL > 350)
-		{
-			ecx343_current_data.uLCD_LUXL -= 10;
-			brightnessReduced = true;
-		}
+        if (tempTooHigh) {
+            if (*lastHighTempTime == 0) {
+                *lastHighTempTime = currentTick;
+            } else if ((currentTick - *lastHighTempTime) > highTempThresholdTime) {
+                reduceBrightness = true;
+            }
+        } else {
+            *lastHighTempTime = 0;
+            return;
+        }
+    }
 
-		if (ecx343_current_data.uLCD_LUXR > 350)
-		{
-			ecx343_current_data.uLCD_LUXR -= 10;
-			brightnessReduced = true;
-		}
+    bool brightnessReduced = false;
 
-		if (brightnessReduced)
-		{
-			isAutoBrightnessEnabled = 0;
-			executeTaskWithMutex(ADJUST_BRIGHTNESS);
-		}
+    if (ecx343_current_data.uLCD_LUXL > defaultLux) {
+        ecx343_current_data.uLCD_LUXL -= luxStep;
+        brightnessReduced = true;
+    }
 
-		if (ecx343_current_data.uLCD_LUXL <= 350 && ecx343_current_data.uLCD_LUXR <= 350)
-		{
-			reduceBrightness = false;
-		}
-	}
+    if (ecx343_current_data.uLCD_LUXR > defaultLux) {
+        ecx343_current_data.uLCD_LUXR -= luxStep;
+        brightnessReduced = true;
+    }
+
+    if (brightnessReduced) {
+        isAutoBrightnessEnabled = 0;
+        executeTaskWithMutex(ADJUST_BRIGHTNESS);
+    }
+
+    if (ecx343_current_data.uLCD_LUXL <= defaultLux && ecx343_current_data.uLCD_LUXR <= defaultLux) {
+        reduceBrightness = false;
+    }
 }
 
 void ResetTof(void)

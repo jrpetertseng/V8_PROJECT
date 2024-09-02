@@ -67,6 +67,8 @@ static void ECX343EN_PowerOff(void);
 static void ECX343EN_StartPanelPowerSequence(PanelSide side);
 static void ECX343EN_StopPanelPowerSequence(PanelSide side);
 static void ECX343EN_PanelPSRelease(void);
+static void ECX343EN_PanelPSTransition(void);
+static void ECX343EN_PowerSaving(uint8_t type);
 static PowContStatus pow_on_sequence(void);
 static PowContStatus pow_off_sequence(void);
 static PowContStatus panel_reg_setting(void);
@@ -150,6 +152,8 @@ void executeTaskWithMutex(TaskID taskID, ...) {
                     ECX343EN_TempDetect(side, value);
                 }
                 break;
+            case POWER_SAVING:
+            	ECX343EN_PowerSaving(va_arg(args, int));
             default:
                 break;
         }
@@ -477,6 +481,25 @@ static void ECX343EN_PanelPSRelease(void) {
      ECX343EN_ActivatePanel(PANEL_RIGHT);
      while (panel_ps_release() == PANEL_CONT_CONTINUE) {
      }
+}
+
+static void ECX343EN_PanelPSTransition(void) {
+     ECX343EN_ActivatePanel(PANEL_LEFT);
+     while (panel_ps_transition() == PANEL_CONT_CONTINUE) {
+     }
+
+     ECX343EN_ActivatePanel(PANEL_RIGHT);
+     while (panel_ps_transition() == PANEL_CONT_CONTINUE) {
+     }
+}
+
+static void ECX343EN_PowerSaving(uint8_t type)
+{
+	if (type) {
+		ECX343EN_PanelPSRelease();
+	} else {
+		ECX343EN_PanelPSTransition();
+	}
 }
 
 static void ECX343EN_ActivatePanel(PanelSide side) {
