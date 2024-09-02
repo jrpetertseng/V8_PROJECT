@@ -114,9 +114,9 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
             executeTaskWithMutex(POWER_SAVING, *displayType);
 
             if (*displayType == MODE_RELEASE) {
-                usbDebug("#panel power release@\r\n");
+                usbDebug("#lcdpwr %d@\r\n", MODE_RELEASE);
             } else {
-                usbDebug("#panel power transition@\r\n");
+                usbDebug("#lcdpwr %d@\r\n", MODE_TRANSITION);
             }
             break;
     }

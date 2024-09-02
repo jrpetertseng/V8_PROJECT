@@ -496,9 +496,9 @@ static void ECX343EN_PanelPSTransition(void) {
 static void ECX343EN_PowerSaving(uint8_t type)
 {
 	if (type) {
-		ECX343EN_PanelPSRelease();
-	} else {
 		ECX343EN_PanelPSTransition();
+	} else {
+		ECX343EN_PanelPSRelease();
 	}
 }
 
