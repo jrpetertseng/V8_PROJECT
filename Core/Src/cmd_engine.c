@@ -35,6 +35,7 @@ bool bRangePacketUpdated = false;
 
 extern uint8_t isDebugModeEnabled;
 extern uint8_t isAutoBrightnessEnabled;
+extern uint8_t isHighTempBrightnessEnabled;
 uint8_t tof_resetFlag = 0;
 
 ECX343_DATA ecx343_data;
@@ -315,12 +316,15 @@ static Command string_to_command(char* str, uint32_t len) {
             } else if (!strncmp(str+3, "lcdmode", 7)) {
                 cmd.Cmd =  CE_SET_LCD_MODE;
                 buf_offset = 10;
-            } else if (!strncmp(str+3, "adcdebug", 8)) {
-                cmd.Cmd =  CE_SET_ADC_DEBUG;
+            } else if (!strncmp(str+3, "tempbn", 6)) {
+                cmd.Cmd =  CE_SET_HIGH_TEMP_BRIGHTNESS;
                 buf_offset = 11;
             } else if (!strncmp(str+3, "autobn", 6)) {
                 cmd.Cmd =  CE_SET_AUTO_BRIGHTNESS;
                 buf_offset = 11;
+            } else if (!strncmp(str+3, "debug", 5)) {
+                cmd.Cmd =  CE_SET_DEBUG_MODE;
+                buf_offset = 8;
             }
         } else if (!strncmp(str, "get", 3)) {
             if (!strncmp(str+3, "echo", 4)) {
@@ -505,9 +509,9 @@ static Command string_to_command(char* str, uint32_t len) {
             } else if (!strncmp(str+2, "voldown", 7)) {
                 cmd.Cmd =  CE_CR_VOLDOWN;
                 buf_offset = 9;
-                /*} else if (!strncmp(str+2, "media", 5)) {
-                    cmd.Cmd =  CE_CR_MEDIA;
-                    buf_offset = 7;*/
+            /*} else if (!strncmp(str+2, "media", 5)) {
+                cmd.Cmd =  CE_CR_MEDIA;
+                buf_offset = 7;*/
             } else if (!strncmp(str+2, "assistant", 9)) {
                 cmd.Cmd =  CE_CR_ASSISTANT;
                 buf_offset = 11;
@@ -637,39 +641,31 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         } else if (value <= 1) {
             char* padding = ((value == 0) != CDC_Echo_Ctrl_Flag) ? "" : "\r\n";
-            if (value == 1)
-                CDC_Echo_Ctrl_Flag = 1;
-            else
-                CDC_Echo_Ctrl_Flag = 0;
+            CDC_Echo_Ctrl_Flag = (value == 1) ? 1 : 0;
             reply += sprintf(reply, "%sOK", padding);
         } else {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
         break;
     case CE_SET_TOF_PWR:
-//        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         value = strtol(data, &data, 10);
-        if (value == 0 && *(data-1) != '0') {
-            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
-        } else if (value == 0) {
+        if (value == 0 && *(data-1) == '0') {
             HAL_NVIC_DisableIRQ(EXTI1_IRQn);
             interruptTofEnable = 0;
-            usbDebug("tofResetCount: %d \r\n", tofResetCount);
             reply += sprintf(reply, "OK");
         } else if (value == 2) {
             tof_resetFlag = 1;
             reply += sprintf(reply, "OK");
-        }
-        else {
-            reply += sprintf(reply, "OK");
+        } else if (value == 3) {
+            usbDebug("tofResetCount: %d \r\n", tofResetCount);
+        } else {
+            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
         break;
     case CE_SET_TOF_MODE:
-//        reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         reply += sprintf(reply, "OK");
         break;
     case CE_SET_TOF_CONF:
-        //reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         reply += sprintf(reply, "OK");
         HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
         HAL_NVIC_EnableIRQ(EXTI1_IRQn);
@@ -804,6 +800,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         {
         	isDebugModeEnabled = 0;
         	isAutoBrightnessEnabled = 0;
+        	isHighTempBrightnessEnabled = 0;
             memset(ecx343RW_buf, 0, sizeof(ecx343RW_buf));
             memcpy(ecx343RW_buf, (void *)&ecx343_data, sizeof(ECX343_DATA));
             if (Flash_Write_Data(0x08010000 , ecx343RW_buf, sizeof(ecx343RW_buf)/4))
@@ -854,18 +851,26 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
             reply += sprintf(reply, "OK");
         }
         break;
-    case CE_SET_ADC_DEBUG:
+    case CE_SET_HIGH_TEMP_BRIGHTNESS:
         if (!args_len) {
-            isDebugModeEnabled = !isDebugModeEnabled;
-            reply += sprintf(reply, "Set ADC DEBUG: %d", isDebugModeEnabled);
+            isHighTempBrightnessEnabled = !isHighTempBrightnessEnabled;
+            reply += sprintf(reply, "Set High Temp Brightness: %d", isHighTempBrightnessEnabled);
         } else {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
         break;
     case CE_SET_AUTO_BRIGHTNESS:
         if (!args_len) {
-        	isAutoBrightnessEnabled = !isAutoBrightnessEnabled;
-            reply += sprintf(reply, "Set AutoBrightness: %d", isAutoBrightnessEnabled);
+            isAutoBrightnessEnabled = !isAutoBrightnessEnabled;
+            reply += sprintf(reply, "Set Auto Brightness: %d", isAutoBrightnessEnabled);
+        } else {
+            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        }
+        break;
+    case CE_SET_DEBUG_MODE:
+        if (!args_len) {
+            isDebugModeEnabled = !isDebugModeEnabled;
+            reply += sprintf(reply, "Set Debug Mode: %d", isDebugModeEnabled);
         } else {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
@@ -933,12 +938,11 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
     case CE_GET_BRG_FW:
        if (!args_len)
        {
-
             /*==========get bridge FW version 4 bytes with following code:===========*/
-           uint8_t brgFW[4];
-           GetBridgeVersion(brgFW);
-           reply += sprintf(reply, "%02X%02X%02X%02X", brgFW[0], brgFW[1], brgFW[2], brgFW[3]);
-           /*==================END====================*/
+            uint8_t brgFW[4];
+            GetBridgeVersion(brgFW);
+            reply += sprintf(reply, "%02X%02X%02X%02X", brgFW[0], brgFW[1], brgFW[2], brgFW[3]);
+            /*==================END====================*/
 
        }
        else

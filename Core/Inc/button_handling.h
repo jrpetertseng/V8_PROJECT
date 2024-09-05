@@ -16,8 +16,8 @@
 #define CLICK_DETECTION_PERIOD 1000
 
 typedef enum {
-    MODE_BRIGHTNESS,
-    MODE_VOLUME
+    MODE_VOLUME,
+    MODE_BRIGHTNESS
 } OperationMode;
 
 typedef enum {

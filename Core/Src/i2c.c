@@ -83,7 +83,7 @@ void MX_I2C2_Init(void)
 
   /* USER CODE END I2C2_Init 1 */
   hi2c2.Instance = I2C2;
-  hi2c2.Init.Timing = 0x00100515;
+  hi2c2.Init.Timing = 0x00301739; // 400KHz // 0x00100515; // 1MHz
   hi2c2.Init.OwnAddress1 = 0;
   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -332,15 +332,18 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* i2cHandle)
 void I2C2_SoftwareReset(void) {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
 
+    // De-initialize I2C pins
     HAL_GPIO_DeInit(TOF_SCL_GPIO_Port, TOF_SCL_Pin);
     HAL_GPIO_DeInit(TOF_SDA_GPIO_Port, TOF_SDA_Pin);
 
-    GPIO_InitStruct.Pin = TOF_SCL_Pin|TOF_SDA_Pin;
+    // Configure SCL and SDA as Open-Drain Output
+    GPIO_InitStruct.Pin = TOF_SCL_Pin | TOF_SDA_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    HAL_GPIO_Init(TOF_SCL_GPIO_Port, &GPIO_InitStruct);
 
+    // Generate 10 clock pulses to simulate I2C reset
     for (int i = 0; i < 10; i++) {
         HAL_GPIO_WritePin(TOF_SCL_GPIO_Port, TOF_SCL_Pin, GPIO_PIN_SET);
         HAL_Delay(1);
@@ -348,12 +351,17 @@ void I2C2_SoftwareReset(void) {
         HAL_Delay(1);
     }
 
-    GPIO_InitStruct.Pin = TOF_SCL_Pin|TOF_SDA_Pin;
+    // Reconfigure SCL and SDA as Alternate Function Open-Drain for I2C2
     GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
     GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    HAL_GPIO_Init(TOF_SCL_GPIO_Port, &GPIO_InitStruct);
 
-    HAL_I2C_DeInit(&hi2c2);
-    HAL_I2C_Init(&hi2c2);
+    // De-initialize and re-initialize the I2C2 peripheral
+    if (HAL_I2C_DeInit(&hi2c2) != HAL_OK) {
+        // Error handling: DeInit failed
+    }
+    if (HAL_I2C_Init(&hi2c2) != HAL_OK) {
+        // Error handling: Init failed
+    }
 }
 /* USER CODE END 1 */

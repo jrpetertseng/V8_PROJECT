@@ -39,8 +39,9 @@ typedef enum {
     CE_SET_LCD_DEVICEL      = 0x10BU,
     CE_SET_LCD_DEVICER      = 0x10CU,
     CE_SET_LCD_MODE         = 0x10DU,
-    CE_SET_ADC_DEBUG        = 0x10EU,
+    CE_SET_HIGH_TEMP_BRIGHTNESS = 0x10EU,
     CE_SET_AUTO_BRIGHTNESS  = 0x10FU,
+    CE_SET_DEBUG_MODE       = 0x110U,
     //Get
     CE_GET_ECHO             = 0x150U,
     CE_GET_FW_VER           = 0x151U,

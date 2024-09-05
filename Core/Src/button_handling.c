@@ -99,14 +99,14 @@ void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, Butto
 
 //			CheckPanelState();
 
-			mode_state = (ecx343_current_data.uLCD_MODE + 1) % 4;
+			mode_state = (ecx343_current_data.uLCD_MODE + 2) % 4;
 			currentPanelMode = mode_state;
 			switchMode();
 			usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
         #endif
 			break;
         case DOUBLE_CLICK:
-            *currentMode = (*currentMode == MODE_BRIGHTNESS) ? MODE_VOLUME : MODE_BRIGHTNESS;
+            *currentMode = (*currentMode == MODE_VOLUME) ? MODE_BRIGHTNESS : MODE_VOLUME;
             usbDebug("#btmode %d@\r\n", *currentMode);
             break;
         case LONG_PRESS:
@@ -129,29 +129,54 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType, Operati
             HandleButtonClick(currentMode, displayType, clickType);
             break;
         case 2:
-           if (*currentMode == MODE_BRIGHTNESS) {
-               ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL > 100) ?
-                   ecx343_current_data.uLCD_LUXL - 10 : ecx343_current_data.uLCD_LUXL;
-               ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR > 100) ?
-                   ecx343_current_data.uLCD_LUXR - 10 : ecx343_current_data.uLCD_LUXR;
-                executeTaskWithMutex(ADJUST_BRIGHTNESS);
-               usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
-               break;
-           } else {
-           	usbDebug("#volume -@\r\n");
-           }
-            break;
+			if (*currentMode == MODE_VOLUME) {
+				keyReport.type = USB_HID_KEY_INPUT_REPORT;
+				keyReport.data.keyReport.len = sizeof(HID_KeyboardReport);
+
+				HID_keyboard_report.report_id = 0x02;
+				HID_keyboard_report.keys = 0x00000800;
+				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
+				usbSendMessage(&keyReport);
+				osDelay(20);
+
+				HID_keyboard_report.keys = 0x00000000;
+				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
+				usbSendMessage(&keyReport);
+				osDelay(20);
+				usbDebug("#volume +@\r\n");
+			} else {
+                ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL < 500) ?
+				ecx343_current_data.uLCD_LUXL + 10 : ecx343_current_data.uLCD_LUXL;
+				ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR < 500) ?
+				ecx343_current_data.uLCD_LUXR + 10 : ecx343_current_data.uLCD_LUXR;
+				executeTaskWithMutex(ADJUST_BRIGHTNESS);
+				usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
+			}
+			break;
         case 4:
-           if (*currentMode == MODE_BRIGHTNESS) {
-               ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL < 500) ?
-                   ecx343_current_data.uLCD_LUXL + 10 : ecx343_current_data.uLCD_LUXL;
-               ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR < 500) ?
-                   ecx343_current_data.uLCD_LUXR + 10 : ecx343_current_data.uLCD_LUXR;
-                executeTaskWithMutex(ADJUST_BRIGHTNESS);
-               usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
-           } else {
-           	usbDebug("#volume +@\r\n");
-           }
+			if (*currentMode == MODE_VOLUME) {
+				keyReport.type = USB_HID_KEY_INPUT_REPORT;
+                keyReport.data.keyReport.len = sizeof(HID_KeyboardReport);
+				HID_keyboard_report.report_id = 0x02;
+
+				HID_keyboard_report.keys = 0x00001000;
+				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
+				usbSendMessage(&keyReport);
+				osDelay(20);
+
+				HID_keyboard_report.keys = 0x00000000;
+				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
+				usbSendMessage(&keyReport);
+				osDelay(20);
+				usbDebug("#volume -@\r\n");
+			} else {
+                ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL > 100) ?
+				ecx343_current_data.uLCD_LUXL - 10 : ecx343_current_data.uLCD_LUXL;
+				ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR > 100) ?
+				ecx343_current_data.uLCD_LUXR - 10 : ecx343_current_data.uLCD_LUXR;
+				executeTaskWithMutex(ADJUST_BRIGHTNESS);
+				usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
+			}
             break;
     }
 }

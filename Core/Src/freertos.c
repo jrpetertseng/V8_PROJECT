@@ -60,7 +60,7 @@ typedef StaticTask_t osStaticThreadDef_t;
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define I2C_BUS             	(&hi2c1)
-#define PROXIMITY_THRESHOLD 	200
+#define PROXIMITY_THRESHOLD 	250
 #define OFF_DEBOUNCE_THRESHOLD 	pdMS_TO_TICKS(5000)
 #define ON_DEBOUNCE_THRESHOLD 	pdMS_TO_TICKS(1000)
 /* USER CODE END PD */
@@ -80,6 +80,7 @@ extern ECX343_DATA ecx343_current_data;
 VL53L8CX_Configuration Dev;
 uint8_t isDebugModeEnabled = 0;
 uint8_t isAutoBrightnessEnabled = 0;
+uint8_t isHighTempBrightnessEnabled = 0;
 
 uint8_t isPanelOn = 0;
 static SemaphoreHandle_t I2C1_Lock;
@@ -104,7 +105,7 @@ const osThreadAttr_t TofTask_attributes =
 { .name = "TofTask", .cb_mem = &ToFTaskControlBlock, .cb_size =
 		sizeof(ToFTaskControlBlock), .stack_mem = &ToFTaskBuffer[0],
 		.stack_size = sizeof(ToFTaskBuffer), .priority =
-				(osPriority_t) osPriorityNormal, };
+				(osPriority_t) osPriorityAboveNormal, };
 
 /* Definitions for ImuSensorTask */
 osThreadId_t ImuSensorTaskHandle;
@@ -114,7 +115,7 @@ const osThreadAttr_t ImuSensorTask_attributes =
 { .name = "ImuSensorTask", .cb_mem = &ImuSensorTaskControlBlock, .cb_size =
 		sizeof(ImuSensorTaskControlBlock), .stack_mem = &ImuSensorTaskBuffer[0],
 		.stack_size = sizeof(ImuSensorTaskBuffer), .priority =
-				(osPriority_t) osPriorityNormal, };
+				(osPriority_t) osPriorityAboveNormal, };
 
 /* Definitions for PSensorTask */
 osThreadId_t PSensorTaskHandle;
@@ -249,7 +250,7 @@ void StartUsbTxTask(void *argument)
 	usbInit();
 
 	MX_USB_DEVICE_Init();
-	osDelay(500);
+	osDelay(1000);
 
 	/* creation of ImuSensorTask */
 	ImuSensorTaskHandle = osThreadNew(StartImuSensorTask, NULL, &ImuSensorTask_attributes);
@@ -373,6 +374,7 @@ void StartImuSensorTask(void *argument)
 void StartPSensorTask(void *argument)
 {
 	/* USER CODE BEGIN StartPSensorTask */
+	uint8_t task_count = 0;
 	uint16_t proximity_value = 0;
 	static TickType_t lastTransitionTick = 0;
 
@@ -406,9 +408,14 @@ void StartPSensorTask(void *argument)
 					lastTransitionTick = xTaskGetTickCount(); // Reset the timer if the condition is no longer met
 				}
 				osThreadFlagsClear(0x01);
-//                usbDebug("p_threshold: %d@\r\n", p_threshold);
+
+				if (isDebugModeEnabled && task_count >= 10)
+				{
+					usbDebug("Proximity value: %d\r\n", proximity_value);
+				}
 			}
 		}
+		task_count += 1;
         osDelay(100);
 	}
 	/* USER CODE END StartPSensorTask */
@@ -453,7 +460,10 @@ void StartALSensorTask(void *argument)
 						if (previous_lux_index != current_lux_index)
 						{
 							previous_lux_index = current_lux_index;
-							usbDebug("Interval: %d\n", current_lux_index);
+							if (isDebugModeEnabled)
+							{
+								usbDebug("Interval: %d\n", current_lux_index);
+							}
 						}
 						smoothlyChangeBrightness(target_panel_brightness);
 					}
@@ -487,8 +497,7 @@ void StartADCTask(void *argument)
 		{
 			if (isDebugModeEnabled)
 			{
-				usbDebug(
-						"LeftOrigTemperature: %.2f\r\nRightOrigTemperature: %.2f\r\n",
+				usbDebug("LeftOrigTemperature: %.2f\r\nRightOrigTemperature: %.2f\r\n",
 						g_temperatureLeftRaw, g_temperatureRightRaw);
 			}
 			updatePanelTemperature();
@@ -571,7 +580,7 @@ void StartMainTask(void *argument)
 	osDelay(10);
 
 	//Enable ALS Int
-	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
+	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 6, 0);
 	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 #endif
 
@@ -590,7 +599,7 @@ void StartMainTask(void *argument)
 		osDelay(10);
 
 		//Enable PS Int
-		HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
+		HAL_NVIC_SetPriority(EXTI0_IRQn, 6, 0);
 		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 	#endif
 #endif
@@ -608,15 +617,13 @@ void StartMainTask(void *argument)
 	uint32_t pressTime = 0, releaseTime = 0;
 	ButtonState buttonFuncCurrState = BUTTON_RELEASED;
 	ButtonState buttonFuncPrevState = BUTTON_RELEASED;
-	OperationMode currentMode = MODE_BRIGHTNESS;
+	OperationMode currentMode = MODE_VOLUME;
 	PowerSave displayType = MODE_RELEASE;
 	ButtonClickType clickType = NO_CLICK;
 
-#if REDUCE_BRIGHTNESS_ON_HIGH_TEMP
 	uint32_t startTime = osKernelGetTickCount();
 	uint32_t lastHighTempTime = 0;
-#endif
-
+	
 	/* Infinite loop */
 	for (;;)
 	{
@@ -636,26 +643,6 @@ void StartMainTask(void *argument)
 		}
 #endif
 
-#if defined DEBUG
-		//IMU Debug
-		nBno08xGpioInts += 1;
-		nIMUHIDUsbOuts += 1;
-		if (nBno08xGpioInts > 40)
-		{
-//            usbDebug("IMU interrupt Dead \r\n");
-			nBno08xGpioInts = 0;
-//            HAL_GPIO_WritePin(IMU_RST_GPIO_Port, IMU_RST_Pin, GPIO_PIN_RESET);
-//            osDelay(10);
-//            HAL_GPIO_WritePin(IMU_RST_GPIO_Port, IMU_RST_Pin, GPIO_PIN_SET);
-//
-//            initSensor();
-		}
-		if (nIMUHIDUsbOuts > 40)
-		{
-//            usbDebug("IMU HID OutPut Dead \r\n");
-			nIMUHIDUsbOuts = 0;
-		}
-#endif
 		if (!isPanelOn) continue;
 
 		/* ButtonEvent */
@@ -683,10 +670,11 @@ void StartMainTask(void *argument)
 			ProcessButtonEvent(buttonEvent, &clickType, &currentMode, &displayType);
 		}
 
-#if REDUCE_BRIGHTNESS_ON_HIGH_TEMP
-		/* Reduce brightness to 3500 when the panel exceeds 70 degrees. */
-		checkAndReduceBrightness(&startTime, &lastHighTempTime);
-#endif
+		if(isHighTempBrightnessEnabled)
+		{
+			/* Reduce brightness to 3500 when the panel exceeds 70 degrees. */
+			checkAndReduceBrightness(&startTime, &lastHighTempTime);
+		}
 	}
 	/* USER CODE END StartMainTask */
 }
@@ -727,8 +715,8 @@ static inline void i2c1TxUnblock(void)
 }
 
 void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime) {
-	const uint8_t defaultLux = 250;
 	const uint8_t luxStep = 10;
+	const uint16_t defaultLux = 350;
     const uint32_t checkInterval = 1000;
     const uint32_t highTempThresholdTime = 60000;
     static bool reduceBrightness = false;
@@ -801,11 +789,7 @@ void ResetTof(void)
 	status = vl53l8cx_init(&Dev);
 	status = vl53l8cx_set_resolution(&Dev, VL53L8CX_RESOLUTION_8X8);
 	status = vl53l8cx_set_target_order(&Dev, VL53L8CX_TARGET_ORDER_CLOSEST);
-#if ENABLE_TOF_15HZ
 	status = vl53l8cx_set_ranging_frequency_hz(&Dev, 15);
-#else
-	status = vl53l8cx_set_ranging_frequency_hz(&Dev, 8);
-#endif
 	status = vl53l8cx_set_ranging_mode(&Dev, VL53L8CX_RANGING_MODE_CONTINUOUS); // Set mode continuous
 //	usbDebug("Ranging starts \r\n");
 	status = vl53l8cx_start_ranging(&Dev);

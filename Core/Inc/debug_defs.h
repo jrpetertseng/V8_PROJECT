@@ -9,8 +9,7 @@
 #define ENABLE_CDC_DEFAULT_ECHOBACK     0
 
 #define ENABLE_TOF                      1
-#define ENABLE_TOF_15HZ                 1
-#define ENABLE_TOF_FORCE_RESET          0
+#define ENABLE_TOF_FORCE_RESET          1
 #define ENABLE_TOF_DEBUG                0
 
 #define ENABLE_IMU                      1
@@ -20,7 +19,6 @@
 #define ENABLE_SCAN_I2C                 0
 
 #define ENABLE_PANEL                    0
-#define REDUCE_BRIGHTNESS_ON_HIGH_TEMP  0
 
 #define ENABLE_KEYBOARD_BUTTON_TEST     0
 

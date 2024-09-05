@@ -287,7 +287,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if(IMU_INTN_Pin == GPIO_Pin)
     {
-        nBno08xGpioInts = 0;
         SH2_GPIO_EXTI_Callback( GPIO_Pin);
         // nBno08xGpioInts += 1;
     }
