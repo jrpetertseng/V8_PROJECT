@@ -1,12 +1,16 @@
 #include "usbd_composite.h"
 #include "debug_defs.h"
 #include "usbd_cdc.h"
+
+#if ENABLE_DEVICECTL_CDC
 #include "usbd_cdc_devctlr.h"
+static USBD_CDC_DEVCTLR_HandleTypeDef *pCDCData_Devctlr;
+#endif
 #include "usbd_customhid.h"
 #include "usbd_customhid_sensor.h"
 
 static USBD_CDC_HandleTypeDef *pCDCData_Tof;
-static USBD_CDC_DEVCTLR_HandleTypeDef *pCDCData_Devctlr;
+
 static USBD_CUSTOM_HID_Sensor_HandleTypeDef *pHIDData_Sensor;
 static USBD_CUSTOM_HID_Keyboard_HandleTypeDef *pHIDData_Keyboard;
 
@@ -140,7 +144,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE] __ALIGN
 	HIBYTE(CDC_DATA_HS_MAX_PACKET_SIZE),
 	0x00,                                       /* bInterval: ignore for Bulk transfer */
 	/* 7 */
-
+#if ENABLE_DEVICECTL_CDC
 	/**************************** CDC Device Controller *******************************/
 	USBD_IAD_DESC_SIZE,                         /* bLength: Interface Association Descriptor size */
 	USBD_IAD_DESCRIPTOR_TYPE,                   /* bDescriptorType: Interface Association */
@@ -226,7 +230,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgFSDesc[USBD_COMPOSITE_DESC_SIZE] __ALIGN
 	HIBYTE(CDC_DEVCTLR_DATA_HS_MAX_PACKET_SIZE),
 	0x00,                                       /* bInterval: ignore for Bulk transfer */
 	/* 7 */
-
+#endif
 	/**************************** HID Sensor (1 EP to HOST, EPIN) *************************/
 	0x09,                                               /* bLength: Interface Descriptor size */
 	USB_DESC_TYPE_INTERFACE,                            /* bDescriptorType: Interface descriptor type */
@@ -329,11 +333,11 @@ static uint8_t  USBD_Composite_Init (USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 	pdev->pUserData = &USBD_Interface_fops_HS;
 	res +=  USBD_CDC.Init(pdev,cfgidx);
 	pCDCData_Tof = pdev->pClassData;
-
+#if ENABLE_DEVICECTL_CDC
 	pdev->pUserData = &USBD_Interface_fops_DEVCTLR_HS;
 	res +=  USBD_CDC_DEVCTLR.Init(pdev,cfgidx);
 	pCDCData_Devctlr = pdev->pClassData;
-
+#endif
 	pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
 	res +=  USBD_CUSTOM_HID_SENSOR.Init(pdev,cfgidx);
 	pHIDData_Sensor = pdev->pClassData;
@@ -359,11 +363,11 @@ static uint8_t  USBD_Composite_DeInit (USBD_HandleTypeDef *pdev, uint8_t cfgidx)
     pdev->pClassData = pCDCData_Tof;
     pdev->pUserData = &USBD_Interface_fops_HS;
     res +=  USBD_CDC.DeInit(pdev,cfgidx);
-
+#if ENABLE_DEVICECTL_CDC
     pdev->pClassData = pCDCData_Devctlr;
     pdev->pUserData = &USBD_Interface_fops_DEVCTLR_HS;
     res +=  USBD_CDC_DEVCTLR.DeInit(pdev,cfgidx);
-
+#endif
     pdev->pClassData = pHIDData_Sensor;
     pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
     res +=  USBD_CUSTOM_HID_SENSOR.DeInit(pdev,cfgidx);
@@ -383,13 +387,13 @@ static uint8_t USBD_Composite_EP0_RxReady(USBD_HandleTypeDef *pdev)
 	        pdev->pClassData = pCDCData_Tof;
 	        pdev->pUserData =  &USBD_Interface_fops_HS;
 	        return(USBD_CDC.EP0_RxReady(pdev));
-
+#if ENABLE_DEVICECTL_CDC
 	    case USBD_CDC_DEVCTLR_CMD_INTERFACE:
 	    case USBD_CDC_DEVCTLR_DATA_INTERFACE:
 	        pdev->pClassData = pCDCData_Devctlr;
 	        pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
 	        return(USBD_CDC_DEVCTLR.EP0_RxReady(pdev));
-
+#endif
 	    case USBD_HID_INTERFACE_SENSOR:
 	        pdev->pClassData = pHIDData_Sensor;
 	        pdev->pUserData =  &USBD_CustomHID_Sensor_fops_HS;
@@ -425,13 +429,13 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
 					pdev->pClassData = pCDCData_Tof;
 					pdev->pUserData =  &USBD_Interface_fops_HS;
 					return(USBD_CDC.Setup(pdev, req));
-
+#if ENABLE_DEVICECTL_CDC
 				case USBD_CDC_DEVCTLR_CMD_INTERFACE:
 				case USBD_CDC_DEVCTLR_DATA_INTERFACE:
 					pdev->pClassData = pCDCData_Devctlr;
 					pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
 					return(USBD_CDC_DEVCTLR.Setup (pdev, req));
-
+#endif
 				case USBD_HID_INTERFACE_SENSOR:
 					pdev->pClassData = pHIDData_Sensor;
 					pdev->pUserData =  &USBD_CustomHID_Sensor_fops_HS;
@@ -456,14 +460,14 @@ static uint8_t  USBD_Composite_Setup (USBD_HandleTypeDef *pdev, USBD_SetupReqTyp
 				pdev->pClassData = pCDCData_Tof;
 				pdev->pUserData =  &USBD_Interface_fops_HS;
 				return(USBD_CDC.Setup(pdev, req));
-
+#if ENABLE_DEVICECTL_CDC
 			case CDC_DEVCTLR_IN_EP:
 			case CDC_DEVCTLR_OUT_EP:
 			case CDC_DEVCTLR_CMD_EP:
 				pdev->pClassData = pCDCData_Devctlr;
 				pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
 				return(USBD_CDC_DEVCTLR.Setup(pdev, req));
-
+#endif
 			case CUSTOM_HID_SENSOR_EPIN_ADDR:
 			case CUSTOM_HID_SENSOR_EPOUT_ADDR:
 				pdev->pClassData = pHIDData_Sensor;
@@ -499,12 +503,12 @@ uint8_t  USBD_Composite_DataIn (USBD_HandleTypeDef *pdev, uint8_t epnum)
 			pdev->pClassData = pCDCData_Tof;
 			pdev->pUserData =  &USBD_Interface_fops_HS;
 			return(USBD_CDC.DataIn(pdev,epnum));
-
+#if ENABLE_DEVICECTL_CDC
 		case CDC_DEVCTLR_INDATA_NUM:
 			pdev->pClassData = pCDCData_Devctlr;
 			pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
 			return(USBD_CDC_DEVCTLR.DataIn(pdev,epnum));
-
+#endif
 		case HID_SENSOR_INDATA_NUM:
 			pdev->pClassData = pHIDData_Sensor;
 			pdev->pUserData =  &USBD_CustomHID_Sensor_fops_HS;
@@ -537,13 +541,13 @@ uint8_t  USBD_Composite_DataOut (USBD_HandleTypeDef *pdev, uint8_t epnum)
 			pdev->pClassData = pCDCData_Tof;
 			pdev->pUserData =  &USBD_Interface_fops_HS;
 			return(USBD_CDC.DataOut(pdev,epnum));
-
+#if ENABLE_DEVICECTL_CDC
 		case CDC_DEVCTLR_OUTDATA_NUM:
 		case CDC_DEVCTLR_OUTCMD_NUM:
 			pdev->pClassData = pCDCData_Devctlr;
 			pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
 			return(USBD_CDC_DEVCTLR.DataOut(pdev,epnum));
-
+#endif
 		case HID_SENSOR_OUTDATA_NUM:
 			pdev->pClassData = pHIDData_Sensor;
 			pdev->pUserData =  &USBD_CustomHID_Sensor_fops_HS;
@@ -589,17 +593,22 @@ uint8_t  *USBD_Composite_GetDeviceQualifierDescriptor (uint16_t *length)
   */
 void USBD_Composite_Switch_Itf(USBD_HandleTypeDef *pdev, USBD_COMPOSITE_ItfTypeDef interface)
 {
+#if ENABLE_DEVICECTL_CDC
 	if (!pdev || !pCDCData_Tof || !pCDCData_Devctlr || !pHIDData_Sensor || !pHIDData_Keyboard) return;
-
+#else
+	if (!pdev || !pCDCData_Tof || !pHIDData_Sensor || !pHIDData_Keyboard) return;
+#endif
 	switch (interface) {
 		case USBD_CDC_INTERFACE:
 			pdev->pClassData = pCDCData_Tof;
 			pdev->pUserData =  &USBD_Interface_fops_HS;
 			break;
+#if ENABLE_DEVICECTL_CDC
 		case USBD_CDC_DEVCTLR_INTERFACE:
 			pdev->pClassData = pCDCData_Devctlr;
 			pdev->pUserData =  &USBD_Interface_fops_DEVCTLR_HS;
 			break;
+#endif
 		case USBD_CUSTOMHID_SENSOR_INTERFACE:
 			pdev->pClassData = pHIDData_Sensor;
 			pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
@@ -618,9 +627,11 @@ USBD_COMPOSITE_ItfTypeDef USBD_Composite_Get_Current_Itf(USBD_HandleTypeDef *pde
 	if(pdev->pClassData == pCDCData_Tof) {
 		return USBD_CDC_INTERFACE;
 	}
+#if ENABLE_DEVICECTL_CDC
 	else if(pdev->pClassData == pCDCData_Devctlr) {
 		return USBD_CDC_DEVCTLR_INTERFACE;
 	}
+#endif
 	else if(pdev->pClassData == pHIDData_Sensor) {
 		return USBD_CUSTOMHID_SENSOR_INTERFACE;
 	}

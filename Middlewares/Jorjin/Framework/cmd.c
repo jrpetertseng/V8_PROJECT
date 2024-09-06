@@ -6,7 +6,9 @@
 #include "usbd_desc.h"
 #include "usb.h"
 #include "cmd_engine.h"
+#if ENABLE_DEVICECTL_CDC
 #include "usbd_cdc_if_devctlr.h"
+#endif
 
 struct Argc {
     char *ptr;
@@ -107,15 +109,20 @@ static int cmdGetHardwareSerialNumber(struct Argc *argc, int argv)
 
 static int cmdSetDebugEnable(struct Argc *argc, int argv)
 {
+#if ENABLE_DEVICECTL_CDC
     CDC_DEVCTLR_SetEnableTransmit( 1);
+#endif
     return 0;
 }
 
 static int cmdSetDebugDisable(struct Argc *argc, int argv)
 {
+#if ENABLE_DEVICECTL_CDC
     CDC_DEVCTLR_SetEnableTransmit( 0);
+#endif
     return 0;
 }
+
 
 int copyToBuffer_devCtlr(char *buf, int len)
 {

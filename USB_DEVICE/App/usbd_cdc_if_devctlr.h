@@ -26,7 +26,10 @@
  extern "C" {
 #endif
 
+
 /* Includes ------------------------------------------------------------------*/
+#include "debug_defs.h"
+#if ENABLE_DEVICECTL_CDC
 #include "usbd_cdc_devctlr.h"
 
 /* USER CODE BEGIN INCLUDE */
@@ -128,5 +131,6 @@ void CDC_DEVCTLR_SetEnableTransmit( uint8_t bEnable);
 }
 #endif
 
+#endif
 #endif /* __USBD_CDC_IF_H__ */
 

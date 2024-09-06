@@ -193,9 +193,13 @@ void CE_Parse_ToF_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len) {
 
         meta_data = get_data(buf, len);
         cmd = string_to_command((char*)meta_data.CmdData, meta_data.CmdLength);
+#if ENABLE_DEVICECTL_CDC
         if (cmd.Cmd < 0x100U)
             CE_Execute_Command(cmd.Cmd, cmd.Args, cmd.ArgsLength);
         else
+#else
+            CE_Execute_Command(cmd.Cmd, cmd.Args, cmd.ArgsLength);
+#endif
             usbEcho_Tof("NG %d", CE_ERR_COMMAND);
         buf = meta_data.ResidualData;
         len = meta_data.ResidualLength;

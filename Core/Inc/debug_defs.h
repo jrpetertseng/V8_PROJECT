@@ -22,6 +22,9 @@
 
 #define ENABLE_KEYBOARD_BUTTON_TEST     0
 
+//USB_HS
+#define ENABLE_DEVICECTL_CDC            1
+
 #if defined DEBUG
   /* When this is enabled, MUST open the CDC else it will lock!!! */
   //#define ENABLE_CDC_DEVCTLR_LOAD_PRINT   1

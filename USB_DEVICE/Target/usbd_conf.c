@@ -27,8 +27,10 @@
 #include "usbd_customhid.h"
 #include "usbd_customhid_sensor.h"
 #include "usbd_cdc.h"
-#include "usbd_cdc_devctlr.h"
 
+#if ENABLE_DEVICECTL_CDC
+#include "usbd_cdc_devctlr.h"
+#endif
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
@@ -338,7 +340,11 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   pdev->pData = &hpcd_USB_OTG_HS;
 
   hpcd_USB_OTG_HS.Instance = USB_OTG_HS;
+#if ENABLE_DEVICECTL_CDC
   hpcd_USB_OTG_HS.Init.dev_endpoints = 9;
+#else
+  hpcd_USB_OTG_HS.Init.dev_endpoints = 7;
+#endif
   hpcd_USB_OTG_HS.Init.dma_enable = DISABLE;
   hpcd_USB_OTG_HS.Init.phy_itface = USB_OTG_HS_EMBEDDED_PHY;
   hpcd_USB_OTG_HS.Init.Sof_enable = DISABLE;
@@ -376,11 +382,13 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_IN_EP & 0x7F), 0x80);
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_CMD_EP & 0x7F), 0x80);
 
+#if ENABLE_DEVICECTL_CDC
   // CDC ACM Device Controller
 #pragma message "CDC_DEVCTLR_IN_EP: " XSTR(CDC_DEVCTLR_IN_EP)
 #pragma message "CDC_DEVCTLR_CMD_EP: " XSTR(CDC_DEVCTLR_CMD_EP)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_IN_EP & 0x7F), 0x80);
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CDC_DEVCTLR_CMD_EP & 0x7F), 0x80);
+#endif
 
   // CUSTOM HID Sensor
 #pragma message "CUSTOM_HID_SENSOR_EPIN_ADDR: " XSTR(CUSTOM_HID_SENSOR_EPIN_ADDR)

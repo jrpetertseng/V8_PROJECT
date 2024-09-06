@@ -4,11 +4,14 @@
 #include "usb.h"
 #include "cmd.h"
 #include "config.h"
+#include "debug_defs.h"
 #include "usbd_cdc_if.h"
+
+#if ENABLE_DEVICECTL_CDC
 #include "usbd_cdc_if_devctlr.h"
+#endif
 #include "usbd_custom_hid_if.h"
 #include "usbd_custom_hid_sensor_if.h"
-#include "debug_defs.h"
 
 #include "cmsis_os.h"
 
@@ -314,6 +317,7 @@ void usbLoop() {
                 bRangePacketUpdated = false;
 //                usbTxUnblock();
                 break;
+#if ENABLE_DEVICECTL_CDC
             case USB_DEBUG_MSG:
 //                usbToF_TxBlock();
                 usbTx_inc_devctlr();
@@ -325,6 +329,7 @@ void usbLoop() {
                     usbTx_inc_devctlr_error();
 //                    usbTxUnblock();
                 }
+#endif
 #if ENABLE_STACK_CHECK
 //                osDelay(1000);
 #endif
@@ -402,6 +407,7 @@ static void UsbEscapeISRTask(void * argument)
                 /* Send to ToF command task. and reset it. */
                 processCommands_ToF();
                 break;
+#if ENABLE_DEVICECTL_CDC
             case USB_CDC_DEVCTLR_TX_COMPLETE_MSG:
                 usbTx_inc_devctlr_complete();
 //                usbTxUnblock();
@@ -427,8 +433,10 @@ static void UsbEscapeISRTask(void * argument)
                 }
                 processCommands_devCtlr();
                 break;
+#endif
             default:
                 break;
+
             }
 //            usbTxUnblock();
         }

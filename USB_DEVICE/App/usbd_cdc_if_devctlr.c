@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
+
 #include "usbd_cdc_if_devctlr.h"
 
 /* USER CODE BEGIN INCLUDE */
@@ -27,7 +28,7 @@
 #include "main.h"
 #include "debug_defs.h"
 #include <stdarg.h>
-
+#if ENABLE_DEVICECTL_CDC
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -416,6 +417,7 @@ void CDC_DEVCTLR_SetEnableTransmit( uint8_t bEnable)
         CDC_DEVCTLR_EnableTransmit = 0x0;
     }
 }
+#endif
 /* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
 
 /**

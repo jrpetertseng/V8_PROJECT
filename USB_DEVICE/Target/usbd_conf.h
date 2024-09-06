@@ -62,7 +62,11 @@
   */
 
 /*---------- -----------*/
+#if ENABLE_DEVICECTL_CDC
 #define USBD_MAX_NUM_INTERFACES     6U
+#else
+#define USBD_MAX_NUM_INTERFACES     4U
+#endif
 /*---------- -----------*/
 #define USBD_MAX_NUM_CONFIGURATION     1U
 /*---------- -----------*/
