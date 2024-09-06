@@ -42,6 +42,8 @@ typedef enum {
     CE_SET_HIGH_TEMP_BRIGHTNESS = 0x10EU,
     CE_SET_AUTO_BRIGHTNESS  = 0x10FU,
     CE_SET_DEBUG_MODE       = 0x110U,
+	CE_SET_ENC_EN	           = 0x111U,
+	CE_SET_MIC_MUTE         = 0x112U,
     //Get
     CE_GET_ECHO             = 0x150U,
     CE_GET_FW_VER           = 0x151U,

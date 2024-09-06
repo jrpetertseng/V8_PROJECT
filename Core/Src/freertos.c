@@ -82,6 +82,9 @@ uint8_t isDebugModeEnabled = 0;
 uint8_t isAutoBrightnessEnabled = 0;
 uint8_t isHighTempBrightnessEnabled = 0;
 
+uint8_t encSwitch = 0;
+uint8_t micSwitch = 0;
+
 uint8_t isPanelOn = 0;
 static SemaphoreHandle_t I2C1_Lock;
 static SemaphoreHandle_t isrToFLock;
@@ -412,6 +415,7 @@ void StartPSensorTask(void *argument)
 				if (isDebugModeEnabled && task_count >= 10)
 				{
 					usbDebug("Proximity value: %d\r\n", proximity_value);
+					task_count = 0;
 				}
 			}
 		}
@@ -623,11 +627,28 @@ void StartMainTask(void *argument)
 
 	uint32_t startTime = osKernelGetTickCount();
 	uint32_t lastHighTempTime = 0;
-	
+
+	uint8_t isEncEnable = 0;
+	uint8_t isMicMute   = 0;
 	/* Infinite loop */
 	for (;;)
 	{
 		osDelay(100);
+
+		if (encSwitch)
+		{
+        	isEncEnable = !isEncEnable;
+			HAL_GPIO_WritePin(CM7001N_ENC_ENB_M_GPIO_Port, CM7001N_ENC_ENB_M_Pin, isEncEnable);
+			usbDebug("Enc Enable: %d\r\n", isEncEnable);
+			encSwitch = 0;
+		}
+		if (micSwitch)
+		{
+        	isMicMute = !isMicMute;
+			HAL_GPIO_WritePin(CM6542_MIC_MUTE_M_GPIO_Port, CM6542_MIC_MUTE_M_Pin, isMicMute);
+			usbDebug("Mic Mute: %d\r\n", isMicMute);
+			micSwitch = 0;
+		}
 
 #if ENABLE_TOF_FORCE_RESET
 		nTofGpioInts_1 += 1;

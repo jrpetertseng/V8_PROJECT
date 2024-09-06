@@ -36,6 +36,8 @@ bool bRangePacketUpdated = false;
 extern uint8_t isDebugModeEnabled;
 extern uint8_t isAutoBrightnessEnabled;
 extern uint8_t isHighTempBrightnessEnabled;
+extern uint8_t encSwitch;
+extern uint8_t micSwitch;
 uint8_t tof_resetFlag = 0;
 
 ECX343_DATA ecx343_data;
@@ -329,6 +331,12 @@ static Command string_to_command(char* str, uint32_t len) {
             } else if (!strncmp(str+3, "debug", 5)) {
                 cmd.Cmd =  CE_SET_DEBUG_MODE;
                 buf_offset = 8;
+            } else if (!strncmp(str+3, "enc", 3)) {
+                cmd.Cmd =  CE_SET_ENC_EN;
+                buf_offset = 6;
+            } else if (!strncmp(str+3, "mic", 3)) {
+                cmd.Cmd =  CE_SET_MIC_MUTE;
+                buf_offset = 6;
             }
         } else if (!strncmp(str, "get", 3)) {
             if (!strncmp(str+3, "echo", 4)) {
@@ -875,6 +883,22 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t *args, uint32_t args_len) {
         if (!args_len) {
             isDebugModeEnabled = !isDebugModeEnabled;
             reply += sprintf(reply, "Set Debug Mode: %d", isDebugModeEnabled);
+        } else {
+            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        }
+        break;
+    case CE_SET_ENC_EN:
+        if (!args_len) {
+        	encSwitch = 1;
+        	reply += sprintf(reply, "OK");
+        } else {
+            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        }
+        break;
+    case CE_SET_MIC_MUTE:
+        if (!args_len) {
+        	micSwitch = 1;
+        	reply += sprintf(reply, "OK");
         } else {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
