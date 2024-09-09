@@ -790,28 +790,30 @@ void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime) {
 void ResetTof(void)
 {
 	uint8_t isAlive, status;
+	
 	Dev.platform.address = VL53L8CX_DEFAULT_I2C_ADDRESS;
-	Reset_Sensor(&(Dev.platform));
+	
+	VL53L8CX_Reset_Sensor(&(Dev.platform));
+	
 	while (1)
 	{
 		status = vl53l8cx_is_alive(&Dev, &isAlive);
-
 		if (!isAlive)
 		{
 //        	usbDebug("VL53L8CX not detected at requested address (0x%x) \r\n", Dev.platform.address);
-			Reset_Sensor(&(Dev.platform));
+			VL53L8CX_Reset_Sensor(&(Dev.platform));
 			vTaskDelay(pdMS_TO_TICKS(500));
 		}
 		else
 			break;
 	}
 //	usbDebug("Sensor initializing, please wait few seconds \r\n");
-
 	status = vl53l8cx_init(&Dev);
 	status = vl53l8cx_set_resolution(&Dev, VL53L8CX_RESOLUTION_8X8);
-	status = vl53l8cx_set_target_order(&Dev, VL53L8CX_TARGET_ORDER_CLOSEST);
 	status = vl53l8cx_set_ranging_frequency_hz(&Dev, 15);
+	status = vl53l8cx_set_target_order(&Dev, VL53L8CX_TARGET_ORDER_CLOSEST);
 	status = vl53l8cx_set_ranging_mode(&Dev, VL53L8CX_RANGING_MODE_CONTINUOUS); // Set mode continuous
+
 //	usbDebug("Ranging starts \r\n");
 	status = vl53l8cx_start_ranging(&Dev);
 

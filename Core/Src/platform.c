@@ -63,11 +63,11 @@
 #include "platform.h"
 #include "main.h"
 
-extern I2C_HandleTypeDef 	hi2c2;
+extern I2C_HandleTypeDef hi2c2;
 
 #define TOF_BUS hi2c2
 
-uint8_t RdByte(
+uint8_t VL53L8CX_RdByte(
 		VL53L8CX_Platform *p_platform,
 		uint16_t RegisterAdress,
 		uint8_t *p_value)
@@ -81,10 +81,11 @@ uint8_t RdByte(
 	status = HAL_I2C_Master_Transmit(&TOF_BUS, p_platform->address, data_write, 2, 100);
 	status = HAL_I2C_Master_Receive(&TOF_BUS, p_platform->address, data_read, 1, 100);
 	*p_value = data_read[0];
+  
 	return status;
 }
 
-uint8_t WrByte(
+uint8_t VL53L8CX_WrByte(
 		VL53L8CX_Platform *p_platform,
 		uint16_t RegisterAdress,
 		uint8_t value)
@@ -100,7 +101,7 @@ uint8_t WrByte(
 	return status;
 }
 
-uint8_t WrMulti(
+uint8_t VL53L8CX_WrMulti(
 		VL53L8CX_Platform *p_platform,
 		uint16_t RegisterAdress,
 		uint8_t *p_values,
@@ -108,16 +109,10 @@ uint8_t WrMulti(
 {
 	uint8_t status = HAL_I2C_Mem_Write(&TOF_BUS, p_platform->address, RegisterAdress,
 									I2C_MEMADD_SIZE_16BIT, p_values, size, 65535);
-//    uint8_t data_write[32]={0};
-//    data_write[0] = (RegisterAdress>>8) & 0xFF;
-//    data_write[1] = RegisterAdress & 0xFF;
-//
-//    memcpy(&(data_write[2]), p_values, size);
-//    HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&TOF_BUS, p_platform->address, data_write, (size+2), 65535);
 	return status;
 }
 
-uint8_t RdMulti(
+uint8_t VL53L8CX_RdMulti(
 		VL53L8CX_Platform *p_platform,
 		uint16_t RegisterAdress,
 		uint8_t *p_values,
@@ -133,41 +128,35 @@ uint8_t RdMulti(
 	return status;
 }
 
-uint8_t Reset_Sensor(VL53L8CX_Platform *p_platform)
+uint8_t VL53L8CX_Reset_Sensor(VL53L8CX_Platform *p_platform)
 {
 	/* Toggle EVK PWR EN board and Lpn pins */
-//	HAL_GPIO_WritePin(LPn_C_GPIO_Port, LPn_C_Pin, GPIO_PIN_RESET);
-//	HAL_GPIO_WritePin(PWR_EN_C_GPIO_Port, PWR_EN_C_Pin, GPIO_PIN_RESET);
-//	HAL_GPIO_WritePin(LPn_R_GPIO_Port, LPn_R_Pin, GPIO_PIN_RESET);
-//	HAL_GPIO_WritePin(PWR_EN_R_GPIO_Port, PWR_EN_R_Pin, GPIO_PIN_RESET);
-//	HAL_GPIO_WritePin(LPn_L_GPIO_Port, LPn_L_Pin, GPIO_PIN_RESET);
-//	HAL_GPIO_WritePin(PWR_EN_L_GPIO_Port, PWR_EN_L_Pin, GPIO_PIN_RESET);
-//	HAL_Delay(100);
-//
-//	HAL_GPIO_WritePin(PWR_EN_C_GPIO_Port, PWR_EN_C_Pin, GPIO_PIN_SET);
-//	HAL_Delay(100);
-//	HAL_GPIO_WritePin(LPn_C_GPIO_Port, LPn_C_Pin, GPIO_PIN_SET);
-//	HAL_Delay(100);
+	// HAL_GPIO_WritePin(LPn_C_GPIO_Port, LPn_C_Pin, GPIO_PIN_RESET);
+	// HAL_GPIO_WritePin(PWR_EN_C_GPIO_Port, PWR_EN_C_Pin, GPIO_PIN_RESET);
+	// HAL_GPIO_WritePin(LPn_R_GPIO_Port, LPn_R_Pin, GPIO_PIN_RESET);
+	// HAL_GPIO_WritePin(PWR_EN_R_GPIO_Port, PWR_EN_R_Pin, GPIO_PIN_RESET);
+	// HAL_GPIO_WritePin(LPn_L_GPIO_Port, LPn_L_Pin, GPIO_PIN_RESET);
+	// HAL_GPIO_WritePin(PWR_EN_L_GPIO_Port, PWR_EN_L_Pin, GPIO_PIN_RESET);
+	// HAL_Delay(100);
 
-    /* Set pin LPN to LOW */    //OFF
-    HAL_GPIO_WritePin(TOF_LPN_GPIO_Port, TOF_LPN_Pin, GPIO_PIN_RESET);
-    /* Set pin AVDD to LOW */
-    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_RESET);
-    /* Set pin VDDIO  to LOW */
-//    /* Set pin CORE_1V8 to LOW */
-    osDelay(100);
+	// HAL_GPIO_WritePin(PWR_EN_C_GPIO_Port, PWR_EN_C_Pin, GPIO_PIN_SET);
+	// HAL_Delay(100);
+	// HAL_GPIO_WritePin(LPn_C_GPIO_Port, LPn_C_Pin, GPIO_PIN_SET);
+	// HAL_Delay(100);
 
-    /* Set pin LPN to HIGH */   //ON
-    HAL_GPIO_WritePin(TOF_LPN_GPIO_Port, TOF_LPN_Pin, GPIO_PIN_SET);
-    /* Set pin AVDD to HIGH */
-    HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
-    /* Set pin VDDIO to HIGH */
-    /* Set pin CORE_1V8 to HIGH */
-//    HAL_Delay(100);
+	// Turn off all pins
+	HAL_GPIO_WritePin(TOF_LPN_GPIO_Port, TOF_LPN_Pin, GPIO_PIN_RESET);  // LPN OFF
+	HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_RESET);    // AVDD OFF
+	osDelay(100);  // Delay for stabilization
+
+	// Turn on all pins
+	HAL_GPIO_WritePin(TOF_LPN_GPIO_Port, TOF_LPN_Pin, GPIO_PIN_SET);    // LPN ON
+	HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);      // AVDD ON
+
 	return 0;
 }
 
-void SwapBuffer(
+void VL53L8CX_SwapBuffer(
 		uint8_t 		*buffer,
 		uint16_t 	 	 size)
 {
@@ -186,11 +175,11 @@ void SwapBuffer(
 	}
 }
 
-const uint8_t WaitMs(
+uint8_t VL53L8CX_WaitMs(
 		VL53L8CX_Platform *p_platform,
                uint32_t TimeMs)
 {
-//    osDelay(TimeMs);
-    vTaskDelay(pdMS_TO_TICKS(TimeMs));
+	// HAL_Delay(TimeMs);
+	vTaskDelay(pdMS_TO_TICKS(TimeMs));
 	return 0;
 }
