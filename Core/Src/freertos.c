@@ -250,6 +250,8 @@ void StartUsbTxTask(void *argument)
 	HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
 	osDelay(500);
 
+	HAL_GPIO_WritePin(LT7911_RSTN_GPIO_Port, LT7911_RSTN_Pin, GPIO_PIN_SET);
+
 	usbInit();
 
 	MX_USB_DEVICE_Init();
@@ -561,8 +563,6 @@ void StartI2CScanTask(void *argument)
 void StartMainTask(void *argument)
 {
 	/* USER CODE BEGIN StartMainTask */
-	HAL_GPIO_WritePin(LT7911_RSTN_GPIO_Port, LT7911_RSTN_Pin, GPIO_PIN_SET);
-	osDelay(10);
 	Ecx343_data_init_default();
 	osDelay(10);
 	ECX343EN_Init();

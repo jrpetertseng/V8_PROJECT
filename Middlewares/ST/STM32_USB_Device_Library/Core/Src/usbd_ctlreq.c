@@ -175,6 +175,9 @@ USBD_StatusTypeDef USBD_StdItfReq(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef
     case USBD_STATE_ADDRESSED:
     case USBD_STATE_CONFIGURED:
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+#pragma message "USBD_MAX_NUM_INTERFACES: " XSTR(USBD_MAX_NUM_INTERFACES)
       if (LOBYTE(req->wIndex) <= USBD_MAX_NUM_INTERFACES)
       {
         ret = (USBD_StatusTypeDef)pdev->pClass->Setup(pdev, req);
@@ -285,7 +288,7 @@ USBD_StatusTypeDef USBD_StdEPReq(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef 
             (void)USBD_LL_ClearStallEP(pdev, ep_addr);
           }
           (void)USBD_CtlSendStatus(pdev);
-          (USBD_StatusTypeDef)pdev->pClass->Setup(pdev, req);
+          ret = (USBD_StatusTypeDef)pdev->pClass->Setup(pdev, req);
         }
         break;
 
@@ -501,7 +504,8 @@ static void USBD_GetDescriptor(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *r
         USBD_CtlError(pdev, req);
         err++;
       }
-#elif (USBD_CLASS_USER_STRING_DESC == 1U)
+#endif
+#if (USBD_CLASS_USER_STRING_DESC == 1U)
       if (pdev->pDesc->GetUserStrDescriptor != NULL)
       {
         pbuf = pdev->pDesc->GetUserStrDescriptor(pdev->dev_speed, (req->wValue), &len);
@@ -511,7 +515,8 @@ static void USBD_GetDescriptor(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *r
         USBD_CtlError(pdev, req);
         err++;
       }
-#else
+#endif
+#if ((USBD_CLASS_USER_STRING_DESC == 0U) && (USBD_SUPPORT_USER_STRING_DESC == 0U))
       USBD_CtlError(pdev, req);
       err++;
 #endif
@@ -554,8 +559,7 @@ static void USBD_GetDescriptor(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *r
   {
     return;
   }
-  else
-  {
+
     if (req->wLength != 0U)
     {
       if (len != 0U)
@@ -573,7 +577,6 @@ static void USBD_GetDescriptor(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *r
       (void)USBD_CtlSendStatus(pdev);
     }
   }
-}
 
 /**
 * @brief  USBD_SetAddress

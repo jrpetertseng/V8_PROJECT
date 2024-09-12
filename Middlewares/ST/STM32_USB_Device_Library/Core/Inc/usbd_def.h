@@ -184,7 +184,8 @@ typedef struct
 {
   uint8_t   bLength;
   uint8_t   bDescriptorType;
-  uint16_t  wTotalLength;
+  uint8_t   wDescriptorLengthLow;
+  uint8_t   wDescriptorLengthHigh;
   uint8_t   bNumInterfaces;
   uint8_t   bConfigurationValue;
   uint8_t   iConfiguration;
@@ -199,16 +200,6 @@ typedef struct
   uint16_t  wTotalLength;
   uint8_t   bNumDeviceCaps;
 } USBD_BosDescTypedef;
-
-typedef struct
-{
-  uint8_t   bLength;
-  uint8_t   bDescriptorType;
-  uint8_t   bEndpointAddress;
-  uint8_t   bmAttributes;
-  uint16_t  wMaxPacketSize;
-  uint8_t   bInterval;
-} USBD_EpDescTypedef;
 
 struct _USBD_HandleTypeDef;
 
@@ -293,10 +284,10 @@ typedef struct _USBD_HandleTypeDef
   USBD_SpeedTypeDef       dev_speed;
   USBD_EndpointTypeDef    ep_in[16];
   USBD_EndpointTypeDef    ep_out[16];
-  __IO uint32_t           ep0_state;
+  uint32_t                ep0_state;
   uint32_t                ep0_data_len;
-  __IO uint8_t            dev_state;
-  __IO uint8_t            dev_old_state;
+  uint8_t                 dev_state;
+  uint8_t                 dev_old_state;
   uint8_t                 dev_address;
   uint8_t                 dev_connection_status;
   uint8_t                 dev_test_mode;

@@ -42,10 +42,10 @@ extern "C" {
 /** @defgroup USBD_CUSTOM_HID_Exported_Defines
   * @{
   */
-#define CUSTOM_HID_SENSOR_EPIN_ADDR                         0x85U
-#define CUSTOM_HID_SENSOR_EPIN_SIZE                         0x80U
+#define CUSTOM_HID_SENSOR_EPIN_ADDR                         0x84U // 0x85U
+#define CUSTOM_HID_SENSOR_EPIN_SIZE                         0x40U
 
-#define CUSTOM_HID_SENSOR_EPOUT_ADDR                        0x05U
+#define CUSTOM_HID_SENSOR_EPOUT_ADDR                        0x04U // 0x05U
 #define CUSTOM_HID_SENSOR_EPOUT_SIZE                        0x40U
 
 #define USB_CUSTOM_HID_SENSOR_CONFIG_DESC_SIZ               41U

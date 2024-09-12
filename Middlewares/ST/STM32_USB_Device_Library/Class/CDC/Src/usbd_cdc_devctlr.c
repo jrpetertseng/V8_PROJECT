@@ -112,7 +112,6 @@ static uint8_t *USBD_CDC_DEVCTLR_GetOtherSpeedCfgDesc(uint16_t *length);
 static uint8_t *USBD_CDC_DEVCTLR_GetOtherSpeedCfgDesc(uint16_t *length);
 uint8_t *USBD_CDC_DEVCTLR_GetDeviceQualifierDescriptor(uint16_t *length);
 
-static USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc;
 /* USB Standard Device Descriptor */
 __ALIGN_BEGIN static uint8_t USBD_CDC_DEVCTLR_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_DESC] __ALIGN_END =
 {
@@ -167,8 +166,12 @@ __ALIGN_BEGIN static uint8_t USBD_CDC_DEVCTLR_CfgHSDesc[USB_CDC_DEVCTLR_CONFIG_D
   0x02,                                       /* bNumInterfaces: 2 interface */
   0x01,                                       /* bConfigurationValue: Configuration value */
   0x00,                                       /* iConfiguration: Index of string descriptor describing the configuration */
-  0xC0,                                       /* bmAttributes: self powered */
-  USBD_MAX_POWER,                             /* MaxPower 0 mA */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                       /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                       /* bmAttributes: Bus Powered according to user configuration */
+#endif
+  USBD_MAX_POWER,                             /* MaxPower 100 mA */
 
   /*---------------------------------------------------------------------------*/
 
@@ -263,8 +266,12 @@ __ALIGN_BEGIN static uint8_t USBD_CDC_DEVCTLR_CfgFSDesc[USB_CDC_DEVCTLR_CONFIG_D
   0x02,                                       /* bNumInterfaces: 2 interface */
   0x01,                                       /* bConfigurationValue: Configuration value */
   0x00,                                       /* iConfiguration: Index of string descriptor describing the configuration */
-  0xC0,                                       /* bmAttributes: self powered */
-  USBD_MAX_POWER,                             /* MaxPower 0 mA */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                       /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                       /* bmAttributes: Bus Powered according to user configuration */
+#endif
+  USBD_MAX_POWER,                             /* MaxPower 100 mA */
 
   /*---------------------------------------------------------------------------*/
 
@@ -356,7 +363,11 @@ __ALIGN_BEGIN static uint8_t USBD_CDC_DEVCTLR_OtherSpeedCfgDesc[USB_CDC_DEVCTLR_
   0x02,                                       /* bNumInterfaces: 2 interfaces */
   0x01,                                       /* bConfigurationValue: */
   0x04,                                       /* iConfiguration: */
-  0xC0,                                       /* bmAttributes: */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                       /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                       /* bmAttributes: Bus Powered according to user configuration */
+#endif
   USBD_MAX_POWER,                             /* MaxPower 100 mA */
 
   /*Interface Descriptor */
@@ -458,6 +469,7 @@ static USBD_CDC_DEVCTLR_HandleTypeDef cdc_devCtlr;
 static uint8_t USBD_CDC_DEVCTLR_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 {
   UNUSED(cfgidx);
+  USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc;
 
   hdevcdc = &cdc_devCtlr;
 
@@ -569,7 +581,7 @@ static uint8_t USBD_CDC_DEVCTLR_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 static uint8_t USBD_CDC_DEVCTLR_Setup(USBD_HandleTypeDef *pdev,
                               USBD_SetupReqTypedef *req)
 {
-  hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
   uint16_t len;
   uint8_t ifalt = 0U;
   uint16_t status_info = 0U;
@@ -672,6 +684,7 @@ static uint8_t USBD_CDC_DEVCTLR_Setup(USBD_HandleTypeDef *pdev,
   */
 static uint8_t USBD_CDC_DEVCTLR_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
+  USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc;
   PCD_HandleTypeDef *hpcd = pdev->pData;
 
   if (pdev->pClassData == NULL)
@@ -712,7 +725,7 @@ static uint8_t USBD_CDC_DEVCTLR_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
   */
 static uint8_t USBD_CDC_DEVCTLR_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
-  hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
   if (pdev->pClassData == NULL)
   {
     return (uint8_t)USBD_FAIL;
@@ -737,7 +750,7 @@ static uint8_t USBD_CDC_DEVCTLR_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
   */
 static uint8_t USBD_CDC_DEVCTLR_EP0_RxReady(USBD_HandleTypeDef *pdev)
 {
-  hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
 
   if (hdevcdc == NULL)
   {
@@ -838,7 +851,7 @@ uint8_t USBD_CDC_DEVCTLR_RegisterInterface(USBD_HandleTypeDef *pdev,
 uint8_t USBD_CDC_DEVCTLR_SetTxBuffer(USBD_HandleTypeDef *pdev,
                              uint8_t *pbuff, uint32_t length)
 {
-  hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
   if (hdevcdc == NULL)
   {
     return (uint8_t)USBD_FAIL;
@@ -858,7 +871,7 @@ uint8_t USBD_CDC_DEVCTLR_SetTxBuffer(USBD_HandleTypeDef *pdev,
   */
 uint8_t USBD_CDC_DEVCTLR_SetRxBuffer(USBD_HandleTypeDef *pdev, uint8_t *pbuff)
 {
-  hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
   if (hdevcdc == NULL)
   {
     return (uint8_t)USBD_FAIL;
@@ -877,7 +890,7 @@ uint8_t USBD_CDC_DEVCTLR_SetRxBuffer(USBD_HandleTypeDef *pdev, uint8_t *pbuff)
   */
 uint8_t USBD_CDC_DEVCTLR_TransmitPacket(USBD_HandleTypeDef *pdev)
 {
-  hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
   USBD_StatusTypeDef ret = USBD_BUSY;
 
   if (pdev->pClassData == NULL)
@@ -911,7 +924,7 @@ uint8_t USBD_CDC_DEVCTLR_TransmitPacket(USBD_HandleTypeDef *pdev)
   */
 uint8_t USBD_CDC_DEVCTLR_ReceivePacket(USBD_HandleTypeDef *pdev)
 {
-  hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_DEVCTLR_HandleTypeDef *hdevcdc = (USBD_CDC_DEVCTLR_HandleTypeDef *)pdev->pClassData;
 
   if (pdev->pClassData == NULL)
   {

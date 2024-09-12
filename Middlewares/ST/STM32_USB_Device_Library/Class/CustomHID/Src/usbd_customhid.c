@@ -133,7 +133,11 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Keyboard_CfgFSDesc[USB_CUSTOM_HID_K
   0x01,                                               /* bNumInterfaces: 1 interface */
   0x01,                                               /* bConfigurationValue: Configuration value */
   0x00,                                               /* iConfiguration: Index of string descriptor describing the configuration */
-  0x80,                                               /* bmAttributes: bus powered */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                               /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                               /* bmAttributes: Bus Powered according to user configuration */
+#endif
   USBD_MAX_POWER,                                     /* MaxPower 100 mA: this current is used for detecting Vbus */
 
   /************** Descriptor of CUSTOM HID interface ****************/
@@ -191,7 +195,11 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Keyboard_CfgHSDesc[USB_CUSTOM_HID_K
   0x01,                                               /* bNumInterfaces: 1 interface */
   0x01,                                               /* bConfigurationValue: Configuration value */
   0x00,                                               /* iConfiguration: Index of string descriptor describing the configuration */
-  0x80,                                               /* bmAttributes: bus powered */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                               /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                               /* bmAttributes: Bus Powered according to user configuration */
+#endif
   USBD_MAX_POWER,                                     /* MaxPower 100 mA: this current is used for detecting Vbus */
 
   /************** Descriptor of CUSTOM HID interface ****************/
@@ -249,7 +257,11 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Keyboard_OtherSpeedCfgDesc[USB_CUST
   0x01,                                               /* bNumInterfaces: 1 interface */
   0x01,                                               /* bConfigurationValue: Configuration value */
   0x00,                                               /* iConfiguration: Index of string descriptor describing the configuration */
-  0x80,                                               /* bmAttributes: bus powered */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                               /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                               /* bmAttributes: Bus Powered according to user configuration */
+#endif
   USBD_MAX_POWER,                                     /* MaxPower 100 mA: this current is used for detecting Vbus */
 
   /************** Descriptor of CUSTOM HID interface ****************/

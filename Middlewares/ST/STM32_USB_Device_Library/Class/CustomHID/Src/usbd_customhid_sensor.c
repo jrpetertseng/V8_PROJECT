@@ -136,7 +136,11 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_CfgFSDesc[USB_CUSTOM_HID_SEN
   0x01,                                               /* bNumInterfaces: 1 interface */
   0x01,                                               /* bConfigurationValue: Configuration value */
   0x00,                                               /* iConfiguration: Index of string descriptor describing the configuration */
-  0x80,                                               /* bmAttributes: bus powered */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                               /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                               /* bmAttributes: Bus Powered according to user configuration */
+#endif
   USBD_MAX_POWER,                                     /* MaxPower 100 mA: this current is used for detecting Vbus */
 
   /************** Descriptor of CUSTOM HID interface ****************/
@@ -194,7 +198,11 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_CfgHSDesc[USB_CUSTOM_HID_SEN
   0x01,                                               /* bNumInterfaces: 1 interface */
   0x01,                                               /* bConfigurationValue: Configuration value */
   0x00,                                               /* iConfiguration: Index of string descriptor describing the configuration */
-  0x80,                                               /* bmAttributes: bus powered */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                               /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                               /* bmAttributes: Bus Powered according to user configuration */
+#endif
   USBD_MAX_POWER,                                     /* MaxPower 100 mA: this current is used for detecting Vbus */
 
   /************** Descriptor of CUSTOM HID interface ****************/
@@ -252,7 +260,11 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_OtherSpeedCfgDesc[USB_CUSTOM
   0x01,                                               /* bNumInterfaces: 1 interface */
   0x01,                                               /* bConfigurationValue: Configuration value */
   0x00,                                               /* iConfiguration: Index of string descriptor describing the configuration */
-  0x80,                                               /* bmAttributes: bus powered */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                               /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                               /* bmAttributes: Bus Powered according to user configuration */
+#endif
   USBD_MAX_POWER,                                     /* MaxPower 100 mA: this current is used for detecting Vbus */
 
   /************** Descriptor of CUSTOM HID interface ****************/
@@ -343,6 +355,15 @@ static USBD_CUSTOM_HID_Sensor_HandleTypeDef hhidSensor;
     0x01, 0x02, 0x00, 0x06, 0x02, 0x0A, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 */
+static char seiko_feature_report_response[SEIKO_FEATURE_REPORT_LENGTH] =
+{
+    0x01, 0x02, 0x00, 0x06, 0x02, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+/*
+    0x01, 0x02, 0x00, 0x06, 0x02, 0x0A, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+*/
 static char seiko_feature_report_response_01[SEIKO_FEATURE_REPORT_LENGTH] =
 {
     0x01, 0x02, 0x00, 0x06, 0x02, 0x05, 0x00, 0x00,
@@ -385,7 +406,6 @@ static uint8_t USBD_CUSTOM_HID_Sensor_Init(USBD_HandleTypeDef *pdev, uint8_t cfg
   USBD_CUSTOM_HID_Sensor_HandleTypeDef *hhid;
 
   hhid = &hhidSensor;
-
 
   pdev->pClassData = (void *)hhid;
 
@@ -508,95 +528,107 @@ static uint8_t USBD_CUSTOM_HID_Sensor_Setup(USBD_HandleTypeDef *pdev,
       // Mimic the Seiko Response
       report_type = req->wValue >> 8;
       report_id = req->wValue & 0xFF;
-      
-      if (HID_REPORT_TYPE_INPUT == report_type)
-      {
-          switch (report_id)
-          {
-          case SEIKO_INPUT_REPORT_ID_12:
-              memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_12);
-              report_length = SEIKO_INPUT_REPORT_LENGTH_12;
-              break;
-          case SEIKO_INPUT_REPORT_ID_14:
-              memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_14);
-              report_length = SEIKO_INPUT_REPORT_LENGTH_14;
-              break;
-          case SEIKO_INPUT_REPORT_ID_16:
-              memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_16);
-              report_length = SEIKO_INPUT_REPORT_LENGTH_16;
-              break;
-          case SEIKO_INPUT_REPORT_ID_18:
-              memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_18);
-              report_length = SEIKO_INPUT_REPORT_LENGTH_18;
-              break;
-          default:
-              report_length = 0;
-              break;
-          }
-      }
-      else if (HID_REPORT_TYPE_FEATURE == report_type)
-      {
-          switch (report_id)
-          {
-          case SEIKO_FEATURE_REPORT_ID_01:
-              memcpy(report_content, seiko_feature_report_response_01, SEIKO_FEATURE_REPORT_LENGTH);
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_03:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_03;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_05:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_05;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_07:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_07;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_09:
-              memcpy(report_content, seiko_feature_report_response_09, SEIKO_FEATURE_REPORT_LENGTH);
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_0B:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_0B;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_0D:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_0D;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_0F:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_0F;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_11:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_11;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_13:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_13;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_15:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_15;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          case SEIKO_FEATURE_REPORT_ID_17:
-              report_content[0] = SEIKO_FEATURE_REPORT_ID_17;
-              report_length = SEIKO_FEATURE_REPORT_LENGTH;
-              break;
-          default:
-              report_length = 0;
-              break;
-          }
-      }
-      else if (HID_REPORT_TYPE_OUTPUT == report_type)
-      {
-          // Handle output reports if needed
+      if (HID_REPORT_TYPE_INPUT == report_type) {
+        switch (report_id) {
+        case SEIKO_INPUT_REPORT_ID_14:
+          memcpy(report_content,
+            seiko_input_report_response,
+            SEIKO_INPUT_REPORT_LENGTH_14);
+          report_length = SEIKO_INPUT_REPORT_LENGTH_14;
+          break;
+
+        case SEIKO_INPUT_REPORT_ID_18:
+          memcpy(report_content,
+            seiko_input_report_response,
+            SEIKO_INPUT_REPORT_LENGTH_18);
+          report_length = SEIKO_INPUT_REPORT_LENGTH_18;
+          break;
+
+        case SEIKO_INPUT_REPORT_ID_12:
+          memcpy(report_content,
+            seiko_input_report_response,
+            SEIKO_INPUT_REPORT_LENGTH_12);
+          report_length = SEIKO_INPUT_REPORT_LENGTH_12;
+          break;
+
+        case SEIKO_INPUT_REPORT_ID_16:
+          memcpy(report_content,
+            seiko_input_report_response,
+            SEIKO_INPUT_REPORT_LENGTH_16);
+          report_length = SEIKO_INPUT_REPORT_LENGTH_16;
+          break;
+
+        default:
           report_length = 0;
+          break;
+        }
       }
-      
+
+      else if (HID_REPORT_TYPE_OUTPUT == report_type) {
+      } else if (HID_REPORT_TYPE_FEATURE == report_type) {
+        memcpy(report_content,
+          seiko_feature_report_response,
+          SEIKO_FEATURE_REPORT_LENGTH);
+        report_length = SEIKO_FEATURE_REPORT_LENGTH;
+
+        switch (report_id) {
+        case SEIKO_FEATURE_REPORT_ID_01:
+          memcpy(report_content,
+            seiko_feature_report_response_01,
+            SEIKO_FEATURE_REPORT_LENGTH);
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_03:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_03;
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_09:
+          memcpy(report_content,
+            seiko_feature_report_response_09,
+            SEIKO_FEATURE_REPORT_LENGTH);
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_05:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_05;
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_0B:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_0B;
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_0F:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_0F;
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_07:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_07;
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_0D:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_0D;
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_13:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_13;
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_17:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_17;
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_11:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_11;
+          break;
+
+        case SEIKO_FEATURE_REPORT_ID_15:
+          report_content[0] = SEIKO_FEATURE_REPORT_ID_15;
+          break;
+
+        default:
+          report_length = 0;
+          break;
+        }
+      }
       if (report_length > 0)
       {
           USBD_CtlSendData(pdev, (uint8_t *)report_content, report_length);

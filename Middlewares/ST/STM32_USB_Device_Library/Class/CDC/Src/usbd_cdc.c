@@ -111,7 +111,7 @@ static uint8_t *USBD_CDC_GetHSCfgDesc(uint16_t *length);
 static uint8_t *USBD_CDC_GetOtherSpeedCfgDesc(uint16_t *length);
 static uint8_t *USBD_CDC_GetOtherSpeedCfgDesc(uint16_t *length);
 uint8_t *USBD_CDC_GetDeviceQualifierDescriptor(uint16_t *length);
-static USBD_CDC_HandleTypeDef *hcdc;
+
 /* USB Standard Device Descriptor */
 __ALIGN_BEGIN static uint8_t USBD_CDC_DeviceQualifierDesc[USB_LEN_DEV_QUALIFIER_DESC] __ALIGN_END =
 {
@@ -166,8 +166,12 @@ __ALIGN_BEGIN static uint8_t USBD_CDC_CfgHSDesc[USB_CDC_CONFIG_DESC_SIZ] __ALIGN
   0x02,                                       /* bNumInterfaces: 2 interface */
   0x01,                                       /* bConfigurationValue: Configuration value */
   0x00,                                       /* iConfiguration: Index of string descriptor describing the configuration */
-  0x80,                                       /* bmAttributes: self powered */
-  USBD_MAX_POWER,                                       /* MaxPower 100 mA */
+#if (USBD_SELF_POWERED == 1U)
+  0xC0,                                       /* bmAttributes: Bus Powered according to user configuration */
+#else
+  0x80,                                       /* bmAttributes: Bus Powered according to user configuration */
+#endif
+  USBD_MAX_POWER,                             /* MaxPower 100 mA */
 
   /*---------------------------------------------------------------------------*/
 
@@ -461,17 +465,13 @@ __ALIGN_BEGIN static uint8_t USBD_CDC_OtherSpeedCfgDesc[USB_CDC_CONFIG_DESC_SIZ]
   * @param  cfgidx: Configuration index
   * @retval status
   */
+static USBD_CDC_HandleTypeDef cdc_tof;
 static uint8_t USBD_CDC_Init(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 {
   UNUSED(cfgidx);
+  USBD_CDC_HandleTypeDef *hcdc;
 
-  hcdc = USBD_malloc(sizeof(USBD_CDC_HandleTypeDef));
-
-  if (hcdc == NULL)
-  {
-    pdev->pClassData = NULL;
-    return (uint8_t)USBD_EMEM;
-  }
+  hcdc = &cdc_tof;
 
   pdev->pClassData = (void *)hcdc;
 
@@ -565,7 +565,6 @@ static uint8_t USBD_CDC_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
   if (pdev->pClassData != NULL)
   {
     ((USBD_CDC_ItfTypeDef *)pdev->pUserData)->DeInit();
-    (void)USBD_free(pdev->pClassData);
     pdev->pClassData = NULL;
   }
 
@@ -582,7 +581,7 @@ static uint8_t USBD_CDC_DeInit(USBD_HandleTypeDef *pdev, uint8_t cfgidx)
 static uint8_t USBD_CDC_Setup(USBD_HandleTypeDef *pdev,
                               USBD_SetupReqTypedef *req)
 {
-  hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
   uint16_t len;
   uint8_t ifalt = 0U;
   uint16_t status_info = 0U;
@@ -685,6 +684,7 @@ static uint8_t USBD_CDC_Setup(USBD_HandleTypeDef *pdev,
   */
 static uint8_t USBD_CDC_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
+  USBD_CDC_HandleTypeDef *hcdc;
   PCD_HandleTypeDef *hpcd = pdev->pData;
 
   if (pdev->pClassData == NULL)
@@ -725,7 +725,7 @@ static uint8_t USBD_CDC_DataIn(USBD_HandleTypeDef *pdev, uint8_t epnum)
   */
 static uint8_t USBD_CDC_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
 {
-  hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
 
   if (pdev->pClassData == NULL)
   {
@@ -751,7 +751,7 @@ static uint8_t USBD_CDC_DataOut(USBD_HandleTypeDef *pdev, uint8_t epnum)
   */
 static uint8_t USBD_CDC_EP0_RxReady(USBD_HandleTypeDef *pdev)
 {
-  hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
 
   if (hcdc == NULL)
   {
@@ -798,7 +798,7 @@ static uint8_t *USBD_CDC_GetHSCfgDesc(uint16_t *length)
 }
 
 /**
-  * @brief  USBD_CDC_GetCfgDesc
+  * @brief  USBD_CDC_GetOtherSpeedCfgDesc
   *         Return configuration descriptor
   * @param  speed : current device speed
   * @param  length : pointer data length
@@ -812,7 +812,7 @@ static uint8_t *USBD_CDC_GetOtherSpeedCfgDesc(uint16_t *length)
 }
 
 /**
-* @brief  DeviceQualifierDescriptor
+* @brief  USBD_CDC_GetDeviceQualifierDescriptor
 *         return Device Qualifier descriptor
 * @param  length : pointer data length
 * @retval pointer to descriptor buffer
@@ -852,7 +852,7 @@ uint8_t USBD_CDC_RegisterInterface(USBD_HandleTypeDef *pdev,
 uint8_t USBD_CDC_SetTxBuffer(USBD_HandleTypeDef *pdev,
                              uint8_t *pbuff, uint32_t length)
 {
-  hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
 
   if (hcdc == NULL)
   {
@@ -873,7 +873,7 @@ uint8_t USBD_CDC_SetTxBuffer(USBD_HandleTypeDef *pdev,
   */
 uint8_t USBD_CDC_SetRxBuffer(USBD_HandleTypeDef *pdev, uint8_t *pbuff)
 {
-  hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
 
   if (hcdc == NULL)
   {
@@ -893,7 +893,7 @@ uint8_t USBD_CDC_SetRxBuffer(USBD_HandleTypeDef *pdev, uint8_t *pbuff)
   */
 uint8_t USBD_CDC_TransmitPacket(USBD_HandleTypeDef *pdev)
 {
-  hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
   USBD_StatusTypeDef ret = USBD_BUSY;
 
   if (pdev->pClassData == NULL)
@@ -926,7 +926,7 @@ uint8_t USBD_CDC_TransmitPacket(USBD_HandleTypeDef *pdev)
   */
 uint8_t USBD_CDC_ReceivePacket(USBD_HandleTypeDef *pdev)
 {
-  hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
+  USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)pdev->pClassData;
 
   if (pdev->pClassData == NULL)
   {

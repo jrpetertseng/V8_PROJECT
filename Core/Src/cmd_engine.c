@@ -19,6 +19,7 @@ uint8_t tofRangePacket[TOF_8X8_DATA_PACKET_SIZE];
 uint8_t tof_resetFlag = 0;
 bool bPresenceSent = false;
 bool bRangePacketUpdated = false;
+bool Cmd_Output = 0;
 
 ECX343_DATA ecx343_data;
 ECX343_DATA ecx343_current_data;
@@ -97,12 +98,13 @@ void CE_Parse_ToF_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len) {
 
     do {
         Command cmd;
+        Cmd_Output = 1;
 
         meta_data = get_data(buf, len);
         cmd = string_to_command((char*)meta_data.CmdData, meta_data.CmdLength);
 
 #if ENABLE_DEVICECTL_CDC
-        if (cmd.Cmd <= 0x100U || cmd.Cmd >= 0x200U) {
+        if (cmd.Cmd <= 0x100U || cmd.Cmd >= 0x200U || cmd.Cmd == CE_GET_FW_VER) {
             CE_Execute_Command(cmd.Cmd, cmd.Args, cmd.ArgsLength);
         } else {
             usbEcho_Tof("NG %d", CE_ERR_COMMAND);
@@ -123,6 +125,7 @@ void CE_Parse_Devctlr_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len) {
 
     do {
         Command cmd;
+        Cmd_Output = 0;
 
         meta_data = get_data(buf, len);
         cmd = string_to_command((char*)meta_data.CmdData, meta_data.CmdLength);
@@ -1096,12 +1099,22 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
     // Adding trailing newline characters
     reply += sprintf(reply, "%s", (CDC_Echo_Ctrl_Flag) ? "\r\n\r\n" : "\r\n");
 
-    // Tof output
-    if (cmd < 0x100U || cmd >= 0x200U)
-        usbEcho_Tof((char*)CeCmdRespTxBuffer);
-    // Devctlr output
-    else
-        usbDebug((char*)CeCmdRespTxBuffer);
+    if (cmd == CE_GET_FW_VER) {
+        if (Cmd_Output) {
+            usbEcho_Tof((char*)CeCmdRespTxBuffer);
+        } else {
+            usbDebug((char*)CeCmdRespTxBuffer);
+        }
+    } else {
+        // Tof output
+        if (cmd <= 0x100U || cmd >= 0x200U) {
+            usbEcho_Tof((char*)CeCmdRespTxBuffer);
+        }
+        // Devctlr output
+        else {
+            usbDebug((char*)CeCmdRespTxBuffer);
+        }
+    }
 
     // Send sync key if it's an HID event
     if (cmd >= CE_HID_MIN && cmd <= CE_HID_MAX) {
