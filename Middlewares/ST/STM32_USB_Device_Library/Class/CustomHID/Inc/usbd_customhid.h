@@ -41,10 +41,10 @@ extern "C" {
 /** @defgroup USBD_CUSTOM_HID_Exported_Defines
   * @{
   */
-#define CUSTOM_HID_KEYBOARD_EPIN_ADDR                         0x83U // 0x86U
+#define CUSTOM_HID_KEYBOARD_EPIN_ADDR                         0x86U
 #define CUSTOM_HID_KEYBOARD_EPIN_SIZE                         0x20U
 
-#define CUSTOM_HID_KEYBOARD_EPOUT_ADDR                        0x03U // 0x06U
+#define CUSTOM_HID_KEYBOARD_EPOUT_ADDR                        0x06U
 #define CUSTOM_HID_KEYBOARD_EPOUT_SIZE                        0x10U
 
 #define USB_CUSTOM_HID_KEYBOARD_CONFIG_DESC_SIZ               41U

@@ -316,7 +316,7 @@ __ALIGN_BEGIN static uint8_t USBD_CUSTOM_HID_Sensor_Desc[USB_CUSTOM_HID_SENSOR_D
 {
   /* 18 */
   0x09,                                               /* bLength: CUSTOM_HID Descriptor size */
-  CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE,                         /* bDescriptorType: CUSTOM_HID */
+  CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE,                  /* bDescriptorType: CUSTOM_HID */
   0x11,                                               /* bCUSTOM_HIDUSTOM_HID: CUSTOM_HID Class Spec release number */
   0x01,
   0x00,                                               /* bCountryCode: Hardware target country */
@@ -366,7 +366,7 @@ static char seiko_feature_report_response[SEIKO_FEATURE_REPORT_LENGTH] =
 */
 static char seiko_feature_report_response_01[SEIKO_FEATURE_REPORT_LENGTH] =
 {
-    0x01, 0x02, 0x00, 0x06, 0x02, 0x05, 0x00, 0x00,
+    0x01, 0x02, 0x00, 0x06, 0x02, 0x01, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 /*
@@ -375,7 +375,7 @@ static char seiko_feature_report_response_01[SEIKO_FEATURE_REPORT_LENGTH] =
 */
 static char seiko_feature_report_response_09[SEIKO_FEATURE_REPORT_LENGTH] =
 {
-    0x09, 0x02, 0x00, 0x06, 0x02, 0x05, 0x00, 0x00,
+    0x09, 0x02, 0x00, 0x06, 0x02, 0x01, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 

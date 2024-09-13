@@ -23,7 +23,7 @@
 #define USBD_IAD_DESCRIPTOR_TYPE     0x0B
 
 /* CDC Interface Definitions */
-#define USBD_CDC_FIRST_INTERFACE            1  /* CDC First Interface */
+#define USBD_CDC_FIRST_INTERFACE            0  /* CDC First Interface */
 #define USBD_CDC_INTERFACE_COUNT            2  /* Number of CDC Interfaces */
 #define USBD_CDC_CMD_INTERFACE              (USBD_CDC_FIRST_INTERFACE)
 #define USBD_CDC_DATA_INTERFACE             (USBD_CDC_CMD_INTERFACE + 1)
@@ -32,7 +32,7 @@
 #include "usbd_cdc_devctlr.h"
 #include "usbd_cdc_if_devctlr.h"
 /* CDC Device Controller Interface Definitions */
-#define USBD_CDC_DEVCTLR_FIRST_INTERFACE    5  /* CDC DevCtlr First Interface */
+#define USBD_CDC_DEVCTLR_FIRST_INTERFACE    4  /* CDC DevCtlr First Interface */
 #define USBD_CDC_DEVCTLR_INTERFACE_COUNT    2  /* Number of CDC DevCtlr Interfaces */
 #define USBD_CDC_DEVCTLR_CMD_INTERFACE      (USBD_CDC_DEVCTLR_FIRST_INTERFACE)
 #define USBD_CDC_DEVCTLR_DATA_INTERFACE     (USBD_CDC_DEVCTLR_CMD_INTERFACE + 1)
@@ -42,8 +42,8 @@
 #endif
 
 /* HID Interface Definitions */
-#define USBD_HID_INTERFACE_SENSOR           3  /* HID Sensor Interface */
-#define USBD_HID_INTERFACE_KEYBOARD         4  /* HID Keyboard Interface */
+#define USBD_HID_INTERFACE_SENSOR           2  /* HID Sensor Interface */
+#define USBD_HID_INTERFACE_KEYBOARD         3  /* HID Keyboard Interface */
 
 /* Endpoint Number Definitions */
 #define CDC_INDATA_NUM                      (CDC_IN_EP & 0x0F)

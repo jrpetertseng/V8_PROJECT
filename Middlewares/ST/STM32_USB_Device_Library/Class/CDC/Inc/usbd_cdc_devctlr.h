@@ -41,9 +41,9 @@ extern "C" {
 /** @defgroup usbd_cdc_Exported_Defines
   * @{
   */
-#define CDC_DEVCTLR_IN_EP                                   0x85U  /* EP1 for data IN */ // 0x83
-#define CDC_DEVCTLR_OUT_EP                                  0x05U  /* EP1 for data OUT */ // 0x03
-#define CDC_DEVCTLR_CMD_EP                                  0x86U  /* EP2 for CDC commands */ // 0x84
+#define CDC_DEVCTLR_IN_EP                                   0x83U  /* EP1 for data IN */
+#define CDC_DEVCTLR_OUT_EP                                  0x03U  /* EP1 for data OUT */
+#define CDC_DEVCTLR_CMD_EP                                  0x84U  /* EP2 for CDC commands */
 
 #ifndef CDC_DEVCTLR_HS_BINTERVAL
 #define CDC_DEVCTLR_HS_BINTERVAL                            0x10U

@@ -680,7 +680,7 @@ USBD_StatusTypeDef USBD_Get_USB_Status(HAL_StatusTypeDef hal_status)
   */
 void *USBD_static_malloc(uint32_t size)
 {
-  static uint32_t mem[(sizeof(USBD_CUSTOM_HID_Keyboard_HandleTypeDef)/4+1)];/* On 32-bit boundary */
+  static uint32_t mem[(sizeof(USBD_CUSTOM_HID_Sensor_HandleTypeDef)/4+1)];/* On 32-bit boundary */
   return mem;
 }
 
