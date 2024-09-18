@@ -6,11 +6,11 @@
 #include "usbd_cdc_devctlr.h"
 static USBD_CDC_DEVCTLR_HandleTypeDef *pCDCData_Devctlr;
 #endif
+
 #include "usbd_customhid.h"
 #include "usbd_customhid_sensor.h"
 
 static USBD_CDC_HandleTypeDef *pCDCData_Tof;
-
 static USBD_CUSTOM_HID_Sensor_HandleTypeDef *pHIDData_Sensor;
 static USBD_CUSTOM_HID_Keyboard_HandleTypeDef *pHIDData_Keyboard;
 
@@ -626,12 +626,13 @@ USBD_COMPOSITE_ItfTypeDef USBD_Composite_Get_Current_Itf(USBD_HandleTypeDef* pde
 		return USBD_CUSTOMHID_SENSOR_INTERFACE;
 	} else if (pdev->pClassData == pHIDData_Keyboard) {
 		return USBD_CUSTOMHID_KEYBOARD_INTERFACE;
-	} else if (pdev->pClassData == pCDCData_Devctlr) {
-		return USBD_CDC_DEVCTLR_INTERFACE;
 	}
 #if ENABLE_DEVICECTL_CDC
-	return USBD_CDC_INTERFACE;
+	else if (pdev->pClassData == pCDCData_Devctlr) {
+		return USBD_CDC_DEVCTLR_INTERFACE;
+	}
 #endif
+	return USBD_CDC_INTERFACE;
 }
 /**
   * @}
