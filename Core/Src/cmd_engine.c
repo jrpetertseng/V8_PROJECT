@@ -17,7 +17,6 @@ extern uint8_t micSwitch;
 uint8_t tofNumOfTargets[MAX_TOF_DATA_COUNT];
 uint8_t tofRangePacket[TOF_8X8_DATA_PACKET_SIZE];
 uint8_t tof_resetFlag = 0;
-bool bPresenceSent = false;
 bool bRangePacketUpdated = false;
 bool Cmd_Output = 0;
 
@@ -912,7 +911,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
 
     case CE_GET_FW_VER:
         if (!args_len)
-            reply += sprintf(reply, "%d.%d.%d %s", V_MAJOR, V_MINOR, V_PATCH, MODEL_SUFFIX);
+            reply += sprintf(reply, "%d.%d.%d.%s", V_MAJOR, V_MINOR, V_PATCH, MODEL_SUFFIX);
         else
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         break;
@@ -949,7 +948,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
         }
         break;
 
-        /* key command set */
+    /* key command set */
     case CE_KEY_A:
     case CE_KEY_D:
     case CE_KEY_K:
@@ -1046,15 +1045,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
             CE_KEY_BASE : (cmd < CE_GPAD_BASE) ?
             CE_CR_BASE : CE_GPAD_BASE)));
 
-        if (value && cmd < CE_CR_BASE)
-            HID_keyboard_report.keys |= (uint8_t)value;
-
-        if (HID_keyboard_report.report_id == 0x01 && bPresenceSent)
-            HID_keyboard_report.keys += precenseKey;
-
         usbhid_sendReport((char*)&HID_keyboard_report, sizeof(HID_KeyboardReport));
         HAL_Delay(20);
-
         reply += sprintf(reply, "OK");
         break;
 
@@ -1120,20 +1112,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
     if (cmd >= CE_HID_MIN && cmd <= CE_HID_MAX) {
         HID_keyboard_report.keys = 0;  // Send a key release event
 
-        // If report_id is for keyboard and presence was sent, include presence key
-        if (HID_keyboard_report.report_id == 0x01 && bPresenceSent)
-            HID_keyboard_report.keys += precenseKey;
-
         // Send key release report
         usbhid_sendReport((char*)&HID_keyboard_report, sizeof(HID_KeyboardReport));
-
-        // If the event is a consumer key or gamepad, also send release
-        if (cmd >= CE_CR_BASE) {
-            HID_KeyboardReport temp = { 0 };
-            temp.report_id = (cmd >= CE_GPAD_BASE) ? 0x03 : 0x02;
-
-            usbhid_sendReport((char*)&temp, sizeof(HID_KeyboardReport));
-        }
     }
 }
 

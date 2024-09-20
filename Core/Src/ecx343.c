@@ -581,10 +581,8 @@ static PowContStatus pow_on_sequence(void)
             break;
 
         case POW_ON_SEQ_LVDS_EN:
-            if (ECX343EN_LVDS_ENABLE()) {
                 pow_on_seq = POW_ON_SEQ_NONE;
                 return POW_CONT_OK;
-            }
             break;
 
 //        case POW_ON_SEQ_PS_OFF_SETTING:
