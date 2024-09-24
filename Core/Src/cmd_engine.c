@@ -603,10 +603,14 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
         break;
 
     case CE_SET_TOF_CONF:
-        HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
-        HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-        interruptTofEnable = 1;
-        reply += sprintf(reply, "OK");
+        if (!args_len) {
+			HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
+			HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+			interruptTofEnable = 1;
+			reply += sprintf(reply, "OK");
+		} else {
+			reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+		}
         break;
 
     case CE_SET_TOF_KEY:
