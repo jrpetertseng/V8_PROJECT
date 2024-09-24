@@ -258,8 +258,9 @@ void StartUsbTxTask(void *argument)
 	osDelay(1000);
 
 	/* creation of ImuSensorTask */
+#if ENABLE_IMU
 	ImuSensorTaskHandle = osThreadNew(StartImuSensorTask, NULL, &ImuSensorTask_attributes);
-
+#endif
 	I2C1_Lock = xSemaphoreCreateBinary();
 	if (I2C1_Lock != NULL)
 	{
