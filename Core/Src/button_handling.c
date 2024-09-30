@@ -143,7 +143,7 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType, Operati
 				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
 				usbSendMessage(&keyReport);
 				osDelay(20);
-				usbDebug("#volume +@\r\n");
+				usbDebug("#volume +1@\r\n");
 			} else {
                 ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL < 500) ?
 				ecx343_current_data.uLCD_LUXL + 10 : ecx343_current_data.uLCD_LUXL;
@@ -168,7 +168,7 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType, Operati
 				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
 				usbSendMessage(&keyReport);
 				osDelay(20);
-				usbDebug("#volume -@\r\n");
+				usbDebug("#volume -1@\r\n");
 			} else {
                 ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL > 100) ?
 				ecx343_current_data.uLCD_LUXL - 10 : ecx343_current_data.uLCD_LUXL;
