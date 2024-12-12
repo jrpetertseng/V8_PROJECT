@@ -22,6 +22,7 @@
 
 #define ENABLE_KEYBOARD_BUTTON_TEST     0
 
+#define ENABLE_COUNTING_TASK            0
 //USB_HS
 #define ENABLE_DEVICECTL_CDC            1
 

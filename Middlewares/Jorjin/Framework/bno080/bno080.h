@@ -40,4 +40,9 @@ void sensorLoop();
 void configSensor(sh2_SensorId_t sensorId, int interval);
 void SH2_GPIO_EXTI_Callback(uint16_t n);
 
+extern uint16_t accel3_count;
+extern uint16_t gyro3_count;
+extern uint16_t grav3_count;
+extern uint16_t tstMag3_count;
+extern uint16_t tstQuat_count;
 #endif

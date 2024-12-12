@@ -50,6 +50,8 @@ extern uint32_t nIMUHIDUsbOuts;
 extern uint8_t  interruptTofEnable;
 extern uint16_t tofResetCount;
 extern uint32_t nExecs_IsrToF;
+extern uint32_t nUsbfailed;
+extern uint32_t nUsbBusy;
 
 extern void (* tof_callback)(void);
 /* USER CODE END EC */
@@ -195,8 +197,8 @@ PUTCHAR_PROTOTYPE;
 /* USER CODE BEGIN Private defines */
 
 #define V_MAJOR 0
-#define V_MINOR 3
-#define V_PATCH 8
+#define V_MINOR 4
+#define V_PATCH 0
 /* Model Code Rules:
  *  1st character: J, Jorjin
  *  2nd character: 8, J8 series

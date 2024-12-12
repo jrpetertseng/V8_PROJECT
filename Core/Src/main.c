@@ -82,6 +82,8 @@ uint32_t nTofGpioInts_1 = 0;
 
 // IMU Communication Management
 uint32_t nIMUHIDUsbOuts = 0;
+uint32_t nUsbfailed = 0;
+uint32_t nUsbBusy = 0;
 
 // ToF Sensor Management
 uint8_t  interruptTofEnable = 0;

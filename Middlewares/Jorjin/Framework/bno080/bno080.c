@@ -83,6 +83,12 @@ static MAG3_INPUT_REPORT tstMag3;
 static QUAT_INPUT_REPORT tstQuat;
 static struct EulerAngles angles;
 static sh2_SensorEvent_t event;
+
+uint16_t accel3_count = 0;
+uint16_t gyro3_count = 0;
+uint16_t grav3_count = 0;
+uint16_t tstMag3_count = 0;
+uint16_t tstQuat_count = 0;
 // --- Public methods -------------------------------------------------
 
 void initSensor() {
@@ -236,6 +242,7 @@ void sensorLoop()
         // Dequeue sensor events
         while (xQueueReceive(ctx.eventQueue, &event, 0) == pdPASS) {
             processSensorValue(&event);
+            osDelay(3);
         }
 
         if (ctx.resetPerformed) {
@@ -432,6 +439,7 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
                     value.un.accelerometer.z);
         }
         else {
+            accel3_count += 1;
             accel3.ucReportId = REPORT_ID_ACCEL3_INPUT;
             accel3.ucEventType = SENSOR_EVENT_DATA_UPDATED;
             accel3.ucSensorState = SENSOR_STATE_READY;
@@ -454,6 +462,7 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
                     value.un.gyroscope.z);
         }
         else {
+            gyro3_count += 1;
             accel3.ucReportId = REPORT_ID_GYRO3_INPUT;
             accel3.ucEventType = SENSOR_EVENT_DATA_UPDATED;
             accel3.ucSensorState = SENSOR_STATE_READY;
@@ -476,6 +485,7 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
                     value.un.magneticField.z);
         }
         else {
+            tstMag3_count += 1;
             tstMag3.ucReportId = REPORT_ID_MAG3_INPUT;
             tstMag3.ucEventType = SENSOR_EVENT_DATA_UPDATED;
             tstMag3.ucSensorState = SENSOR_STATE_READY;
@@ -504,6 +514,7 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
                     value.un.rotationVector.real);*/
         }
         else {
+            tstQuat_count += 1;
             tstQuat.ucReportId = REPORT_ID_QUAT_INPUT;
             tstQuat.ucSensorState = SENSOR_STATE_READY;
             tstQuat.ucEventType = SENSOR_EVENT_DATA_UPDATED;
@@ -526,6 +537,7 @@ static void processSensorValue(const sh2_SensorEvent_t * event)
         }
         break;
     case SH2_GRAVITY:
+        grav3_count += 1;
         accel3.ucReportId = REPORT_ID_GRAV3_INPUT;
         accel3.ucEventType = SENSOR_EVENT_DATA_UPDATED;
         accel3.ucSensorState = SENSOR_STATE_READY;

@@ -170,6 +170,17 @@ const osThreadAttr_t MainTask_attributes =
 		.stack_size = sizeof(MainTaskBuffer), .priority =
 				(osPriority_t) osPriorityNormal, };
 
+#if ENABLE_COUNTING_TASK
+osThreadId_t CountingTaskHandle;
+uint32_t CountingTaskBuffer[256];
+osStaticThreadDef_t CountingTaskControlBlock;
+const osThreadAttr_t CountingTask_attributes =
+{ .name = "CountingTask", .cb_mem = &CountingTaskControlBlock, .cb_size =
+        sizeof(CountingTaskControlBlock), .stack_mem = &CountingTaskBuffer[0],
+        .stack_size = sizeof(CountingTaskBuffer), .priority =
+                (osPriority_t) osPriorityNormal, };
+#endif
+
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 void configureTimerForRunTimeStats(void);
@@ -190,6 +201,7 @@ void StartALSensorTask(void *argument);
 void StartADCTask(void *argument);
 void StartI2CScanTask(void *argument);
 void StartMainTask(void *argument);
+void CountingTask(void *argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -291,7 +303,7 @@ void StartTofTask(void *argument)
 	static VL53L8CX_ResultsData Results;
 	uint8_t resolution;
 	uint8_t status;
-
+	TickType_t timestamp;
 	ResetTof();
 
 	/* Infinite loop */
@@ -331,7 +343,7 @@ void StartTofTask(void *argument)
 		usbDebug("\r\n");
 #else
 		/*GOTO ToF CDC Process*/
-		TickType_t timestamp = xTaskGetTickCount();
+		timestamp = xTaskGetTickCount();
 		tof_ranging_callback(&Results, timestamp);
 #if ENABLE_STACK_CHECK
 		//test: check high water
@@ -614,6 +626,10 @@ void StartMainTask(void *argument)
 	ADCTaskHandle = osThreadNew(StartADCTask, NULL, &ADCTask_attributes);
 #endif
 
+#if ENABLE_COUNTING_TASK
+	CountingTaskHandle = osThreadNew(CountingTask, NULL, &CountingTask_attributes);
+#endif
+
 #if ENABLE_SCAN_I2C
 	/* creation of I2CScanTask */
 	I2CScanTaskHandle = osThreadNew(StartI2CScanTask, NULL, &I2CScanTask_attributes);
@@ -839,6 +855,36 @@ void Tof_Hard_reset(void)
 	osDelay(20);
 	HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
 	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+}
+
+void CountingTask(void *argument)
+{
+    bool bHIDTest = true;
+    uint16_t bDelayT = 5000;
+    uint8_t bCDC_Delay = 10; //ISSUED: GRAV and MAGN
+
+    osDelay(2000);
+    for (;;)
+    {
+        if(bHIDTest)
+        {
+            usbDebug("====================IMU Entry Counting====================\r\n");
+            osDelay(bCDC_Delay);
+            usbDebug("ACCEL | GYRO | GRAV | MAGN | QUAT | TOTAL | FAIL | BUSY:\r\n");
+            osDelay(bCDC_Delay);
+            usbDebug("ACCEL: %2d\r\n", accel3_count);
+            usbDebug("GYRO: %2d\r\n", gyro3_count);
+            usbDebug("GRAV: %2d\r\n", grav3_count);
+            usbDebug("MAGN: %2d\r\n", tstMag3_count);
+            usbDebug("QUAT: %2d\r\n", tstQuat_count);
+            usbDebug("TOTAL: %2d\r\n", nIMUHIDUsbOuts);
+            usbDebug("FAIL: %2d\r\n", nUsbfailed);
+            usbDebug("BUSY: %2d\r\n", nUsbBusy);
+            accel3_count = gyro3_count = grav3_count = tstMag3_count
+                    = tstQuat_count = nIMUHIDUsbOuts = nUsbfailed = nUsbBusy = 0;
+        }
+        osDelay(bDelayT);
+    }
 }
 /* USER CODE END Application */
 

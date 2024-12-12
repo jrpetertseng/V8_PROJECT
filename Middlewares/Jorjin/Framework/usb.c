@@ -286,6 +286,8 @@ void usbLoop() {
                 {
                     /* Fail, release the lock. */
 //                    usbTxUnblock();
+                    if (ret == USBD_FAIL) nUsbfailed += 1;
+                    else if (ret == USBD_BUSY) nUsbBusy += 1;
                 }
                 /* Success, release the lock. */
 //                usbTxUnblock();
