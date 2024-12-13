@@ -60,7 +60,7 @@ typedef StaticTask_t osStaticThreadDef_t;
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define I2C_BUS             	(&hi2c1)
-#define PROXIMITY_THRESHOLD 	250
+#define PROXIMITY_THRESHOLD 	200
 #define OFF_DEBOUNCE_THRESHOLD 	pdMS_TO_TICKS(5000)
 #define ON_DEBOUNCE_THRESHOLD 	pdMS_TO_TICKS(1000)
 /* USER CODE END PD */
@@ -80,7 +80,7 @@ extern ECX343_DATA ecx343_current_data;
 VL53L8CX_Configuration Dev;
 uint8_t isDebugModeEnabled = 0;
 uint8_t isAutoBrightnessEnabled = 0;
-uint8_t isHighTempBrightnessEnabled = 0;
+uint8_t isHighTempBrightnessEnabled = 1;
 
 uint8_t encSwitch = 0;
 uint8_t micSwitch = 0;
@@ -172,7 +172,7 @@ const osThreadAttr_t MainTask_attributes =
 
 #if ENABLE_COUNTING_TASK
 osThreadId_t CountingTaskHandle;
-uint32_t CountingTaskBuffer[256];
+uint32_t CountingTaskBuffer[512];
 osStaticThreadDef_t CountingTaskControlBlock;
 const osThreadAttr_t CountingTask_attributes =
 { .name = "CountingTask", .cb_mem = &CountingTaskControlBlock, .cb_size =
@@ -754,7 +754,7 @@ static inline void i2c1TxUnblock(void)
 
 void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime) {
 	const uint8_t luxStep = 10;
-	const uint16_t defaultLux = 350;
+	const uint16_t defaultLux = 250;
     const uint32_t checkInterval = 1000;
     const uint32_t highTempThresholdTime = 60000;
     static bool reduceBrightness = false;
@@ -860,30 +860,34 @@ void Tof_Hard_reset(void)
 void CountingTask(void *argument)
 {
     bool bHIDTest = true;
-    uint16_t bDelayT = 5000;
+	TickType_t countingTaskLastWakeUpTime = xTaskGetTickCount();
     uint8_t bCDC_Delay = 10; //ISSUED: GRAV and MAGN
 
-    osDelay(2000);
     for (;;)
     {
         if(bHIDTest)
         {
-            usbDebug("====================IMU Entry Counting====================\r\n");
+            usbDebug("ACCEL: %d\r\n", accel3_count);
             osDelay(bCDC_Delay);
-            usbDebug("ACCEL | GYRO | GRAV | MAGN | QUAT | TOTAL | FAIL | BUSY:\r\n");
+            usbDebug("GYRO: %d\r\n", gyro3_count);
             osDelay(bCDC_Delay);
-            usbDebug("ACCEL: %2d\r\n", accel3_count);
-            usbDebug("GYRO: %2d\r\n", gyro3_count);
-            usbDebug("GRAV: %2d\r\n", grav3_count);
-            usbDebug("MAGN: %2d\r\n", tstMag3_count);
-            usbDebug("QUAT: %2d\r\n", tstQuat_count);
-            usbDebug("TOTAL: %2d\r\n", nIMUHIDUsbOuts);
-            usbDebug("FAIL: %2d\r\n", nUsbfailed);
-            usbDebug("BUSY: %2d\r\n", nUsbBusy);
+            usbDebug("GRAV: %d\r\n", grav3_count);
+            osDelay(bCDC_Delay);
+            usbDebug("MAGN: %d\r\n", tstMag3_count);
+            osDelay(bCDC_Delay);
+            usbDebug("QUAT: %d\r\n", tstQuat_count);
+            osDelay(bCDC_Delay);
+            usbDebug("TOTAL: %d\r\n", nIMUHIDUsbOuts);
+            osDelay(bCDC_Delay);
+            usbDebug("FAIL: %d\r\n", nUsbfailed);
+            osDelay(bCDC_Delay);
+            usbDebug("BUSY: %d\r\n", nUsbBusy);
+            osDelay(bCDC_Delay);
+            usbDebug("-------------------\r\n");
             accel3_count = gyro3_count = grav3_count = tstMag3_count
                     = tstQuat_count = nIMUHIDUsbOuts = nUsbfailed = nUsbBusy = 0;
         }
-        osDelay(bDelayT);
+		vTaskDelayUntil(&countingTaskLastWakeUpTime, pdMS_TO_TICKS(5000));
     }
 }
 /* USER CODE END Application */

@@ -42,10 +42,10 @@ extern "C" {
   * @{
   */
 #define CUSTOM_HID_KEYBOARD_EPIN_ADDR                         0x86U
-#define CUSTOM_HID_KEYBOARD_EPIN_SIZE                         0x20U
+#define CUSTOM_HID_KEYBOARD_EPIN_SIZE                         0x10U
 
 #define CUSTOM_HID_KEYBOARD_EPOUT_ADDR                        0x06U
-#define CUSTOM_HID_KEYBOARD_EPOUT_SIZE                        0x20U
+#define CUSTOM_HID_KEYBOARD_EPOUT_SIZE                        0x10U
 
 #define USB_CUSTOM_HID_KEYBOARD_CONFIG_DESC_SIZ               41U
 #define USB_CUSTOM_HID_KEYBOARD_DESC_SIZ                      9U
@@ -59,7 +59,7 @@ extern "C" {
 #endif /* CUSTOM_HID_KEYBOARD_FS_BINTERVAL */
 
 #ifndef USBD_CUSTOMHID_KEYBOARD_OUTREPORT_BUF_SIZE
-#define USBD_CUSTOMHID_KEYBOARD_OUTREPORT_BUF_SIZE            0x20U
+#define USBD_CUSTOMHID_KEYBOARD_OUTREPORT_BUF_SIZE            0x10U
 #endif /* USBD_CUSTOMHID_KEYBOARD_OUTREPORT_BUF_SIZE */
 
 #ifndef USBD_CUSTOM_HID_KEYBOARD_REPORT_DESC_SIZE

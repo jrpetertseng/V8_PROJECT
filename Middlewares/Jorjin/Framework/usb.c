@@ -277,8 +277,8 @@ void usbLoop() {
             case USB_HID_INPUT_REPORT:
                 break;
             case USB_HID_IMU_INPUT_REPORT:
-//                nIMUHIDUsbOuts += 1;
-                nIMUHIDUsbOuts = 0;
+               nIMUHIDUsbOuts += 1;
+                // nIMUHIDUsbOuts = 0;
 //                usbImu_TxBlock();
                 usbTx_inc_imu_report();
                 ret = USBD_CUSTOM_HID_Sensor_SendReport_HS(msg.data.imuReport.report, msg.data.imuReport.len);
