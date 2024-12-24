@@ -352,28 +352,36 @@ static USBD_CUSTOM_HID_Sensor_HandleTypeDef hhidSensor;
 
 #define SEIKO_FEATURE_REPORT_LENGTH    15
 
-#define SEIKO_FEATURE_REPORT_ID_01     0x01
-#define SEIKO_FEATURE_REPORT_ID_03     0x03
-#define SEIKO_FEATURE_REPORT_ID_05     0x05
-#define SEIKO_FEATURE_REPORT_ID_07     0x07
-#define SEIKO_FEATURE_REPORT_ID_09     0x09
-#define SEIKO_FEATURE_REPORT_ID_D      0x0D
-
-#define SEIKO_FEATURE_REPORT_INDEX_01  0
-#define SEIKO_FEATURE_REPORT_INDEX_03  1
-#define SEIKO_FEATURE_REPORT_INDEX_05  2
-#define SEIKO_FEATURE_REPORT_INDEX_07  3
-#define SEIKO_FEATURE_REPORT_INDEX_09  4
-#define SEIKO_FEATURE_REPORT_INDEX_D   5
-
-#define NUM_FEATURE_REPORTS            6
-
-static uint8_t cached_feature_reports[NUM_FEATURE_REPORTS][SEIKO_FEATURE_REPORT_LENGTH];
-static bool is_feature_report_cached[NUM_FEATURE_REPORTS] = {false};
-
-static const char seiko_feature_report_template[SEIKO_FEATURE_REPORT_LENGTH] = {
-    0x00, 0x02, 0x00, 0x06, 0x02, 0x01, 0x00, 0x00,
+static char seiko_feature_report_response[SEIKO_FEATURE_REPORT_LENGTH] =
+{
+    0x01, 0x02, 0x00, 0x06, 0x02, 0x01, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static char seiko_feature_report_response_01[SEIKO_FEATURE_REPORT_LENGTH] =
+{
+    0x01, 0x02, 0x00, 0x06, 0x02, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static char seiko_feature_report_response_09[SEIKO_FEATURE_REPORT_LENGTH] =
+{
+    0x09, 0x02, 0x00, 0x06, 0x02, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+#define SEIKO_INPUT_REPORT_LENGTH_MAX  28
+#define SEIKO_INPUT_REPORT_LENGTH_12   28
+#define SEIKO_INPUT_REPORT_LENGTH_14   28
+#define SEIKO_INPUT_REPORT_LENGTH_16   28
+#define SEIKO_INPUT_REPORT_LENGTH_18   5
+
+static char seiko_input_report_response[SEIKO_INPUT_REPORT_LENGTH_MAX] =
+{
+    0x00, 0xc2, 0x01, 0x00, 0x00, 0x00, 0x08, 0xc8,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00
 };
 
 /**
@@ -464,94 +472,222 @@ static uint8_t USBD_CUSTOM_HID_Sensor_DeInit(USBD_HandleTypeDef *pdev, uint8_t c
   * @param  req: usb requests
   * @retval status
   */
-static uint8_t USBD_CUSTOM_HID_Sensor_Setup(USBD_HandleTypeDef *pdev, USBD_SetupReqTypedef *req) {
+static uint8_t USBD_CUSTOM_HID_Sensor_Setup(USBD_HandleTypeDef *pdev,
+                                           USBD_SetupReqTypedef *req)
+{
     USBD_CUSTOM_HID_Sensor_HandleTypeDef *hhid = (USBD_CUSTOM_HID_Sensor_HandleTypeDef *)pdev->pClassData;
     uint16_t len = 0U;
     uint8_t *pbuf = NULL;
     uint16_t status_info = 0U;
     uint8_t report_type, report_id;
-    char report_content[SEIKO_FEATURE_REPORT_LENGTH];
+    char report_content[SEIKO_INPUT_REPORT_LENGTH_MAX];
     uint32_t report_length = 0U;
     USBD_StatusTypeDef ret = USBD_OK;
 
-    if (hhid == NULL) {
+    if (hhid == NULL)
+    {
         return (uint8_t)USBD_FAIL;
     }
 
-    switch (req->bmRequest & USB_REQ_TYPE_MASK) {
-    case USB_REQ_TYPE_CLASS:
-        switch (req->bRequest) {
-        case CUSTOM_HID_SENSOR_REQ_SET_PROTOCOL:
-            hhid->Protocol = (uint8_t)(req->wValue);
-            break;
-
-        case CUSTOM_HID_SENSOR_REQ_GET_PROTOCOL:
-            (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->Protocol, 1U);
-            break;
-
-        case CUSTOM_HID_SENSOR_REQ_SET_IDLE:
-            hhid->IdleState = (uint8_t)(req->wValue >> 8);
-            break;
-
-        case CUSTOM_HID_SENSOR_REQ_GET_IDLE:
-            (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
-            break;
-
-        case CUSTOM_HID_SENSOR_REQ_SET_REPORT:
-            hhid->IsReportAvailable = 1U;
-            (void)USBD_CtlPrepareRx(pdev, hhid->Report_buf, req->wLength);
-            break;
-
-        case CUSTOM_HID_SENSOR_REQ_GET_REPORT:
-            report_type = req->wValue >> 8;
-            report_id = req->wValue & 0xFF;
-            if (HID_REPORT_TYPE_FEATURE == report_type) {
-                uint8_t feature_index = 0xFF;
-
-                switch (report_id) {
-                case SEIKO_FEATURE_REPORT_ID_01:
-                    feature_index = SEIKO_FEATURE_REPORT_INDEX_01;
+    switch (req->bmRequest & USB_REQ_TYPE_MASK)
+    {
+        case USB_REQ_TYPE_CLASS:
+            switch (req->bRequest)
+            {
+                case CUSTOM_HID_SENSOR_REQ_SET_PROTOCOL:
+                    hhid->Protocol = (uint8_t)(req->wValue);
                     break;
-                case SEIKO_FEATURE_REPORT_ID_03:
-                    feature_index = SEIKO_FEATURE_REPORT_INDEX_03;
-                    break;
-                case SEIKO_FEATURE_REPORT_ID_05:
-                    feature_index = SEIKO_FEATURE_REPORT_INDEX_05;
-                    break;
-                case SEIKO_FEATURE_REPORT_ID_07:
-                    feature_index = SEIKO_FEATURE_REPORT_INDEX_07;
-                    break;
-                case SEIKO_FEATURE_REPORT_ID_09:
-                    feature_index = SEIKO_FEATURE_REPORT_INDEX_09;
-                    break;
-                case SEIKO_FEATURE_REPORT_ID_D:
-                    feature_index = SEIKO_FEATURE_REPORT_INDEX_D;
-                    break;
-                default:
-                    report_length = 0;
-                    break;
-                }
 
-                if (feature_index != 0xFF) {
-                    if (is_feature_report_cached[feature_index]) {
-                        memcpy(report_content, cached_feature_reports[feature_index], SEIKO_FEATURE_REPORT_LENGTH);
-                        report_length = SEIKO_FEATURE_REPORT_LENGTH;
-                    } else {
-                        memcpy(report_content, seiko_feature_report_template, SEIKO_FEATURE_REPORT_LENGTH);
-                        report_content[0] = report_id;
+                case CUSTOM_HID_SENSOR_REQ_GET_PROTOCOL:
+                    USBD_CtlSendData(pdev, (uint8_t *)&hhid->Protocol, 1U);
+                    break;
 
-                        memcpy(cached_feature_reports[feature_index], report_content, SEIKO_FEATURE_REPORT_LENGTH);
-                        is_feature_report_cached[feature_index] = true;
-                        report_length = SEIKO_FEATURE_REPORT_LENGTH;
+                case CUSTOM_HID_SENSOR_REQ_SET_IDLE:
+                    hhid->IdleState = (uint8_t)(req->wValue >> 8);
+                    break;
+
+                case CUSTOM_HID_SENSOR_REQ_GET_IDLE:
+                    USBD_CtlSendData(pdev, (uint8_t *)&hhid->IdleState, 1U);
+                    break;
+
+                case CUSTOM_HID_SENSOR_REQ_SET_REPORT:
+                    hhid->IsReportAvailable = 1U;
+                    USBD_CtlPrepareRx(pdev, hhid->Report_buf, req->wLength);
+                    break;
+
+                case CUSTOM_HID_SENSOR_REQ_GET_REPORT:
+                    report_type = req->wValue >> 8;
+                    report_id = req->wValue & 0xFF;
+
+                    if (HID_REPORT_TYPE_INPUT == report_type)
+                    {
+                        switch (report_id)
+                        {
+                            case SEIKO_INPUT_REPORT_ID_12:
+                                memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_12);
+                                report_length = SEIKO_INPUT_REPORT_LENGTH_12;
+                                break;
+
+                            case SEIKO_INPUT_REPORT_ID_14:
+                                memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_14);
+                                report_length = SEIKO_INPUT_REPORT_LENGTH_14;
+                                break;
+
+                            case SEIKO_INPUT_REPORT_ID_16:
+                                memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_16);
+                                report_length = SEIKO_INPUT_REPORT_LENGTH_16;
+                                break;
+
+                            case SEIKO_INPUT_REPORT_ID_18:
+                                memcpy(report_content, seiko_input_report_response, SEIKO_INPUT_REPORT_LENGTH_18);
+                                report_length = SEIKO_INPUT_REPORT_LENGTH_18;
+                                break;
+
+                            default:
+                                report_length = 0;
+                                break;
+                        }
                     }
-                }
-            }
+                    else if (HID_REPORT_TYPE_FEATURE == report_type)
+                    {
+                        memcpy(report_content, seiko_feature_report_response, SEIKO_FEATURE_REPORT_LENGTH);
+                        report_length = SEIKO_FEATURE_REPORT_LENGTH;
 
-            if (report_length > 0) {
-                USBD_CtlSendData(pdev, (uint8_t *)report_content, report_length);
-            } else {
-                USBD_CtlError(pdev, req);
-                ret = USBD_FAIL;
+                        switch (report_id)
+                        {
+                            case SEIKO_FEATURE_REPORT_ID_01:
+                                memcpy(report_content, seiko_feature_report_response_01, SEIKO_FEATURE_REPORT_LENGTH);
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_03:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_03;
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_05:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_05;
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_07:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_07;
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_09:
+                                memcpy(report_content, seiko_feature_report_response_09, SEIKO_FEATURE_REPORT_LENGTH);
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_0B:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_0B;
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_0D:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_0D;
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_0F:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_0F;
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_11:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_11;
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_13:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_13;
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_15:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_15;
+                                break;
+
+                            case SEIKO_FEATURE_REPORT_ID_17:
+                                report_content[0] = SEIKO_FEATURE_REPORT_ID_17;
+                                break;
+
+                            default:
+                                report_length = 0;
+                                break;
+                        }
+                    }
+
+                    if (report_length > 0)
+                    {
+                        USBD_CtlSendData(pdev, (uint8_t *)report_content, report_length);
+                    }
+                    else
+                    {
+                        USBD_CtlError(pdev, req);
+                        ret = USBD_FAIL;
+                    }
+                    break;
+
+                default:
+                    USBD_CtlError(pdev, req);
+                    ret = USBD_FAIL;
+                    break;
+            }
+            break;
+
+        case USB_REQ_TYPE_STANDARD:
+            switch (req->bRequest)
+            {
+                case USB_REQ_GET_STATUS:
+                    if (pdev->dev_state == USBD_STATE_CONFIGURED)
+                    {
+                        USBD_CtlSendData(pdev, (uint8_t *)&status_info, 2U);
+                    }
+                    else
+                    {
+                        USBD_CtlError(pdev, req);
+                        ret = USBD_FAIL;
+                    }
+                    break;
+
+                case USB_REQ_GET_DESCRIPTOR:
+                    if ((req->wValue >> 8) == CUSTOM_HID_SENSOR_REPORT_DESC)
+                    {
+                        len = MIN(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE, req->wLength);
+                        pbuf = ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->pReport;
+                    }
+                    else if ((req->wValue >> 8) == CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE)
+                    {
+                        pbuf = USBD_CUSTOM_HID_Sensor_Desc;
+                        len = MIN(USB_CUSTOM_HID_SENSOR_DESC_SIZ, req->wLength);
+                    }
+
+                    USBD_CtlSendData(pdev, pbuf, len);
+                    break;
+
+                case USB_REQ_GET_INTERFACE:
+                    if (pdev->dev_state == USBD_STATE_CONFIGURED)
+                    {
+                        USBD_CtlSendData(pdev, (uint8_t *)&hhid->AltSetting, 1U);
+                    }
+                    else
+                    {
+                        USBD_CtlError(pdev, req);
+                        ret = USBD_FAIL;
+                    }
+                    break;
+
+                case USB_REQ_SET_INTERFACE:
+                    if (pdev->dev_state == USBD_STATE_CONFIGURED)
+                    {
+                        hhid->AltSetting = (uint8_t)(req->wValue);
+                    }
+                    else
+                    {
+                        USBD_CtlError(pdev, req);
+                        ret = USBD_FAIL;
+                    }
+                    break;
+
+                case USB_REQ_CLEAR_FEATURE:
+                    break;
+
+                default:
+                    USBD_CtlError(pdev, req);
+                    ret = USBD_FAIL;
+                    break;
             }
             break;
 
@@ -559,70 +695,8 @@ static uint8_t USBD_CUSTOM_HID_Sensor_Setup(USBD_HandleTypeDef *pdev, USBD_Setup
             USBD_CtlError(pdev, req);
             ret = USBD_FAIL;
             break;
-        }
-        break;
-
-    case USB_REQ_TYPE_STANDARD:
-        switch (req->bRequest) {
-        case USB_REQ_GET_STATUS:
-            if (pdev->dev_state == USBD_STATE_CONFIGURED) {
-                (void)USBD_CtlSendData(pdev, (uint8_t *)&status_info, 2U);
-            } else {
-                USBD_CtlError(pdev, req);
-                ret = USBD_FAIL;
-            }
-            break;
-
-        case USB_REQ_GET_DESCRIPTOR:
-            if ((req->wValue >> 8) == CUSTOM_HID_SENSOR_DESCRIPTOR_TYPE) {
-                pbuf = USBD_CUSTOM_HID_Sensor_Desc;
-                len = MIN(USB_CUSTOM_HID_SENSOR_DESC_SIZ, req->wLength);
-            } else if ((req->wValue >> 8) == CUSTOM_HID_SENSOR_REPORT_DESC) {
-                pbuf = ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->pReport;
-                len = MIN(USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE, req->wLength);
-            }
-
-            if (pbuf != NULL) {
-                (void)USBD_CtlSendData(pdev, pbuf, len);
-            } else {
-                USBD_CtlError(pdev, req);
-                ret = USBD_FAIL;
-            }
-            break;
-
-        case USB_REQ_GET_INTERFACE:
-            if (pdev->dev_state == USBD_STATE_CONFIGURED) {
-                (void)USBD_CtlSendData(pdev, (uint8_t *)&hhid->AltSetting, 1U);
-            } else {
-                USBD_CtlError(pdev, req);
-                ret = USBD_FAIL;
-            }
-            break;
-
-        case USB_REQ_SET_INTERFACE:
-            if (pdev->dev_state == USBD_STATE_CONFIGURED) {
-                hhid->AltSetting = (uint8_t)(req->wValue);
-            } else {
-                USBD_CtlError(pdev, req);
-                ret = USBD_FAIL;
-            }
-            break;
-
-        case USB_REQ_CLEAR_FEATURE:
-            break;
-
-        default:
-            USBD_CtlError(pdev, req);
-            ret = USBD_FAIL;
-            break;
-        }
-        break;
-
-    default:
-        USBD_CtlError(pdev, req);
-        ret = USBD_FAIL;
-        break;
     }
+
     return (uint8_t)ret;
 }
 
@@ -779,51 +853,46 @@ uint8_t USBD_CUSTOM_HID_Sensor_ReceivePacket(USBD_HandleTypeDef *pdev)
   * @param  pdev: device instance
   * @retval status
   */
-static uint8_t USBD_CUSTOM_HID_Sensor_EP0_RxReady(USBD_HandleTypeDef *pdev) {
+static uint8_t USBD_CUSTOM_HID_Sensor_EP0_RxReady(USBD_HandleTypeDef *pdev)
+{
+    // Validate class data
     USBD_CUSTOM_HID_Sensor_HandleTypeDef *hhid = (USBD_CUSTOM_HID_Sensor_HandleTypeDef *)pdev->pClassData;
-    uint8_t report_type, report_id;
-
-    if (hhid == NULL) {
+    if (hhid == NULL)
+    {
         return (uint8_t)USBD_FAIL;
     }
 
-    report_type = pdev->request.wValue >> 8;
-    report_id = pdev->request.wValue & 0xFF;
+    // Extract report type and ID from the request
+    uint8_t report_type = pdev->request.wValue >> 8;
+    uint8_t report_id = pdev->request.wValue & 0xFF;
 
-    if (hhid->IsReportAvailable == 1U) {
-        if (report_type == HID_REPORT_TYPE_FEATURE) {
-            uint8_t feature_index = 0xFF;
+    // Check if a report is available
+    if (hhid->IsReportAvailable == 1U)
+    {
+        // Handle feature report types
+        if (HID_REPORT_TYPE_FEATURE == report_type)
+        {
+            switch (report_id)
+            {
+                case SEIKO_FEATURE_REPORT_ID_01:
+                    memcpy(seiko_feature_report_response_01, hhid->Report_buf, pdev->request.wLength);
+                    break;
 
-            switch (report_id) {
-            case SEIKO_FEATURE_REPORT_ID_01:
-                feature_index = SEIKO_FEATURE_REPORT_INDEX_01;
-                break;
-            case SEIKO_FEATURE_REPORT_ID_03:
-                feature_index = SEIKO_FEATURE_REPORT_INDEX_03;
-                break;
-            case SEIKO_FEATURE_REPORT_ID_05:
-                feature_index = SEIKO_FEATURE_REPORT_INDEX_05;
-                break;
-            case SEIKO_FEATURE_REPORT_ID_07:
-                feature_index = SEIKO_FEATURE_REPORT_INDEX_07;
-                break;
-            case SEIKO_FEATURE_REPORT_ID_09:
-                feature_index = SEIKO_FEATURE_REPORT_INDEX_09;
-                break;
-            case SEIKO_FEATURE_REPORT_ID_D:
-                feature_index = SEIKO_FEATURE_REPORT_INDEX_D;
-                break;
-            default:
-                break;
-            }
+                case SEIKO_FEATURE_REPORT_ID_09:
+                    memcpy(seiko_feature_report_response_09, hhid->Report_buf, pdev->request.wLength);
+                    break;
 
-            if (feature_index != 0xFF) {
-                memcpy(cached_feature_reports[feature_index], hhid->Report_buf, SEIKO_FEATURE_REPORT_LENGTH);
-                is_feature_report_cached[feature_index] = true;
+                default:
+                    // Unhandled report ID
+                    break;
             }
         }
 
-        ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->OutEvent(hhid->Report_buf[0], hhid->Report_buf[1]);
+        // Notify the application of the Out event
+        ((USBD_CUSTOM_HID_ItfTypeDef *)pdev->pUserData)->OutEvent(hhid->Report_buf[0],
+                                                                  hhid->Report_buf[1]);
+
+        // Mark the report as processed
         hhid->IsReportAvailable = 0U;
     }
 
