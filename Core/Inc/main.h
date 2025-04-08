@@ -196,9 +196,8 @@ PUTCHAR_PROTOTYPE;
 
 /* USER CODE BEGIN Private defines */
 
-#define V_MAJOR 0
-#define V_MINOR 4
-#define V_PATCH 1
+#define HUB_FW_VER 0x042
+
 /* Model Code Rules:
  *  1st character: J, Jorjin
  *  2nd character: 8, J8 series

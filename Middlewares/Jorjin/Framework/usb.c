@@ -267,9 +267,9 @@ void usbLoop() {
     UBaseType_t uxHighWaterMark;
 #endif
     if (gCtx.queue == NULL) return;
-    
+
     gCtx.bInited = 0x1;
-    
+
     while (1) {
         while (xQueueReceive(gCtx.queue, &msg, portMAX_DELAY) == pdPASS) {
             usbTxBlock();   //Take USB Lock
@@ -277,73 +277,65 @@ void usbLoop() {
             case USB_HID_INPUT_REPORT:
                 break;
             case USB_HID_IMU_INPUT_REPORT:
-               nIMUHIDUsbOuts += 1;
-                // nIMUHIDUsbOuts = 0;
-//                usbImu_TxBlock();
-                usbTx_inc_imu_report();
+                // nIMUHIDUsbOuts += 1;
+                // usbImu_TxBlock();
+                // usbTx_inc_imu_report();
                 ret = USBD_CUSTOM_HID_Sensor_SendReport_HS(msg.data.imuReport.report, msg.data.imuReport.len);
-                if(USBD_OK != ret)
-                {
+                if (USBD_OK != ret) {
                     /* Fail, release the lock. */
-//                    usbTxUnblock();
+                    // usbTxUnblock();
                     if (ret == USBD_FAIL) nUsbfailed += 1;
                     else if (ret == USBD_BUSY) nUsbBusy += 1;
                 }
                 /* Success, release the lock. */
-//                usbTxUnblock();
+                // usbTxUnblock();
                 break;
-           case USB_HID_KEY_INPUT_REPORT:
-//               usbAls_TxBlock();
-               usbTx_inc_key_report();
-               //ret = USBD_OK;
-               ret = USBD_CUSTOM_HID_Keyboard_SendReport_HS(msg.data.keyReport.report, msg.data.keyReport.len);
-               if(USBD_OK != ret)
-               {
-                   /* Fail, release the lock. */
-                   //usbTxUnblock();
-               }
-               /* Success, release the lock. */
-//				usbTxUnblock();
-               break;
-            case USB_CDC_TOF_DATA:
-//                usbToF_TxBlock();
-//                nTofGpioInts_1 += 1;
-//                usbTx_inc_tof();
-                ret = CDC_Transmit_HS((uint8_t *)msg.data.ToFMsg.p, msg.data.ToFMsg.len);
-                if(USBD_OK != ret)
-                {
+            case USB_HID_KEY_INPUT_REPORT:
+                //    usbAls_TxBlock();
+                //    usbTx_inc_key_report();
+                ret = USBD_CUSTOM_HID_Keyboard_SendReport_HS(msg.data.keyReport.report, msg.data.keyReport.len);
+                if (USBD_OK != ret) {
                     /* Fail, release the lock. */
-//                    usbTx_inc_tof_error();
-//                    usbTxUnblock();
+                    // usbTxUnblock();
+                }
+                /* Success, release the lock. */
+                usbTxUnblock();
+                break;
+            case USB_CDC_TOF_DATA:
+                // TofGpioInts_1 += 1;
+                // usbToF_TxBlock();
+                // usbTx_inc_tof();
+                ret = CDC_Transmit_HS((uint8_t*)msg.data.ToFMsg.p, msg.data.ToFMsg.len);
+                if (USBD_OK != ret) {
+                    /* Fail, release the lock. */
+                    // usbTx_inc_tof_error();
+                    // usbTxUnblock();
                 }
                 bRangePacketUpdated = false;
-//                usbTxUnblock();
+                // usbTxUnblock();
                 break;
 #if ENABLE_DEVICECTL_CDC
             case USB_DEBUG_MSG:
-//                usbToF_TxBlock();
-                usbTx_inc_devctlr();
-//                ret = CDC_Transmit_HS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
-                ret = CDC_DEVCTLR_Transmit_HS((uint8_t *)msg.data.debugMsg.str, msg.data.debugMsg.len);
-                if(USBD_OK != ret)
-                {
+                // usbToF_TxBlock();
+                // usbTx_inc_devctlr();
+                ret = CDC_DEVCTLR_Transmit_HS((uint8_t*)msg.data.debugMsg.str, msg.data.debugMsg.len);
+                if (USBD_OK != ret) {
                     /* Fail, release the lock. */
-                    usbTx_inc_devctlr_error();
-//                    usbTxUnblock();
+                    // usbTx_inc_devctlr_error();
+                    // usbTxUnblock();
                 }
 #endif
 #if ENABLE_STACK_CHECK
-//                osDelay(1000);
+                // osDelay(1000);
 #endif
-//                usbTxUnblock();
+                // usbTxUnblock();
                 break;
             default:
                 break;
             }
 #if ENABLE_STACK_CHECK
             //test: check high water
-            if(nExecs_IsrToF%100==0 && nExecs_IsrToF!=0)
-            {
+            if (nExecs_IsrToF % 100 == 0 && nExecs_IsrToF != 0) {
                 uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
                 usbDebug("USB_task free stack：%lu\n", uxHighWaterMark);
             }

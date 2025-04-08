@@ -912,14 +912,13 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
     case CE_GET_TOF_CALDATA:
         reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         break;
-
     case CE_GET_FW_VER:
-        if (!args_len)
-            reply += sprintf(reply, "%d.%d.%d.%s", V_MAJOR, V_MINOR, V_PATCH, MODEL_SUFFIX);
-        else
-            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
-        break;
-
+		if (!args_len)
+			reply += sprintf(reply, "%d.%d.%d.%s",
+					HUB_FW_VER/0x100, (HUB_FW_VER%0x100)/0x10, HUB_FW_VER%0x10, MODEL_SUFFIX);
+		else
+			reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+		break;
     case CE_GET_MCU_SN:
         if (!args_len)
             reply += sprintf(reply, "%08X%04X", *(unsigned int*)DEVICE_ID1 + *(unsigned int*)DEVICE_ID3, (*(unsigned int*)DEVICE_ID2 >> 16));

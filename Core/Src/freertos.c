@@ -590,15 +590,15 @@ void StartMainTask(void *argument)
 #endif
 
 #if ENABLE_ALS
-	/* creation of ALSensorTask */
-	ALSensorTaskHandle = osThreadNew(StartALSensorTask, NULL, &ALSensorTask_attributes);
-
 	AL3010_Init();
 	osDelay(10);
 
 	//Enable ALS Int
 	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 6, 0);
 	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+	/* creation of ALSensorTask */
+	ALSensorTaskHandle = osThreadNew(StartALSensorTask, NULL, &ALSensorTask_attributes);
 #endif
 
 #if ENABLE_PANEL
@@ -607,9 +607,6 @@ void StartMainTask(void *argument)
 	isPanelOn = 1;
 #else
 	#if ENABLE_PS
-		/* creation of PSensorTask */
-		PSensorTaskHandle = osThreadNew(StartPSensorTask, NULL,	&PSensorTask_attributes);
-
 		RPR0521_Init();
 		osDelay(10);
 		RPR0521_SetUp();
@@ -618,6 +615,9 @@ void StartMainTask(void *argument)
 		//Enable PS Int
 		HAL_NVIC_SetPriority(EXTI0_IRQn, 6, 0);
 		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+		/* creation of PSensorTask */
+		PSensorTaskHandle = osThreadNew(StartPSensorTask, NULL,	&PSensorTask_attributes);
 	#endif
 #endif
 
@@ -841,6 +841,7 @@ void ResetTof(void)
 	osThreadFlagsSet(MainTaskHandle, 0x02);
 }
 
+#if ENABLE_TOF
 void Tof_Hard_reset(void)
 {
 	HAL_NVIC_DisableIRQ(EXTI1_IRQn);
@@ -856,6 +857,7 @@ void Tof_Hard_reset(void)
 	HAL_NVIC_SetPriority(EXTI1_IRQn, 5, 0);
 	HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 }
+#endif
 
 void CountingTask(void *argument)
 {
