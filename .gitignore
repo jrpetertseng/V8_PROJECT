@@ -1,6 +1,4 @@
-/.settings
-/[Dd]ebug
-/[Rr]elease
-/[Bb]ackup
+[Dd]ebug
+[Rr]elease
+[Bb]ackup
 *.launch
-.gitignore
