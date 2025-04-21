@@ -60,7 +60,7 @@ typedef StaticTask_t osStaticThreadDef_t;
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define I2C_BUS             	(&hi2c1)
-#define PROXIMITY_THRESHOLD 	200
+#define PROXIMITY_THRESHOLD 	300
 #define OFF_DEBOUNCE_THRESHOLD 	pdMS_TO_TICKS(5000)
 #define ON_DEBOUNCE_THRESHOLD 	pdMS_TO_TICKS(1000)
 /* USER CODE END PD */
