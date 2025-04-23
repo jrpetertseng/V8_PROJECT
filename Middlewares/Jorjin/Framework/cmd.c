@@ -95,7 +95,7 @@ static int cmdEnterBootloader(struct Argc *argc, int argv)
 
 static int cmdGetFirmwareVersion(struct Argc *argc, int argv)
 {
-    usbDebug("%d.%d.%d %s\r\n\r\n", HUB_FW_VER/0x100, (HUB_FW_VER%0x100)/0x10, HUB_FW_VER%0x10, MODEL_SUFFIX);
+    usbDebug("%d.%d.%d %s\r\n\r\n", V_MAJOR, V_MINOR, V_PATCH, MODEL_SUFFIX);
     return 0;
 }
 
