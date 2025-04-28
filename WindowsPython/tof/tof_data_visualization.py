@@ -1,296 +1,224 @@
 import serial
+import serial.tools.list_ports
+import threading
+import time
+import sys
+import re
 import struct
 import numpy as np
 import cv2
-import socket
-import sys
-import time
-import threading
-from typing import Optional
-from enum import Enum
 
+MAX_DISTANCE_MM = 4000
 
-# Enum to define output modes for ToF data
-class outPutMode(Enum):
-    outCV = 0  # Display data using OpenCV visualization
-    outTCP = 1  # Send data over TCP connection
-    noOutput = 2  # No output mode
+class Log():
+    class Level:
+        NONE = 0
+        ERROR = 1
+        WARNING = 2
+        INFO = 3
+        DEBUG = 4
 
+    def __init__(self, level=Level.DEBUG):
+        self._level = level
 
-# Class to handle ST VL53L8CX Time-of-Flight (ToF) sensor with a maximum range of 4000 mm
+    def i(self, msg):  
+        if self._level >= self.Level.INFO:  print("I:", msg)
+    def d(self, msg):  
+        if self._level >= self.Level.DEBUG: print("D:", msg)
+    def e(self, msg):  
+        if self._level >= self.Level.ERROR: print("E:", msg)
+
+log = Log(Log.Level.DEBUG)
+
 class Tof:
-    def __init__(self, port="COM1", max_range=4000, invalid_value=400):
-        """
-        Initializes the VL53L8CX ToF sensor on a specified serial port.
+    def __init__(self):
+        self.serial = None
+        self.data_thread = None
+        self.running = False
+        self.device_vidpid = None
+        self._lock = threading.Lock()
+        self.port = None
 
-        Parameters:
-        - port: The serial port connected to the VL53L8CX sensor (e.g., "COM1").
-        - max_range: The maximum detection range in mm (default 4000 mm).
-        - invalid_value: The value (in cm) to represent invalid or out-of-range data, default is 400 cm.
-        """
-        self.port = port
-        self.serial = self._init_serial_port()
+    def find_ports(self):
+        ports = []
+        pattern = re.compile(r'VID:PID=350E:(3723|3727|3729|3801)', re.IGNORECASE)
+        for port in serial.tools.list_ports.comports():
+            if pattern.search(port.hwid):
+                vidpid = re.search(r'VID:PID=350E:(\d+)', port.hwid).group(1)
+                ports.append((port.device, vidpid))
+        return ports
 
-        if self.serial is None:
-            print(f"Unable to initialize the serial port {self.port}. Exiting.")
+    def try_open(self, port, vidpid):
+        try:
+            ser = serial.Serial(port, baudrate=115200, timeout=1)
+            log.i(f"Opened serial port: {port}")
+            if vidpid == "3801":
+                log.i("Detected 3801 device, only sending 'settofconf'")
+                ser.write(b"settofconf\r\n")
+                resp = ser.readline().strip()
+                log.d(f"Response: {resp}")
+                if resp == b"OK":
+                    self.serial = ser
+                    self.device_vidpid = vidpid
+                    self.port = port
+                    return True
+            else:
+                for cmd in ["settofpwr 0", "settofpwr 1", "settofmode 1", "settofconf 0"]:
+                    ser.write((cmd + "\r\n").encode())
+                    resp = ser.readline().strip()
+                    log.d(f"Response: {resp}")
+                    if resp != b"OK":
+                        ser.close()
+                        return False
+                    time.sleep(0.2)
+                self.serial = ser
+                self.device_vidpid = vidpid
+                self.port = port
+                return True
+        except Exception as e:
+            log.e(f"Failed to open {port}: {e}")
+            return False
+
+    def initialize(self):
+        ports = self.find_ports()
+        if not ports:
+            log.e("No TOF device found.")
             sys.exit(1)
 
-        self.buffer = bytearray()
-        self.run_flag = True
-        self.max_range = max_range
-        self.invalid_value = invalid_value  # Invalid range value is set to 400 cm
-        self.lock = threading.Lock()  # Protect access to serial port across threads
-        self.stop_flag = False  # Stop flag for controlling thread execution
-        self.start()
+        log.i(f"Found {len(ports)} possible TOF device(s). Trying...")
 
-    def _init_serial_port(self) -> Optional[serial.Serial]:
-        """
-        Initializes the serial port for communication with the ToF sensor.
-        Returns None if the port cannot be opened.
-        """
-        ser = serial.Serial()
-        ser.port = self.port
-        ser.timeout = 1  # Set a 1-second timeout for reading
-        try:
-            ser.open()
-            if ser.is_open:
-                print(f"Successfully opened serial port: {self.port}")
-            else:
-                print(f"Failed to open port: {self.port}")
-                return None
-        except serial.SerialException as e:
-            print(f"Failed to open port: {self.port}. Error: {e}")
-            return None
-        return ser
+        for port, vidpid in ports:
+            log.i(f"Trying {port} (VIDPID={vidpid})...")
+            if self.try_open(port, vidpid):
+                log.i(f"Successfully initialized ToF on {port}")
+                return True
 
-    def start(self) -> None:
-        """Starts the communication with the ToF sensor by sending a configuration command."""
-        self.send_command(command="settofconf")
+        log.e("All ports failed to initialize.")
+        sys.exit(1)
 
-    def send_command(self, command=None) -> None:
-        """
-        Sends a command to the ToF sensor via the serial interface.
-        If no command is provided, prompts the user to input one.
-        """
-        if self.serial is None:
-            print("Serial port is not initialized. Cannot send command.")
-            return
+    def start_data_thread(self):
+        self.running = True
+        self.data_thread = threading.Thread(target=self._data_worker, daemon=True)
+        self.data_thread.start()
 
-        if command is None:
-            command = input("Command to Module: ")
+    def stop(self):
+        self.running = False
+        if self.data_thread and self.data_thread.is_alive():
+            self.data_thread.join()
+        if self.serial and self.serial.is_open:
+            self.serial.close()
 
-        try:
-            self.serial.write(bytes(command + "\r\n", "ASCII"))
-            self._get_response()
-        except serial.SerialException as e:
-            print(f"Failed to send command over serial port. Error: {e}")
-
-    def _get_response(self) -> None:
-        """Reads and handles the response from the ToF sensor after sending a command."""
-        if self.serial is None or not self.serial.is_open:
-            print("Serial port is not initialized or not open. Cannot read response.")
-            return
-
-        try:
-            self.serial.read_until(expected=b"\r\n")  # Read response until newline
-        except serial.SerialException as e:
-            print(f"Failed to read response from serial port. Error: {e}")
-
-    def getColorMap(self, Map: np.ndarray, Resolution: int):
-        """
-        Generates a color map based on the distance data received from the ToF sensor.
-        The values are mapped to a color range for visualization.
-
-        Parameters:
-        - Map: The 8x8 distance map array (in cm).
-        - Resolution: The grid resolution (e.g., 8x8).
-
-        Returns:
-        - A color-mapped visualization using OpenCV's COLORMAP_JET.
-        """
-        colormap = np.zeros((Resolution * 8, Resolution * 8), dtype=np.uint8)
-        for i in range(Resolution):
-            for j in range(Resolution):
-                for k in range(8):
-                    for l in range(8):
-                        # Normalize the value between 0 and 255 for color mapping
-                        value = np.clip((Map[i, j] / self.max_range) * 255, 0, 255)
-                        colormap[i * 8 + k, j * 8 + l] = value
-        return cv2.applyColorMap(colormap, cv2.COLORMAP_JET)
-
-    def display(self, frame_name: str, frame: np.ndarray, fps: float, dist: np.ndarray):
-        """
-        Displays the color map with distance values and FPS overlay.
-
-        Parameters:
-        - frame_name: Name of the display window.
-        - frame: The color-mapped frame to display.
-        - fps: Frames per second for the display.
-        - dist: The distance data (in cm) to overlay on the frame.
-        """
-        print(f"FPS: {fps:.2f}")
-        resized_frame = cv2.resize(frame, (640, 640), interpolation=cv2.INTER_NEAREST)
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.5
-        color = (255, 255, 255)
-        thickness = 1
-        for i in range(dist.shape[0]):
-            for j in range(dist.shape[1]):
-                text = f"{dist[i, j]:.1f}"  # Display distance in cm
-                position = (j * 80 + 20, i * 80 + 40)
-                cv2.putText(
-                    resized_frame, text, position, font, font_scale, color, thickness
-                )
-        cv2.imshow(frame_name, resized_frame)
-        if cv2.waitKey(1) == ord("q"):
-            return False
-        return True
-
-    def get_frame(self) -> Optional[np.ndarray]:
-        """
-        Reads a frame of distance data from the ToF sensor. The raw data is in millimeters (mm),
-        but is converted to centimeters (cm) by dividing by 10.
-
-        Returns:
-        - A numpy array of distances (in cm).
-        """
-        with self.lock:
-            if self.stop_flag:
-                return None
-            if self.serial is None or not self.serial.is_open:
-                print("Serial port is not open or not available.")
-                return None
-
+    def _data_worker(self):
+        while self.running:
             try:
-                self.buffer += self.serial.read(
-                    size=593
-                )  # Read a frame of data (593 bytes)
-                if len(self.buffer) < 593:
-                    return None
-            except serial.SerialException as e:
-                print(f"Failed to read data from serial port. Error: {e}")
-                return None
-            except TypeError as e:
-                print(f"Type error encountered: {e}")
-                return None
+                with self._lock:
+                    data = self.serial.read_until(b'ED\r\n')
+                if data.startswith(b'DATA') and data.endswith(b'ED\r\n') and len(data) >= 594:
+                    handle_data(data, self.device_vidpid)
+            except Exception as e:
+                log.e(f"Data read error: {e}")
 
-            ind = self.buffer.find(bytearray("DATA", encoding="ASCII"))
-            self.buffer = self.buffer[ind:]
-            self.buffer += self.serial.read(size=ind)
-            if len(self.buffer) < 593:
-                return None
+# === OpenCV Utilities ===
+def getColorMap(dist_map, resolution=8, max_range=4000):
+    colormap = np.zeros((resolution * 8, resolution * 8), dtype=np.uint8)
+    for i in range(resolution):
+        for j in range(resolution):
+            for k in range(8):
+                for l in range(8):
+                    val = np.clip((dist_map[i, j] / max_range) * 255, 0, 255)
+                    colormap[i * 8 + k, j * 8 + l] = val
+    return cv2.applyColorMap(colormap, cv2.COLORMAP_JET)
 
-            peak_rate_kcps_per_spad = np.zeros((8, 8), dtype=np.uintc)
-            for i in range(64):
-                peak_rate_kcps_per_spad[i // 8][i % 8] = struct.unpack(
-                    "<I", self.buffer[9 * i + 11 : 9 * i + 15]
-                )[0]
+def display(frame_name, frame, dist):
+    resized = cv2.resize(frame, (480, 480), interpolation=cv2.INTER_NEAREST)
+    for i in range(8):
+        for j in range(8):
+            text = f"{dist[i,j]:.0f}"
+            cv2.putText(resized, text, (j * 60 + 15, i * 60 + 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1)
+    cv2.imshow(frame_name, resized)
+    cv2.waitKey(1)
 
-            target_status = np.zeros((8, 8), dtype=np.ubyte)
-            median_range = np.zeros((8, 8), dtype=np.short)
-            for i in range(64):
-                target_status[i // 8][i % 8] = struct.unpack(
-                    "<B", self.buffer[9 * i + 18 : 9 * i + 19]
-                )[0]
-                if 5 <= target_status[i // 8][i % 8] <= 9:
-                    # Convert the distance from mm to cm by dividing by 10
-                    median_range[i // 8][i % 8] = (
-                        struct.unpack("<h", self.buffer[9 * i + 15 : 9 * i + 17])[0]
-                        / 10
-                    )
-                else:
-                    # Assign invalid value in cm (default 400 cm)
-                    median_range[i // 8][i % 8] = self.invalid_value
-            self.buffer = bytearray()  # Clear the buffer after reading
-            return median_range
+# === Gesture Map and Serial Output ===
+GESTURE_MAP = {
+    0: "UP", 1: "DOWN", 2: "LEFT", 3: "RIGHT",
+    4: "PULL", 5: "PUSH", 6: "HALT"
+}
 
-    def close(self):
-        """
-        Safely closes the serial port. Ensures no other thread is using it.
-        """
-        with self.lock:
-            if self.serial is not None and self.serial.is_open:
-                self.serial.close()
-                print(f"Serial port {self.port} closed successfully.")
+SERIAL_OUTPUT = {
+    "UP":    b"keyup\r\n",
+    "DOWN":  b"keydown\r\n",
+    "LEFT":  b"keyleft\r\n",
+    "RIGHT": b"keyright\r\n",
+    "PUSH":  b"keyback\r\n",
+    "PULL":  b"keyenter\r\n"
+}
 
+# === Data Receiver ===
+count = 0
+last_gesture_map = 0
 
-def display_thread_func(tof, prev_time):
-    """
-    Thread function to handle OpenCV display of sensor data.
-    Continuously reads frames from the sensor and updates the display window.
-    """
-    while not tof.stop_flag:
-        dist = tof.get_frame()
-        if dist is None:
-            continue
-
-        current_time = time.time()
-        fps = 1 / (current_time - prev_time)
-        prev_time = current_time
-
-        color_depth = tof.getColorMap(dist, 8)
-        if not tof.display("Depth", color_depth, fps, dist):
-            tof.stop_flag = True
-            break
-    cv2.destroyAllWindows()
-
-
-def tcp_thread_func(tof, host, port):
-    """
-    Thread function for sending sensor data over TCP.
-    Connects to a remote server and transmits the distance data continuously.
-    """
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    connect = False
-    try:
-        sock.connect((host, port))
-        connect = True
-    except Exception as e:
-        print(f"Failed to connect to {host}:{port}. Error: {e}")
+def handle_data(data, device_vidpid):
+    global count, last_gesture_map
+    count += 1
+    if len(data) < 594:
         return
 
-    while connect and not tof.stop_flag:
-        dist = tof.get_frame()
-        if dist is None:
-            continue
-        try:
-            sock.sendall(dist.tobytes())
-        except Exception as e:
-            print(f"Failed to send data. Error: {e}")
-            connect = False
-            break
-    sock.close()
+    checksum = int.from_bytes(data[-8:-4], byteorder='little')
+    gesture_map = (checksum >> 8) & 0xFF
 
+    dist_map = np.zeros((8,8), dtype=np.float32)
+    for i in range(64):
+        base = 10 + i*9
+        target_status = data[base+8]
+        if 5 <= target_status <= 9:
+            distance_raw = struct.unpack("<h", data[base+5:base+7])[0]
+            distance_mm = distance_raw if device_vidpid == "3801" else distance_raw // 4
+            if distance_mm < 0:
+                distance_mm = MAX_DISTANCE_MM
+            dist_map[i//8, i%8] = min(distance_mm, MAX_DISTANCE_MM)
+        else:
+            dist_map[i//8, i%8] = MAX_DISTANCE_MM
 
-if __name__ == "__main__":
-    host, port = "127.0.0.1", 25001
-    comport = sys.argv[1]
-    tof = Tof(comport)
+    display("ToF Depth (mm)", getColorMap(dist_map), dist_map)
 
-    output_mode = outPutMode.outCV
-    prev_time = time.time()
+    # === Only non-3801 devices handle gestures
+    if device_vidpid != "3801":
+        if gesture_map != last_gesture_map:
+            last_gesture_map = gesture_map
+            for i in range(7):
+                if gesture_map & (1 << i):
+                    gesture = GESTURE_MAP.get(i, f"UNKNOWN_{i}")
+                    if gesture in SERIAL_OUTPUT:
+                        log.i(f"Detected gesture: {gesture}")
+                        try:
+                            with tof._lock:
+                                tof.serial.write(SERIAL_OUTPUT[gesture])
+                        except Exception as e:
+                            log.e(f"Send key event failed: {e}")
 
-    try:
-        if output_mode == outPutMode.outCV:
-            display_thread = threading.Thread(
-                target=display_thread_func, args=(tof, prev_time)
-            )
-            display_thread.start()
+# === Main ===
+try:
+    tof = Tof()
+    tof.initialize()
+    tof.start_data_thread()
 
-        elif output_mode == outPutMode.outTCP:
-            tcp_thread = threading.Thread(
-                target=tcp_thread_func, args=(tof, host, port)
-            )
-            tcp_thread.start()
+    print("\n***** Press Ctrl+C to stop *****\n")
+    start_time = time.time()
+    last_time = start_time
+    last_count = count
 
-        # Main thread waits for KeyboardInterrupt
-        display_thread.join()
-        if output_mode == outPutMode.outTCP:
-            tcp_thread.join()
+    while True:
+        time.sleep(1)
+        now = time.time()
+        fps = (count - last_count) / (now - last_time)
+        print(f"FPS: {fps:.2f}", end="\r")
+        last_count = count
+        last_time = now
 
-    except KeyboardInterrupt:
-        print("Program interrupted.")
-    finally:
-        tof.stop_flag = True  # Signal all threads to stop
-        tof.close()  # Close serial port after threads are done
-        cv2.destroyAllWindows()
+except KeyboardInterrupt:
+    print("\n\n[Ctrl+C detected]")
+
+finally:
+    tof.stop()
+    cv2.destroyAllWindows()
