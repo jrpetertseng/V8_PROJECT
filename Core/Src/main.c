@@ -148,14 +148,12 @@ void McuReset(void)
   */
 int main(void)
 {
-
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
 
   /* MPU Configuration--------------------------------------------------------*/
   MPU_Config();
-
   /* Enable the CPU Cache */
 
   /* Enable I-Cache---------------------------------------------------------*/
@@ -182,10 +180,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_ADC1_Init();
-  MX_ADC2_Init();
-  MX_I2C1_Init();
-  MX_I2C2_Init();
   MX_I2C3_Init();
   MX_SPI1_Init();
   MX_SPI2_Init();
@@ -193,6 +187,10 @@ int main(void)
 #if defined DEBUG
   MX_TIM13_Init();
 #endif
+  MX_ADC1_Init();
+  MX_ADC2_Init();
+  MX_I2C1_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -207,7 +205,6 @@ int main(void)
   osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -328,7 +325,7 @@ PUTCHAR_PROTOTYPE
 }
 /* USER CODE END 4 */
 
- /* MPU Configuration */
+/* MPU Configuration */
 
 void MPU_Config(void)
 {
