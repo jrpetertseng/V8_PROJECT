@@ -66,7 +66,7 @@ static void usbhid_sendReport(char* pReport, int nLength) {
     keyReport.type = USB_HID_KEY_INPUT_REPORT;
     keyReport.data.keyReport.len = nLength;
 
-    if ((0 < nLength) && (8 >= nLength)) {
+    if ((0 < nLength) && (CUSTOM_HID_KEYBOARD_EPIN_SIZE  >= nLength)) {
         memcpy(keyReport.data.keyReport.report, pReport, nLength);
 #if ENABLE_USB_SEND_MSG
         usbSendMessage(&keyReport);
@@ -1120,8 +1120,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
 }
 
 void Ecx343_data_init_default(void) {
-    const char* strL = "JORJIN J8L";
-    const char* strR = "JORJIN J8L";
+    const char* strL = "JORJIN V8";
+    const char* strR = "JORJIN V8";
     memset(ecx343_data.uLCD_DEVICEL, 0, sizeof(ecx343_data.uLCD_DEVICEL));
     memcpy(ecx343_data.uLCD_DEVICEL, strL, strlen(strL));
 

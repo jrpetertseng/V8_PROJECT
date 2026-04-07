@@ -49,6 +49,8 @@
 #include "bno080.h"
 #include "vl53l8cx_api.h"
 #include "button_handling.h"
+#include "iqs7211e.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,7 +88,9 @@ uint8_t encSwitch = 0;
 uint8_t micSwitch = 0;
 
 uint8_t isPanelOn = 0;
+
 static SemaphoreHandle_t I2C1_Lock;
+static SemaphoreHandle_t I2C3_Lock;
 static SemaphoreHandle_t isrToFLock;
 volatile unsigned long ulHighFrequencyTimerTicks;
 /* USER CODE END Variables */
@@ -128,6 +132,16 @@ const osThreadAttr_t PSensorTask_attributes =
 { .name = "PSensorTask", .cb_mem = &PSensorTaskControlBlock, .cb_size =
 		sizeof(PSensorTaskControlBlock), .stack_mem = &PSensorTaskBuffer[0],
 		.stack_size = sizeof(PSensorTaskBuffer), .priority =
+				(osPriority_t) osPriorityNormal, };
+
+/* Definitions for TouchTask */
+osThreadId_t TouchTaskHandle;
+uint32_t TouchTaskBuffer[512];
+osStaticThreadDef_t TouchTaskControlBlock;
+const osThreadAttr_t TouchTask_attributes =
+{ .name = "TouchTask", .cb_mem = &TouchTaskControlBlock, .cb_size =
+		sizeof(TouchTaskControlBlock), .stack_mem = &TouchTaskBuffer[0],
+		.stack_size = sizeof(TouchTaskBuffer), .priority =
 				(osPriority_t) osPriorityNormal, };
 
 /* Definitions for ALSensorTask */
@@ -187,6 +201,8 @@ void configureTimerForRunTimeStats(void);
 unsigned long getRunTimeCounterValue(void);
 static inline void i2c1TxBlock(void);
 static inline void i2c1TxUnblock(void);
+static inline void i2c3TxBlock(void);
+static inline void i2c3TxUnblock(void);
 
 void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime);
 void ResetTof(void);
@@ -197,6 +213,7 @@ void StartUsbTxTask(void *argument);
 void StartTofTask(void *argument);
 void StartImuSensorTask(void *argument);
 void StartPSensorTask(void *argument);
+void StartTouchTask(void *argument);
 void StartALSensorTask(void *argument);
 void StartADCTask(void *argument);
 void StartI2CScanTask(void *argument);
@@ -259,7 +276,7 @@ void StartUsbTxTask(void *argument)
 	/* init code for USB_DEVICE */
 	HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(CAM_RST_GPIO_Port, CAM_RST_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(TOF_EN_GPIO_Port, TOF_EN_Pin, GPIO_PIN_SET);
 	osDelay(500);
 
 	HAL_GPIO_WritePin(LT7911_RSTN_GPIO_Port, LT7911_RSTN_Pin, GPIO_PIN_SET);
@@ -277,6 +294,12 @@ void StartUsbTxTask(void *argument)
 	if (I2C1_Lock != NULL)
 	{
 		xSemaphoreGive(I2C1_Lock);
+	}
+
+	I2C3_Lock = xSemaphoreCreateBinary();
+	if (I2C3_Lock != NULL)
+	{
+		xSemaphoreGive(I2C3_Lock);
 	}
 
 	/* creation of MainTask */
@@ -399,8 +422,8 @@ void StartPSensorTask(void *argument)
 	/* Infinite loop */
 	for (;;)
 	{
-		uint32_t thread_event_flag = osThreadFlagsWait(0x01, osFlagsNoClear, osWaitForever);
-		if (thread_event_flag == 0x01)
+		uint32_t thread_event_flag = osThreadFlagsWait(PS_EVT_FLAG, osFlagsNoClear, osWaitForever);
+		if (thread_event_flag == PS_EVT_FLAG)
 		{
 			if (xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
 			{
@@ -425,7 +448,7 @@ void StartPSensorTask(void *argument)
 				{
 					lastTransitionTick = xTaskGetTickCount(); // Reset the timer if the condition is no longer met
 				}
-				osThreadFlagsClear(0x01);
+				osThreadFlagsClear(PS_EVT_FLAG);
 
 				if (isDebugModeEnabled && task_count >= 10)
 				{
@@ -438,6 +461,224 @@ void StartPSensorTask(void *argument)
         osDelay(100);
 	}
 	/* USER CODE END StartPSensorTask */
+}
+#endif
+
+#if ENABLE_TOUCH
+#define I2C_LOCK_TIMEOUT_MS       200u
+#define INIT_TOTAL_TIMEOUT_MS     2000u
+#define POLL_INT_MS               10u
+
+/* Keyboard report (Report ID 0x01) bit masks per original descriptor order */
+#define HID_KBD_REPORT_ID         0x01u
+
+/* Digits 1/2/3 are usage 0x1E/0x1F/0x20, mapped to bit6/bit7/bit8 */
+#define HID_KEY_1_MASK            (1UL << 6)
+#define HID_KEY_2_MASK            (1UL << 7)
+#define HID_KEY_3_MASK            (1UL << 8)
+
+/* Digit 0 is usage 0x27, mapped to bit15 */
+#define HID_KEY_0_MASK            (1UL << 15)
+
+/* Arrow keys are usage 0x4F..0x52, mapped to bit21..bit24 (range starts at 0x4E) */
+#define HID_KEY_RIGHT_MASK        (1UL << 21)
+#define HID_KEY_LEFT_MASK         (1UL << 22)
+#define HID_KEY_DOWN_MASK         (1UL << 23)
+#define HID_KEY_UP_MASK           (1UL << 24)
+
+/* Edge-trigger state: avoid repeated PRESS_HOLD firing */
+static iqs_gesture_e s_last_gesture = IQS_G_NONE;
+
+static BaseType_t TakeI2C3LockWithLog(const char *tag, TickType_t to)
+{
+	BaseType_t ok = xSemaphoreTake(I2C3_Lock, to);
+
+	if (ok != pdTRUE) {
+		usbDebug("%s: I2C3_Lock TIMEOUT (%lu ms)\r\n",
+		         tag,
+		         (unsigned long)(to * portTICK_PERIOD_MS));
+	}
+
+	return ok;
+}
+
+static BaseType_t iqs_run_with_lock(const char *tag, TickType_t lock_to)
+{
+	if (TakeI2C3LockWithLog(tag, lock_to) != pdTRUE) {
+		return pdFALSE;
+	}
+
+	IQS7211E_Run();
+	i2c3TxUnblock();
+	return pdTRUE;
+}
+
+static inline int rdy_level(void)
+{
+	return (HAL_GPIO_ReadPin(TOUCH_RDY_GPIO_Port, TOUCH_RDY_Pin) == GPIO_PIN_SET);
+}
+
+static const char *iqs_gesture_str(iqs_gesture_e g)
+{
+	switch (g) {
+	case IQS_G_NONE:             return "NONE";
+	case IQS_G_SINGLE_TAP:       return "SINGLE_TAP";
+	case IQS_G_DOUBLE_TAP:       return "DOUBLE_TAP";
+	case IQS_G_TRIPLE_TAP:       return "TRIPLE_TAP";
+	case IQS_G_PRESS_HOLD:       return "PRESS_HOLD";
+	case IQS_G_SWIPE_X_POS:      return "SWIPE_X_POS";
+	case IQS_G_SWIPE_X_NEG:      return "SWIPE_X_NEG";
+	case IQS_G_SWIPE_Y_POS:      return "SWIPE_Y_POS";
+	case IQS_G_SWIPE_Y_NEG:      return "SWIPE_Y_NEG";
+	default:                     return "UNKNOWN";
+	}
+}
+
+static void usbhid_send_key_mask(uint32_t mask)
+{
+	JQueueMessage_t msg;
+
+	msg.type               = USB_HID_KEY_INPUT_REPORT;
+	msg.data.keyReport.len = sizeof(HID_KeyboardReport);
+
+	HID_keyboard_report.report_id = HID_KBD_REPORT_ID;
+	HID_keyboard_report.keys      = mask;
+	memcpy(msg.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
+	usbSendMessage(&msg);
+
+	vTaskDelay(pdMS_TO_TICKS(20));
+
+	HID_keyboard_report.keys = 0x00000000u;
+	memcpy(msg.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
+	usbSendMessage(&msg);
+
+	vTaskDelay(pdMS_TO_TICKS(20));
+}
+
+static void handle_iqs_gesture(iqs_gesture_e g)
+{
+	if (g == IQS_G_PRESS_HOLD) {
+		if (s_last_gesture != IQS_G_PRESS_HOLD) {
+			usbhid_send_key_mask(HID_KEY_0_MASK);
+		}
+		s_last_gesture = g;
+		return;
+	}
+
+	switch (g) {
+	case IQS_G_SINGLE_TAP:
+		usbhid_send_key_mask(HID_KEY_1_MASK);
+		break;
+
+	case IQS_G_DOUBLE_TAP:
+		usbhid_send_key_mask(HID_KEY_2_MASK);
+		break;
+
+	case IQS_G_TRIPLE_TAP:
+		usbhid_send_key_mask(HID_KEY_3_MASK);
+		break;
+
+	case IQS_G_SWIPE_X_POS:
+		usbhid_send_key_mask(HID_KEY_RIGHT_MASK);
+		break;
+
+	case IQS_G_SWIPE_X_NEG:
+		usbhid_send_key_mask(HID_KEY_LEFT_MASK);
+		break;
+
+	case IQS_G_SWIPE_Y_POS:
+		usbhid_send_key_mask(HID_KEY_UP_MASK);
+		break;
+
+	case IQS_G_SWIPE_Y_NEG:
+		usbhid_send_key_mask(HID_KEY_DOWN_MASK);
+		break;
+
+	default:
+		break;
+	}
+
+	s_last_gesture = g;
+}
+
+static void TouchExtiEnable(void)
+{
+	HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
+	HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+}
+
+void StartTouchTask(void *argument)
+{
+	(void)argument;
+
+	usbDebug("touch task start\r\n");
+
+	TouchExtiEnable();
+	usbDebug("EXTI15_10 enabled, RDY=%d\r\n", rdy_level());
+
+	if (rdy_level() == 0) {
+		xTaskNotifyGive(TouchTaskHandle);
+		usbDebug("RDY already LOW, notify injected\r\n");
+	}
+
+	/* One-shot init */
+	if (TakeI2C3LockWithLog("init.take", pdMS_TO_TICKS(I2C_LOCK_TIMEOUT_MS)) == pdTRUE) {
+		HAL_StatusTypeDef st = IQS7211E_Init();
+
+		usbDebug("IQS7211E_Init st=%d\r\n", (int)st);
+		i2c3TxUnblock();
+	}
+
+	/* Bounded polling until RUN */
+	if (IQS7211E_IsPresent()) {
+		const TickType_t lock_to  = pdMS_TO_TICKS(I2C_LOCK_TIMEOUT_MS);
+		const TickType_t poll_int = pdMS_TO_TICKS(POLL_INT_MS);
+		const TickType_t init_to  = pdMS_TO_TICKS(INIT_TOTAL_TIMEOUT_MS);
+		TickType_t start          = xTaskGetTickCount();
+		TickType_t next_wake      = start;
+
+		for (;;) {
+			(void)iqs_run_with_lock("init.poll", lock_to);
+
+			if (IQS7211E_GetState() == IQS_STATE_RUN) {
+				usbDebug("IQS7211E init done (RUN)\r\n");
+				break;
+			}
+
+			if ((TickType_t)(xTaskGetTickCount() - start) >= init_to) {
+				usbDebug("IQS7211E init TIMEOUT, state=%d\r\n",
+				         (int)IQS7211E_GetState());
+				break;
+			}
+
+			vTaskDelayUntil(&next_wake, poll_int);
+		}
+	} else {
+		usbDebug("IQS7211E not present\r\n");
+	}
+
+	/* Main loop */
+	for (;;) {
+		ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+		if (!iqs_run_with_lock("evt", pdMS_TO_TICKS(I2C_LOCK_TIMEOUT_MS))) {
+			usbDebug("evt: drop due to lock timeout\r\n");
+			continue;
+		}
+
+		if (IQS7211E_HasNewData()) {
+			iqs_gesture_e g = IQS7211E_GetGesture();
+
+			if (g != IQS_G_NONE) {
+				usbDebug("gesture=%s (%d)\r\n", iqs_gesture_str(g), (int)g);
+				handle_iqs_gesture(g);
+			} else {
+				s_last_gesture = IQS_G_NONE;
+			}
+
+			IQS7211E_ClearNewData();
+		}
+	}
 }
 #endif
 
@@ -460,8 +701,8 @@ void StartALSensorTask(void *argument)
 	/* Infinite loop */
 	for (;;)
 	{
-		uint32_t thread_event_flag = osThreadFlagsWait(0x02, osFlagsNoClear, osWaitForever);
-		if (thread_event_flag == 0x02)
+		uint32_t thread_event_flag = osThreadFlagsWait(ALS_EVT_FLAG, osFlagsNoClear, osWaitForever);
+		if (thread_event_flag == ALS_EVT_FLAG)
 		{
 			if (xSemaphoreTake(I2C1_Lock, portMAX_DELAY) == pdTRUE)
 			{
@@ -487,7 +728,7 @@ void StartALSensorTask(void *argument)
 						smoothlyChangeBrightness(target_panel_brightness);
 					}
 				}
-				osThreadFlagsClear(0x02);
+				osThreadFlagsClear(ALS_EVT_FLAG);
 			}
 		}
         osDelay(100);
@@ -601,6 +842,10 @@ void StartMainTask(void *argument)
 	ALSensorTaskHandle = osThreadNew(StartALSensorTask, NULL, &ALSensorTask_attributes);
 #endif
 
+#if ENABLE_TOUCH
+	TouchTaskHandle = osThreadNew(StartTouchTask, NULL, &TouchTask_attributes);
+#endif
+
 #if ENABLE_PANEL
 	executeTaskWithMutex(POWER_ON, PANEL_BOTH);
 	osDelay(10);
@@ -635,11 +880,6 @@ void StartMainTask(void *argument)
 	I2CScanTaskHandle = osThreadNew(StartI2CScanTask, NULL, &I2CScanTask_attributes);
 #endif
 
-	uint32_t pressTime = 0, releaseTime = 0;
-	ButtonState buttonFuncCurrState = BUTTON_RELEASED;
-	ButtonState buttonFuncPrevState = BUTTON_RELEASED;
-	OperationMode currentMode = MODE_VOLUME;
-	PowerSave displayType = MODE_RELEASE;
 	ButtonClickType clickType = NO_CLICK;
 
 	uint32_t startTime = osKernelGetTickCount();
@@ -650,7 +890,7 @@ void StartMainTask(void *argument)
 	/* Infinite loop */
 	for (;;)
 	{
-		osDelay(100);
+		osDelay(20);
 
 		if (encSwitch)
 		{
@@ -683,29 +923,22 @@ void StartMainTask(void *argument)
 
 		if (!isPanelOn) continue;
 
-		/* ButtonEvent */
-		bool isReleased = false;
-		bool newEventOccurred = UpdateButtonState(&buttonFuncPrevState, &buttonFuncCurrState, &pressTime, &releaseTime, &isReleased);
+		#define BUTTON_FUNC_MASK  (1u)
 
-		if (newEventOccurred)
-		{
-			clickType = isReleased ? GetButtonClickType(pressTime, releaseTime) : LONG_PRESS;
-			ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
-		}
-		else if (possibleSingleClick && (osKernelGetTickCount() - lastClickTime > CLICK_DETECTION_PERIOD))
-		{
-			possibleSingleClick = false;
-			clickType = SINGLE_CLICK;
-			ProcessButtonEvent(1, &clickType, &currentMode, &displayType);
+		static ButtonContext buttonFuncCtx;
+		static bool buttonFuncCtxInit = false;
+
+		if (!buttonFuncCtxInit) {
+			Button_Init(&buttonFuncCtx);
+			buttonFuncCtxInit = true;
 		}
 
-		uint8_t buttonEvent = 0;
-		buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_MINUS_GPIO_Port, PNL_VOL_MINUS_Pin) == GPIO_PIN_RESET) << 1;
-		buttonEvent |= (HAL_GPIO_ReadPin(PNL_VOL_PLUS_GPIO_Port, PNL_VOL_PLUS_Pin) == GPIO_PIN_RESET) << 2;
-		if (buttonEvent)
-		{
-			if (isAutoBrightnessEnabled && currentMode==MODE_BRIGHTNESS) continue;
-			ProcessButtonEvent(buttonEvent, &clickType, &currentMode, &displayType);
+		clickType = Button_Update(&buttonFuncCtx,
+															POWER_SW_KEY_GPIO_Port,
+															POWER_SW_KEY_Pin);
+
+		if (clickType != NO_CLICK) {
+			ProcessButtonEvent(BUTTON_FUNC_MASK, &clickType);
 		}
 
 		if(isHighTempBrightnessEnabled)
@@ -750,6 +983,16 @@ static inline void i2c1TxBlock(void)
 static inline void i2c1TxUnblock(void)
 {
 	xSemaphoreGive(I2C1_Lock);
+}
+
+static inline void i2c3TxBlock(void)
+{
+	xSemaphoreTake(I2C3_Lock, portMAX_DELAY);
+}
+
+static inline void i2c3TxUnblock(void)
+{
+	xSemaphoreGive(I2C3_Lock);
 }
 
 void checkAndReduceBrightness(uint32_t *startTime, uint32_t *lastHighTempTime) {

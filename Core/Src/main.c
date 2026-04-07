@@ -71,6 +71,7 @@ extern I2C_HandleTypeDef hi2c1;
 extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c3;
 extern USBD_HandleTypeDef hUsbDeviceHS;
+extern osThreadId_t TouchTaskHandle;
 extern osThreadId_t ALSensorTaskHandle;
 extern osThreadId_t PSensorTaskHandle;
 
@@ -181,7 +182,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C3_Init();
-  MX_SPI1_Init();
   MX_SPI2_Init();
   MX_SPI4_Init();
 #if defined DEBUG
@@ -284,22 +284,33 @@ void SystemClock_Config(void)
   */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if(IMU_INTN_Pin == GPIO_Pin)
+//   if(IMU_INTN_Pin == GPIO_Pin)
+//   {
+//       SH2_GPIO_EXTI_Callback( GPIO_Pin);
+//       // nBno08xGpioInts += 1;
+//   }
+#if ENABLE_TOUCH
+    if (GPIO_Pin == TOUCH_RDY_Pin)
     {
-        SH2_GPIO_EXTI_Callback( GPIO_Pin);
-        // nBno08xGpioInts += 1;
+      BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+      if (TouchTaskHandle) {
+        vTaskNotifyGiveFromISR(TouchTaskHandle, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+      }
     }
+#endif
 #if ENABLE_ALS
     else if(ALS_INT_Pin == GPIO_Pin)
     {
-        osThreadFlagsSet(ALSensorTaskHandle, 0x02);
+        osThreadFlagsSet(ALSensorTaskHandle, ALS_EVT_FLAG);
         // nAlsGpioInts += 1;
     }
 #endif
 #if ENABLE_PS
     else if(PS_INT_Pin == GPIO_Pin)
     {
-        osThreadFlagsSet(PSensorTaskHandle, 0x01);
+        osThreadFlagsSet(PSensorTaskHandle, PS_EVT_FLAG);
         // nPsGpioInts += 1;
     }
 #endif

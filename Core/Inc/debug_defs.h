@@ -8,13 +8,14 @@
 /******************************************************************/
 #define ENABLE_CDC_DEFAULT_ECHOBACK     0
 
-#define ENABLE_TOF                      1
-#define ENABLE_TOF_FORCE_RESET          1
+#define ENABLE_TOF                      0
+#define ENABLE_TOF_FORCE_RESET          0
 #define ENABLE_TOF_DEBUG                0
 
-#define ENABLE_IMU                      1
+#define ENABLE_IMU                      0
+#define ENABLE_TOUCH                    1
 #define ENABLE_ALS                      1
-#define ENABLE_PS                       1
+#define ENABLE_PS                       0
 #define ENABLE_ADC                      1
 #define ENABLE_SCAN_I2C                 0
 

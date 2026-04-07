@@ -1,182 +1,124 @@
-/*
- * button_handling.c
- *
- *  Created on: Dec 20, 2023
- *      Author: User
- */
-
 #include "button_handling.h"
-#include "ecx343.h"
+#include "cmsis_os.h"
 #include "usb.h"
 
-#include "cmd_engine.h"
-#include "usbd_custom_hid_if.h"
-#include "debug_defs.h"
-JQueueMessage_t keyReport;
-extern ECX343_DATA ecx343_current_data;
+static ButtonState ReadButtonRaw(GPIO_TypeDef *port, uint16_t pin)
+{
+	GPIO_PinState s;
 
-uint32_t lastClickTime = 0;
-bool possibleSingleClick = false;
-bool longPressHandled = false;
-bool longPressTriggered = false;
+	s = HAL_GPIO_ReadPin(port, pin);
 
-bool UpdateButtonState(ButtonState *buttonPrevState, ButtonState *currentButtonState, uint32_t *pressTime, uint32_t *releaseTime, bool *isReleased) {
-    bool newEventOccurred = false;
-    ButtonState readState = HAL_GPIO_ReadPin(SW_KEY_2D3D_GPIO_Port, SW_KEY_2D3D_Pin) == GPIO_PIN_RESET ? BUTTON_PRESSED : BUTTON_RELEASED;
-
-    if (readState == BUTTON_PRESSED && *buttonPrevState == BUTTON_RELEASED) {
-        *pressTime = osKernelGetTickCount();
-        *isReleased = false;
-        longPressHandled = false;
-        longPressTriggered = false;
-    } else if (readState == BUTTON_RELEASED && *buttonPrevState == BUTTON_PRESSED) {
-        *releaseTime = osKernelGetTickCount();
-        *isReleased = true;
-        newEventOccurred = !longPressHandled && !longPressTriggered;
-        longPressHandled = false;
-        longPressTriggered = false;
-    }
-
-    if (readState == BUTTON_PRESSED && !longPressHandled && !longPressTriggered && (osKernelGetTickCount() - *pressTime > LONG_THRESHOLD)) {
-        longPressHandled = true;
-        longPressTriggered = true;
-        return true;
-    }
-
-    *buttonPrevState = readState;
-    return newEventOccurred;
+	return (s == GPIO_PIN_RESET) ? BUTTON_PRESSED : BUTTON_RELEASED;
 }
 
-ButtonClickType GetButtonClickType(uint32_t pressTime, uint32_t releaseTime) {
-    uint32_t currentTime = osKernelGetTickCount();
+void Button_Init(ButtonContext *ctx)
+{
+	if (ctx == NULL) {
+		return;
+	}
 
-    if (longPressTriggered) {
-        longPressTriggered = false;
-        possibleSingleClick = false;
-        return NO_CLICK;
-    }
+	ctx->stableState      = BUTTON_RELEASED;
+	ctx->lastRawState     = BUTTON_RELEASED;
+	ctx->lastDebounceTick = 0u;
 
-    if (currentTime - lastClickTime < DOUBLE_THRESHOLD) {
-        if (possibleSingleClick) {
-            possibleSingleClick = false;
-            lastClickTime = currentTime;
-            return DOUBLE_CLICK;
-        }
-    } else {
-        if (possibleSingleClick) {
-            possibleSingleClick = false;
-            lastClickTime = currentTime;
-            return SINGLE_CLICK;
-        }
-    }
+	ctx->pressTick        = 0u;
+	ctx->longSent         = false;
 
-    possibleSingleClick = true;
-    lastClickTime = currentTime;
-    return NO_CLICK;
+	ctx->waitingSecond    = false;
+	ctx->firstReleaseTick = 0u;
 }
 
-void HandleButtonClick(OperationMode *currentMode, PowerSave *displayType, ButtonClickType *clickType) {
-    switch (*clickType) {
-        case NO_CLICK:
-            break;
-        case SINGLE_CLICK:
+ButtonClickType Button_Update(ButtonContext *ctx, GPIO_TypeDef *port, uint16_t pin)
+{
+	uint32_t now;
+	ButtonState raw;
+	bool stableChanged;
 
-        #if ENABLE_KEYBOARD_BUTTON_TEST
-            keyReport.type = USB_HID_KEY_INPUT_REPORT;
+	if (ctx == NULL || port == NULL) {
+		return NO_CLICK;
+	}
 
-        	HID_keyboard_report.report_id = 0x01;
-        	HID_keyboard_report.keys = 0x00000001;
-            keyReport.data.keyReport.len = sizeof(HID_KeyboardReport);
-            memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
-            usbSendMessage(&keyReport);
-            osDelay(20);
-            HID_keyboard_report.keys = 0x00000000;
-            memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
-            usbSendMessage(&keyReport);
-            osDelay(100);
-		#else
-			uint8_t mode_state;
+	now = osKernelGetTickCount();
+	raw = ReadButtonRaw(port, pin);
 
-//			CheckPanelState();
+	if (raw != ctx->lastRawState) {
+		ctx->lastRawState     = raw;
+		ctx->lastDebounceTick = now;
+	}
 
-			mode_state = (ecx343_current_data.uLCD_MODE + 2) % 4;
-			currentPanelMode = mode_state;
-			switchMode();
-			usbDebug("#lcdmode %d@\r\n", ecx343_current_data.uLCD_MODE);
-        #endif
-			break;
-        case DOUBLE_CLICK:
-            *currentMode = (*currentMode == MODE_VOLUME) ? MODE_BRIGHTNESS : MODE_VOLUME;
-            usbDebug("#btmode %d@\r\n", *currentMode);
-            break;
-        case LONG_PRESS:
-            *displayType = (*displayType == MODE_RELEASE) ? MODE_TRANSITION : MODE_RELEASE;
-            executeTaskWithMutex(POWER_SAVING, *displayType);
+	stableChanged = false;
+	if ((now - ctx->lastDebounceTick) >= DEBOUNCE_MS) {
+		if (ctx->stableState != ctx->lastRawState) {
+			ctx->stableState = ctx->lastRawState;
+			stableChanged    = true;
+		}
+	}
 
-            if (*displayType == MODE_RELEASE) {
-                usbDebug("#lcdpwr %d@\r\n", MODE_RELEASE);
-            } else {
-                usbDebug("#lcdpwr %d@\r\n", MODE_TRANSITION);
-            }
-            break;
-    }
-    *clickType = NO_CLICK;
+	if (ctx->stableState == BUTTON_PRESSED) {
+		if (stableChanged) {
+			ctx->pressTick = now;
+			ctx->longSent  = false;
+		}
+
+		if (!ctx->longSent && (now - ctx->pressTick) >= LONG_THRESHOLD) {
+			ctx->longSent      = true;
+			ctx->waitingSecond = false;
+			return LONG_PRESS;
+		}
+
+		return NO_CLICK;
+	}
+
+	/* stableState == RELEASED */
+	if (stableChanged) {
+		if (ctx->longSent) {
+			ctx->longSent = false;
+			return NO_CLICK;
+		}
+
+		if (ctx->waitingSecond &&
+		    (now - ctx->firstReleaseTick) <= DOUBLE_THRESHOLD) {
+			ctx->waitingSecond = false;
+			return DOUBLE_CLICK;
+		}
+
+		ctx->waitingSecond    = true;
+		ctx->firstReleaseTick = now;
+	}
+
+	if (ctx->waitingSecond &&
+	    (now - ctx->firstReleaseTick) >= CLICK_DETECTION_PERIOD) {
+		ctx->waitingSecond = false;
+		return SINGLE_CLICK;
+	}
+
+	return NO_CLICK;
 }
 
-void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType, OperationMode *currentMode, PowerSave *displayType) {
-    switch (buttonEvent) {
-        case 1:
-            HandleButtonClick(currentMode, displayType, clickType);
-            break;
-        case 2:
-			if (*currentMode == MODE_VOLUME) {
-				keyReport.type = USB_HID_KEY_INPUT_REPORT;
-				keyReport.data.keyReport.len = sizeof(HID_KeyboardReport);
+void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
+{
+	if (clickType == NULL) {
+		return;
+	}
 
-				HID_keyboard_report.report_id = 0x02;
-				HID_keyboard_report.keys = 0x00000800;
-				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
-				usbSendMessage(&keyReport);
-				osDelay(20);
+	if (buttonEvent == 0u) {
+		*clickType = NO_CLICK;
+		return;
+	}
 
-				HID_keyboard_report.keys = 0x00000000;
-				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
-				usbSendMessage(&keyReport);
-				osDelay(20);
-				usbDebug("#volume +1@\r\n");
-			} else {
-                ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL < 500) ?
-				ecx343_current_data.uLCD_LUXL + 10 : ecx343_current_data.uLCD_LUXL;
-				ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR < 500) ?
-				ecx343_current_data.uLCD_LUXR + 10 : ecx343_current_data.uLCD_LUXR;
-				executeTaskWithMutex(ADJUST_BRIGHTNESS);
-				usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
-			}
-			break;
-        case 4:
-			if (*currentMode == MODE_VOLUME) {
-				keyReport.type = USB_HID_KEY_INPUT_REPORT;
-                keyReport.data.keyReport.len = sizeof(HID_KeyboardReport);
-				HID_keyboard_report.report_id = 0x02;
+	switch (*clickType) {
+	case SINGLE_CLICK:
+		usbDebug("BUTTON: SINGLE_CLICK\r\n");
+		break;
+	case DOUBLE_CLICK:
+		usbDebug("BUTTON: DOUBLE_CLICK\r\n");
+		break;
+	case LONG_PRESS:
+		usbDebug("BUTTON: LONG_PRESS\r\n");
+		break;
+	default:
+		break;
+	}
 
-				HID_keyboard_report.keys = 0x00001000;
-				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
-				usbSendMessage(&keyReport);
-				osDelay(20);
-
-				HID_keyboard_report.keys = 0x00000000;
-				memcpy(keyReport.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
-				usbSendMessage(&keyReport);
-				osDelay(20);
-				usbDebug("#volume -1@\r\n");
-			} else {
-                ecx343_current_data.uLCD_LUXL = (ecx343_current_data.uLCD_LUXL > 100) ?
-				ecx343_current_data.uLCD_LUXL - 10 : ecx343_current_data.uLCD_LUXL;
-				ecx343_current_data.uLCD_LUXR = (ecx343_current_data.uLCD_LUXR > 100) ?
-				ecx343_current_data.uLCD_LUXR - 10 : ecx343_current_data.uLCD_LUXR;
-				executeTaskWithMutex(ADJUST_BRIGHTNESS);
-				usbDebug("#lcdlux %d,%d@\r\n", ecx343_current_data.uLCD_LUXL*10, ecx343_current_data.uLCD_LUXR*10);
-			}
-            break;
-    }
+	*clickType = NO_CLICK;
 }

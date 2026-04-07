@@ -54,13 +54,10 @@ defined in linker script */
  * @retval : None
 */
 
-
     .section  .text.Reset_Handler
   .weak  Reset_Handler
   .type  Reset_Handler, %function
 Reset_Handler:  
-
-  /* ckhsu, now we start normal procedure. */
   ldr   sp, =_estack      /* set stack pointer */
 
 /* Copy the data segment initializers from flash to SRAM */  
@@ -468,9 +465,6 @@ g_pfnVectors:
             
    .weak      DMA2_Stream4_IRQHandler               
    .thumb_set DMA2_Stream4_IRQHandler,Default_Handler
-   
-   .weak      DMA2_Stream4_IRQHandler               
-   .thumb_set DMA2_Stream4_IRQHandler,Default_Handler   
                            
    .weak      OTG_FS_IRQHandler      
    .thumb_set OTG_FS_IRQHandler,Default_Handler
