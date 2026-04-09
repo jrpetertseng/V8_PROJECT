@@ -96,6 +96,7 @@ extern USBD_CDC_ItfTypeDef USBD_Interface_fops_HS;
 /* USER CODE BEGIN EXPORTED_VARIABLES */
 extern uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 extern bool CDC_Echo_Ctrl_Flag;
+void usb_printf(const char *format, ...);
 /* USER CODE END EXPORTED_VARIABLES */
 
 /**
