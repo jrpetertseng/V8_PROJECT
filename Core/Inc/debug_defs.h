@@ -19,7 +19,7 @@
 #define ENABLE_ADC                      1
 #define ENABLE_SCAN_I2C                 0
 
-#define ENABLE_PANEL                    0
+#define ENABLE_PANEL                    1
 
 #define ENABLE_KEYBOARD_BUTTON_TEST     0
 
