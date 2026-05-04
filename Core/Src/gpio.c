@@ -65,6 +65,9 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, SW_BRG_2D3D_Pin|ALS_RST_Pin, GPIO_PIN_RESET);
 
+  /*Configure Audio Amplifier Enable pin Output Level */
+  HAL_GPIO_WritePin(AUDIO_AMP_EN_GPIO_Port, AUDIO_AMP_EN_Pin, GPIO_PIN_SET);
+
   /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = TOUCH_RDY_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
@@ -79,10 +82,13 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PDPin PDPin PDPin */
-  GPIO_InitStruct.Pin = VBUS_5V_PNL_FLG_Pin|VBUS_5V_SYS_FLG_Pin|MAX9860_GPIO_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  //GPIO_InitStruct.Pin = VBUS_5V_PNL_FLG_Pin|VBUS_5V_SYS_FLG_Pin|MAX9860_GPIO_Pin;
+  //GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  //GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pin = AUDIO_AMP_EN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(AUDIO_AMP_EN_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = LT7911_INT_B_Pin;
