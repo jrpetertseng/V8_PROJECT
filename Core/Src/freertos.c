@@ -793,11 +793,27 @@ void StartI2CScanTask(void *argument)
     {
         for (uint16_t i = 1; i < 128; i++)
         {
-            result = HAL_I2C_IsDeviceReady(I2C_BUS, (i << 1), 3, 5);
+            result = HAL_I2C_IsDeviceReady(&hi2c1, (i << 1), 3, 5);
             if (result == HAL_OK)
             {
                 deviceAddr = (i << 1);
-                usbDebug("Ready deviceAddr: 0x[%02X]\r\n", deviceAddr);
+                usbDebug("I2C1: Ready deviceAddr: 0x[%02X]\r\n", deviceAddr);
+                osDelay(20);
+            }
+			
+            result = HAL_I2C_IsDeviceReady(&hi2c2, (i << 1), 3, 5);
+            if (result == HAL_OK)
+            {
+                deviceAddr = (i << 1);
+                usbDebug("I2C2: Ready deviceAddr: 0x[%02X]\r\n", deviceAddr);
+                osDelay(20);
+            }
+			
+            result = HAL_I2C_IsDeviceReady(&hi2c3, (i << 1), 3, 5);
+            if (result == HAL_OK)
+            {
+                deviceAddr = (i << 1);
+                usbDebug("I2C3: Ready deviceAddr: 0x[%02X]\r\n", deviceAddr);
                 osDelay(20);
             }
         }
