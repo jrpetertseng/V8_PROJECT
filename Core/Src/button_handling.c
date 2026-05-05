@@ -2,6 +2,21 @@
 #include "cmsis_os.h"
 #include "usb.h"
 
+#include "debug_defs.h"
+
+#if ENABLE_SUSPEND_RESUME
+extern void SystemClock_Config(void);
+
+static void EnterStandbyFromButton(void)
+{
+    usbDebug("BUTTON: ENTER_STOP\r\n");
+    osDelay(20);
+    HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFI);
+    SystemClock_Config();
+    usbDebug("BUTTON: EXIT_STOP\r\n");
+}
+#endif
+
 static ButtonState ReadButtonRaw(GPIO_TypeDef *port, uint16_t pin)
 {
 	GPIO_PinState s;
@@ -109,6 +124,12 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 	switch (*clickType) {
 	case SINGLE_CLICK:
 		usbDebug("BUTTON: SINGLE_CLICK\r\n");
+
+#if ENABLE_SUSPEND_RESUME
+	EnterStandbyFromButton();
+
+#endif
+
 		break;
 	case DOUBLE_CLICK:
 		usbDebug("BUTTON: DOUBLE_CLICK\r\n");
