@@ -14,6 +14,8 @@ extern uint8_t isHighTempBrightnessEnabled;
 extern uint8_t encSwitch;
 extern uint8_t micSwitch;
 
+extern uint32_t ambientLight;
+
 uint8_t tofNumOfTargets[MAX_TOF_DATA_COUNT];
 uint8_t tofRangePacket[TOF_8X8_DATA_PACKET_SIZE];
 uint8_t tof_resetFlag = 0;
@@ -280,6 +282,9 @@ static Command string_to_command(char* str, uint32_t len) {
             } else if (!strncmp(str + 3, "brgfw", 5)) {
                 cmd.Cmd = CE_GET_BRG_FW;
                 buf_offset = 8;
+            } else if (!strncmp(str + 3, "alsreg", 6)) {
+                cmd.Cmd = CE_GET_ALS_REG;
+                buf_offset = 9;
             }
         } else if (!strncmp(str, "key", 3)) {
             if (!strncmp(str + 3, "ltr", 3)) {
@@ -949,6 +954,10 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         }
         break;
+    case CE_GET_ALS_REG:
+	    usbDebug("ambientLight= %d \r\n", ambientLight);
+
+        break;        
 
     /* key command set */
     case CE_KEY_A:
