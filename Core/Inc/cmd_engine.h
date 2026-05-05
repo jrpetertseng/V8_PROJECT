@@ -61,8 +61,6 @@ typedef enum {
     CE_GET_MCU_SN           = 0x152U,
     CE_GET_LCD_VALUE        = 0x153U,
     CE_GET_BRG_FW           = 0x154U,
-    CE_GET_ALS_REG          = 0x155U,    
-
     // Enter ST Bootloader
     CE_ENTER_BOOTLOADER     = 0x170U,
     // Flash RW
