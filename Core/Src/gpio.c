@@ -21,6 +21,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "gpio.h"
 
+#include "debug_defs.h"
+#include "button_handling.h"
+
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
@@ -129,6 +132,7 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(AUDIO_DET_GPIO_Port, &GPIO_InitStruct);
 
+
   /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = POWER_SW_KEY_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -156,9 +160,41 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(LT7911_INT_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
-
 }
 
+
+void MX_PB_Init(ButtonMode_TypeDef ButtonMode)
+{
+	  GPIO_InitTypeDef GPIO_InitStruct;
+
+	  /* Enable the BUTTON Clock */
+	  //BUTTONx_GPIO_CLK_ENABLE(Button);
+
+	  if(ButtonMode == BUTTON_MODE_GPIO)
+	  {
+		  /*Configure GPIO pin : PtPin */
+		  GPIO_InitStruct.Pin = POWER_SW_KEY_Pin;
+		  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+		  GPIO_InitStruct.Pull = GPIO_PULLUP;
+		  HAL_GPIO_Init(POWER_SW_KEY_GPIO_Port, &GPIO_InitStruct);
+	  }
+
+	  if(ButtonMode == BUTTON_MODE_EXTI)
+	  {
+		  /* GPIO Ports Clock Enable */
+		  __HAL_RCC_GPIOD_CLK_ENABLE();
+
+		  /*Configure GPIO pin : POWER_SW_KEY_Pin */
+		  GPIO_InitStruct.Pin = POWER_SW_KEY_Pin;
+		  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+		  GPIO_InitStruct.Pull = GPIO_PULLUP;
+		  HAL_GPIO_Init(POWER_SW_KEY_GPIO_Port, &GPIO_InitStruct);
+
+		  /* EXTI interrupt init*/
+		  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+		  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+	  }
+}
 /* USER CODE BEGIN 2 */
 
 /* USER CODE END 2 */

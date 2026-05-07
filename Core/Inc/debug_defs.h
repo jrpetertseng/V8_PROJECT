@@ -28,10 +28,11 @@
 #define ENABLE_DEVICECTL_CDC            1
 
 #define ENABLE_SUSPEND_RESUME           1
-#define SLEEP_MODE                      0
+#define SLEEP_MODE                      1
 #define STOP_MODE                       0
 #define STANDBY_MODE                    0
 
+#define ENABLE_POWER_BUTTON_IRQ         1
 
 #if defined DEBUG
   /* When this is enabled, MUST open the CDC else it will lock!!! */

@@ -7,6 +7,8 @@
 #if ENABLE_SUSPEND_RESUME
 extern void SystemClock_Config(void);
 
+extern void MX_PB_Init(ButtonMode_TypeDef ButtonMode);
+
 /* RTC handler declaration */
 //RTC_HandleTypeDef RTCHandle;
 
@@ -16,7 +18,7 @@ static void EnterSleepMode(void)
 	   GPIO_InitTypeDef GPIO_InitStruct;
 
 	   usbDebug("s+ \r\n", __func__);
-
+#if 0
 	   /* Configure all GPIO as analog to reduce current consumption on non used IOs */
 	  /* Enable GPIOs clock */
 	   __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -53,9 +55,10 @@ static void EnterSleepMode(void)
 	   __HAL_RCC_GPIOG_CLK_DISABLE();
 	   __HAL_RCC_GPIOH_CLK_DISABLE();
 	   __HAL_RCC_GPIOI_CLK_DISABLE();
+#endif
 
 	  /* Configure USER Button */
-	  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
+	   MX_PB_Init(BUTTON_MODE_EXTI);
 
 	  /* Suspend Tick increment to prevent wakeup by Systick interrupt.
 	     Otherwise the Systick interrupt will wake up the device within 1ms (HAL time base) */
@@ -75,6 +78,8 @@ static void EnterSleepMode(void)
 static void EnterStopMode(void)
 {
 	  GPIO_InitTypeDef GPIO_InitStruct;
+
+	  usbDebug("s+ \r\n", __func__);
 
 	  /* Configure all GPIO as analog to reduce current consumption on non used IOs */
 	  /* Enable GPIOs clock */
@@ -178,12 +183,17 @@ static void EnterStopMode(void)
 	    /* Initialization Error */
 	    Error_Handler();
 	  }
+
+	  usbDebug("s- \r\n", __func__);
+
 }
 #endif
 
 #if STANDBY_MODE
 static void EnterStandbyMode(void)
 {
+	usbDebug("s+ \r\n", __func__);
+
 	/* Enable Power Clock */
 	__HAL_RCC_PWR_CLK_ENABLE();
 
@@ -196,8 +206,32 @@ static void EnterStandbyMode(void)
 	/*## Enter Standby Mode ####################################################*/
 	/* Request to enter STANDBY mode  */
 	HAL_PWR_EnterSTANDBYMode();
+
+	usbDebug("s+ \r\n", __func__);
+
 }
 #endif
+
+static void EnterPowerOffMode(void)
+{
+	usbDebug("s+ \r\n", __func__);
+
+	/* Enable Power Clock */
+	__HAL_RCC_PWR_CLK_ENABLE();
+
+	/* Re-enable all used wakeup sources: user button (PC.13) */
+	HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN4);
+
+	/* Clear all related wakeup flags */
+	__HAL_PWR_CLEAR_WAKEUP_FLAG(PWR_WAKEUP_PIN_FLAG4);
+
+	/*## Enter Standby Mode ####################################################*/
+	/* Request to enter STANDBY mode  */
+	HAL_PWR_EnterSTANDBYMode();
+
+	usbDebug("s+ \r\n", __func__);
+
+}
 
 /* Testing code @2026/05/05 by Ludy
  *
@@ -344,6 +378,11 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 		break;
 	case LONG_PRESS:
 		usbDebug("BUTTON: LONG_PRESS\r\n");
+
+		/* Delay 200 ms */
+		osDelay(500);
+
+		EnterPowerOffMode();
 		break;
 	default:
 		break;

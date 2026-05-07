@@ -284,6 +284,16 @@ void SystemClock_Config(void)
   */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+	usbDebug("s+ \r\n", __func__);
+
+#if ENABLE_POWER_BUTTON_IRQ
+  /* NOTE : add the specific code to handle the wake up button interrupt */
+  if(GPIO_Pin == POWER_SW_KEY_Pin)
+  { 
+	   usbDebug("Power button wake up! \r\n", __func__);
+  }
+#endif
+
 //   if(IMU_INTN_Pin == GPIO_Pin)
 //   {
 //       SH2_GPIO_EXTI_Callback( GPIO_Pin);

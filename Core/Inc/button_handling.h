@@ -22,6 +22,17 @@ typedef enum {
 	BUTTON_PRESSED
 } ButtonState;
 
+typedef enum
+{
+  BUTTON_WAKEUP = 0
+}Button_TypeDef;
+
+typedef enum
+{
+  BUTTON_MODE_GPIO = 0,
+  BUTTON_MODE_EXTI = 1
+}ButtonMode_TypeDef;
+
 typedef struct {
 	ButtonState stableState;
 	ButtonState lastRawState;
