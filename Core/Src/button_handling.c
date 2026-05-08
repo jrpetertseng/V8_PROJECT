@@ -1,6 +1,31 @@
 #include "button_handling.h"
 #include "cmsis_os.h"
 #include "usb.h"
+#include "usb_device.h"
+#include "usbd_core.h"
+
+extern void SystemClock_Config(void);
+extern USBD_HandleTypeDef hUsbDeviceHS;
+
+static void RestartUsbAfterStopWakeup(void)
+{
+    USBD_Stop(&hUsbDeviceHS);
+    USBD_DeInit(&hUsbDeviceHS);
+    osDelay(20);
+    MX_USB_DEVICE_Init();
+}
+
+static void EnterStopmodebyFromButton(void)
+{
+    usbDebug("BUTTON: ENTER_STOP\r\n");
+    osDelay(20);
+    __HAL_GPIO_EXTI_CLEAR_IT(POWER_SW_KEY_Pin);
+    HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+    HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFI);
+    SystemClock_Config();
+    RestartUsbAfterStopWakeup();
+    usbDebug("BUTTON: EXIT_STOP\r\n");
+}
 
 static ButtonState ReadButtonRaw(GPIO_TypeDef *port, uint16_t pin)
 {
@@ -109,6 +134,7 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 	switch (*clickType) {
 	case SINGLE_CLICK:
 		usbDebug("BUTTON: SINGLE_CLICK\r\n");
+        EnterStopmodebyFromButton();
 		break;
 	case DOUBLE_CLICK:
 		usbDebug("BUTTON: DOUBLE_CLICK\r\n");
