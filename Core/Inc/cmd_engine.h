@@ -55,6 +55,10 @@ typedef enum {
     CE_SET_DEBUG_MODE       = 0x110U,
     CE_SET_ENC_EN           = 0x111U,
     CE_SET_MIC_MUTE         = 0x112U,
+   
+    CE_SET_ALS_START        = 0x115U,    
+    CE_SET_ALS_STOP         = 0x116U,    
+
     //Get
     CE_GET_ECHO             = 0x150U,
     CE_GET_FW_VER           = 0x151U,

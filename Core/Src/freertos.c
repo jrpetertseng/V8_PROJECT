@@ -86,6 +86,7 @@ uint8_t isHighTempBrightnessEnabled = 1;
 
 uint8_t encSwitch = 0;
 uint8_t micSwitch = 0;
+uint8_t alsSwitch = 0;
 
 uint8_t isPanelOn = 0;
 
@@ -921,6 +922,10 @@ void StartMainTask(void *argument)
 			HAL_GPIO_WritePin(CM6542_MIC_MUTE_M_GPIO_Port, CM6542_MIC_MUTE_M_Pin, isMicMute);
 			usbDebug("Mic Mute: %d\r\n", isMicMute);
 			micSwitch = 0;
+		}
+		if (alsSwitch)
+		{
+	    	usbDebug("ambientLight= %d \r\n", ambientLight);
 		}
 
 #if ENABLE_TOF_FORCE_RESET

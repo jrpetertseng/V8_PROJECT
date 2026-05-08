@@ -13,6 +13,7 @@ extern uint8_t isAutoBrightnessEnabled;
 extern uint8_t isHighTempBrightnessEnabled;
 extern uint8_t encSwitch;
 extern uint8_t micSwitch;
+extern uint8_t alsSwitch;
 
 extern uint32_t ambientLight;
 
@@ -250,6 +251,12 @@ static Command string_to_command(char* str, uint32_t len) {
             } else if (!strncmp(str + 3, "mic", 3)) {
                 cmd.Cmd = CE_SET_MIC_MUTE;
                 buf_offset = 6;
+            } else if (!strncmp(str + 3, "alsstart", 8)) {
+                cmd.Cmd = CE_SET_ALS_START;
+                buf_offset = 11;
+            } else if (!strncmp(str + 3, "alsstop", 7)) {
+                cmd.Cmd = CE_SET_ALS_STOP;
+                buf_offset = 10;
             }
         } else if (!strncmp(str, "get", 3)) {
             if (!strncmp(str + 3, "echo", 4)) {
@@ -884,6 +891,24 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
     case CE_SET_MIC_MUTE:
         if (!args_len) {
             micSwitch = 1;
+            reply += sprintf(reply, "OK");
+        } else {
+            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        }
+        break;
+
+    case CE_SET_ALS_START:
+        if (!args_len) {
+            alsSwitch = 1;
+            reply += sprintf(reply, "OK");
+        } else {
+            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
+        }
+        break;
+
+    case CE_SET_ALS_STOP:
+        if (!args_len) {
+            alsSwitch = 0;
             reply += sprintf(reply, "OK");
         } else {
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);

@@ -382,7 +382,7 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 		/* Delay 200 ms */
 		osDelay(500);
 
-		EnterPowerOffMode();
+		//EnterPowerOffMode();
 		break;
 	default:
 		break;
