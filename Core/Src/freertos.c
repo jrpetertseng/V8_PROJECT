@@ -948,7 +948,10 @@ void StartMainTask(void *argument)
 		static bool buttonFuncCtxInit = false;
 
 		if (!buttonFuncCtxInit) {
-			Button_Init(&buttonFuncCtx);
+			Button_InitFromPin(&buttonFuncCtx,
+			                   POWER_SW_KEY_GPIO_Port,
+			                   POWER_SW_KEY_Pin);
+			Button_SuppressClicks(BUTTON_WAKE_LOCK_MS);
 			buttonFuncCtxInit = true;
 		}
 

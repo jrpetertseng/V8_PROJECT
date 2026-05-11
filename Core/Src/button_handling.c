@@ -48,7 +48,7 @@ static void EnterStopmodebyFromButton(void)
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
     /* Guard against key bounce/re-trigger right after wakeup. */
-    s_wake_lock_until_tick = osKernelGetTickCount() + 2000u;
+    Button_SuppressClicks(BUTTON_WAKE_LOCK_MS);
 
     usbDebug("BUTTON: EXIT_STOP\r\n");
 }
@@ -322,6 +322,34 @@ void Button_Init(ButtonContext *ctx)
 
 	ctx->waitingSecond    = false;
 	ctx->firstReleaseTick = 0u;
+}
+
+void Button_InitFromPin(ButtonContext *ctx, GPIO_TypeDef *port, uint16_t pin)
+{
+	uint32_t now;
+	ButtonState raw;
+
+	if (ctx == NULL || port == NULL) {
+		return;
+	}
+
+	now = osKernelGetTickCount();
+	raw = ReadButtonRaw(port, pin);
+
+	ctx->stableState      = raw;
+	ctx->lastRawState     = raw;
+	ctx->lastDebounceTick = now;
+
+	ctx->pressTick        = (raw == BUTTON_PRESSED) ? now : 0u;
+	ctx->longSent         = false;
+
+	ctx->waitingSecond    = false;
+	ctx->firstReleaseTick = 0u;
+}
+
+void Button_SuppressClicks(uint32_t durationMs)
+{
+	s_wake_lock_until_tick = osKernelGetTickCount() + durationMs;
 }
 
 ButtonClickType Button_Update(ButtonContext *ctx, GPIO_TypeDef *port, uint16_t pin)

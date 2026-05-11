@@ -9,6 +9,7 @@
 #define LONG_THRESHOLD         1500u
 #define DOUBLE_THRESHOLD        350u
 #define CLICK_DETECTION_PERIOD  450u
+#define BUTTON_WAKE_LOCK_MS    2000u
 
 typedef enum {
 	NO_CLICK = 0,
@@ -46,6 +47,8 @@ typedef struct {
 } ButtonContext;
 
 void Button_Init(ButtonContext *ctx);
+void Button_InitFromPin(ButtonContext *ctx, GPIO_TypeDef *port, uint16_t pin);
+void Button_SuppressClicks(uint32_t durationMs);
 ButtonClickType Button_Update(ButtonContext *ctx, GPIO_TypeDef *port, uint16_t pin);
 
 void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType);
