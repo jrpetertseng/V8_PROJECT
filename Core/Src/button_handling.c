@@ -1,29 +1,55 @@
 #include "button_handling.h"
 #include "cmsis_os.h"
 #include "usb.h"
-#include "usb_device.h"
-#include "usbd_core.h"
 
 extern void SystemClock_Config(void);
-extern USBD_HandleTypeDef hUsbDeviceHS;
 
-static void RestartUsbAfterStopWakeup(void)
+static uint32_t s_last_single_click_tick = 0u;
+static uint32_t s_wake_lock_until_tick = 0u;
+
+static void TouchRdyInterruptEnable(uint8_t enable)
 {
-    USBD_Stop(&hUsbDeviceHS);
-    USBD_DeInit(&hUsbDeviceHS);
-    osDelay(20);
-    MX_USB_DEVICE_Init();
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    GPIO_InitStruct.Pin = TOUCH_RDY_Pin;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Mode = enable ? GPIO_MODE_IT_FALLING : GPIO_MODE_INPUT;
+    HAL_GPIO_Init(TOUCH_RDY_GPIO_Port, &GPIO_InitStruct);
 }
 
 static void EnterStopmodebyFromButton(void)
 {
     usbDebug("BUTTON: ENTER_STOP\r\n");
     osDelay(20);
+
+    /* Only button can wake STOP: mask Touch/ALS wake sources. */
+    HAL_NVIC_DisableIRQ(EXTI9_5_IRQn);
+    TouchRdyInterruptEnable(0);
+
+    /* Make sure stale EXTI flags won't wake us immediately. */
     __HAL_GPIO_EXTI_CLEAR_IT(POWER_SW_KEY_Pin);
+    __HAL_GPIO_EXTI_CLEAR_IT(TOUCH_RDY_Pin);
+    __HAL_GPIO_EXTI_CLEAR_IT(ALS_INT_Pin);
     HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+    HAL_NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
+
+    HAL_SuspendTick();
     HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFI);
+    HAL_ResumeTick();
+
     SystemClock_Config();
-    RestartUsbAfterStopWakeup();
+
+    /* Restore sensor interrupts after wakeup. */
+    TouchRdyInterruptEnable(1);
+    __HAL_GPIO_EXTI_CLEAR_IT(TOUCH_RDY_Pin);
+    __HAL_GPIO_EXTI_CLEAR_IT(ALS_INT_Pin);
+    HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+    HAL_NVIC_ClearPendingIRQ(EXTI9_5_IRQn);
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+    /* Guard against key bounce/re-trigger right after wakeup. */
+    s_wake_lock_until_tick = osKernelGetTickCount() + 2000u;
+
     usbDebug("BUTTON: EXIT_STOP\r\n");
 }
 
@@ -378,9 +404,24 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 
 	switch (*clickType) {
 	case SINGLE_CLICK:
+	{
+		uint32_t nowTick = osKernelGetTickCount();
+
+		/* Ignore any click shortly after STOP wakeup. */
+		if ((int32_t)(nowTick - s_wake_lock_until_tick) < 0) {
+			break;
+		}
+
+		/* Throttle repeated single-click events caused by mechanical bounce. */
+		if ((nowTick - s_last_single_click_tick) < 250u) {
+			break;
+		}
+		s_last_single_click_tick = nowTick;
+
 		usbDebug("BUTTON: SINGLE_CLICK\r\n");
 		EnterStopmodebyFromButton();
 		break;
+	}
 	case DOUBLE_CLICK:
 		usbDebug("BUTTON: DOUBLE_CLICK\r\n");
 		break;
