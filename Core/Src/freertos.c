@@ -942,8 +942,6 @@ void StartMainTask(void *argument)
 		}
 #endif
 
-		if (!isPanelOn) continue;
-
 		#define BUTTON_FUNC_MASK  (1u)
 
 		static ButtonContext buttonFuncCtx;
@@ -961,6 +959,8 @@ void StartMainTask(void *argument)
 		if (clickType != NO_CLICK) {
 			ProcessButtonEvent(BUTTON_FUNC_MASK, &clickType);
 		}
+
+		if (!isPanelOn) continue;
 
 		if(isHighTempBrightnessEnabled)
 		{
@@ -1157,4 +1157,3 @@ void CountingTask(void *argument)
     }
 }
 /* USER CODE END Application */
-
