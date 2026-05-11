@@ -1,11 +1,17 @@
 #include "button_handling.h"
 #include "cmsis_os.h"
 #include "usb.h"
+#include "ecx343.h"
+#include "usb_device.h"
+#include "usbd_composite.h"
 
 extern void SystemClock_Config(void);
+extern USBD_HandleTypeDef hUsbDeviceHS;
+extern uint8_t isPanelOn;
 
 static uint32_t s_last_single_click_tick = 0u;
 static uint32_t s_wake_lock_until_tick = 0u;
+static uint8_t s_button_two_step_is_off = 0u;
 
 static void TouchRdyInterruptEnable(uint8_t enable)
 {
@@ -51,6 +57,40 @@ static void EnterStopmodebyFromButton(void)
     s_wake_lock_until_tick = osKernelGetTickCount() + 2000u;
 
     usbDebug("BUTTON: EXIT_STOP\r\n");
+}
+
+static void ButtonTwoStep_Off(void)
+{
+    usbDebug("BUTTON: STEP1 OFF (FEATURE->USB)\r\n");
+
+    /* Step 1: function off first. */
+    if (isPanelOn) {
+        executeTaskWithMutex(POWER_OFF, PANEL_BOTH);
+        isPanelOn = 0u;
+    }
+
+    /* Then USB disconnect. */
+    USBD_Stop(&hUsbDeviceHS);
+    osDelay(20);
+    USBD_DeInit(&hUsbDeviceHS);
+
+    /* Enter STM32 STOP mode; next button press wakes up. */
+    EnterStopmodebyFromButton();
+}
+
+static void ButtonTwoStep_On(void)
+{
+    usbDebug("BUTTON: STEP2 ON (USB->FEATURE)\r\n");
+
+    /* Step 2: USB connect first. */
+    MX_USB_DEVICE_Init();
+    osDelay(20);
+
+    /* Then function on. */
+    if (!isPanelOn) {
+        executeTaskWithMutex(POWER_ON, PANEL_BOTH);
+        isPanelOn = 1u;
+    }
 }
 
 #include "debug_defs.h"
@@ -407,11 +447,6 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 	{
 		uint32_t nowTick = osKernelGetTickCount();
 
-		/* Ignore any click shortly after STOP wakeup. */
-		if ((int32_t)(nowTick - s_wake_lock_until_tick) < 0) {
-			break;
-		}
-
 		/* Throttle repeated single-click events caused by mechanical bounce. */
 		if ((nowTick - s_last_single_click_tick) < 250u) {
 			break;
@@ -419,7 +454,14 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 		s_last_single_click_tick = nowTick;
 
 		usbDebug("BUTTON: SINGLE_CLICK\r\n");
-		EnterStopmodebyFromButton();
+
+		if (!s_button_two_step_is_off) {
+			s_button_two_step_is_off = 1u;
+			ButtonTwoStep_Off();
+		} else {
+			ButtonTwoStep_On();
+			s_button_two_step_is_off = 0u;
+		}
 		break;
 	}
 	case DOUBLE_CLICK:
