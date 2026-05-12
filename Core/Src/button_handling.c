@@ -80,8 +80,6 @@ static void ButtonTwoStep_Off(void)
 
 static void ButtonTwoStep_On(void)
 {
-    usbDebug("BUTTON: STEP2 ON (USB->FEATURE)\r\n");
-
     /* Step 2: USB connect first. */
     MX_USB_DEVICE_Init();
     osDelay(20);
@@ -91,252 +89,13 @@ static void ButtonTwoStep_On(void)
         executeTaskWithMutex(POWER_ON, PANEL_BOTH);
         isPanelOn = 1u;
     }
+
+    osDelay(1000);
+    usbDebug("BUTTON: STEP2 ON (USB->FEATURE)\r\n");
 }
 
 #include "debug_defs.h"
 
-#if ENABLE_SUSPEND_RESUME
-extern void SystemClock_Config(void);
-
-extern void MX_PB_Init(ButtonMode_TypeDef ButtonMode);
-
-/* RTC handler declaration */
-//RTC_HandleTypeDef RTCHandle;
-
-#if SLEEP_MODE
-static void EnterSleepMode(void)
-{
-	   GPIO_InitTypeDef GPIO_InitStruct;
-
-	   usbDebug("s+ \r\n", __func__);
-#if 0
-	   /* Configure all GPIO as analog to reduce current consumption on non used IOs */
-	  /* Enable GPIOs clock */
-	   __HAL_RCC_GPIOA_CLK_ENABLE();
-	   __HAL_RCC_GPIOB_CLK_ENABLE();
-	   __HAL_RCC_GPIOC_CLK_ENABLE();
-	   __HAL_RCC_GPIOD_CLK_ENABLE();
-	   __HAL_RCC_GPIOE_CLK_ENABLE();
-	   __HAL_RCC_GPIOF_CLK_ENABLE();
-	   __HAL_RCC_GPIOG_CLK_ENABLE();
-	   __HAL_RCC_GPIOH_CLK_ENABLE();
-	   __HAL_RCC_GPIOI_CLK_ENABLE();
-
-	  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Pin = GPIO_PIN_All;
-	  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-	  /* Disable GPIOs clock */
-	   __HAL_RCC_GPIOA_CLK_DISABLE();
-	   __HAL_RCC_GPIOB_CLK_DISABLE();
-	   __HAL_RCC_GPIOC_CLK_DISABLE();
-	   __HAL_RCC_GPIOD_CLK_DISABLE();
-	   __HAL_RCC_GPIOE_CLK_DISABLE();
-	   __HAL_RCC_GPIOF_CLK_DISABLE();
-	   __HAL_RCC_GPIOG_CLK_DISABLE();
-	   __HAL_RCC_GPIOH_CLK_DISABLE();
-	   __HAL_RCC_GPIOI_CLK_DISABLE();
-#endif
-
-	  /* Configure USER Button */
-	   MX_PB_Init(BUTTON_MODE_EXTI);
-
-	  /* Suspend Tick increment to prevent wakeup by Systick interrupt.
-	     Otherwise the Systick interrupt will wake up the device within 1ms (HAL time base) */
-	  HAL_SuspendTick();
-
-	  /* Request to enter SLEEP mode */
-	  HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
-
-	  /* Resume Tick interrupt if disabled prior to sleep mode entry */
-	  HAL_ResumeTick();
-
-	  usbDebug("s- \r\n", __func__);
-}
-#endif
-
-#if STOP_MODE
-static void EnterStopMode(void)
-{
-	  GPIO_InitTypeDef GPIO_InitStruct;
-
-	  usbDebug("s+ \r\n", __func__);
-
-	  /* Configure all GPIO as analog to reduce current consumption on non used IOs */
-	  /* Enable GPIOs clock */
-	   __HAL_RCC_GPIOA_CLK_ENABLE();
-	   __HAL_RCC_GPIOB_CLK_ENABLE();
-	   __HAL_RCC_GPIOC_CLK_ENABLE();
-	   __HAL_RCC_GPIOD_CLK_ENABLE();
-	   __HAL_RCC_GPIOE_CLK_ENABLE();
-	   __HAL_RCC_GPIOF_CLK_ENABLE();
-	   __HAL_RCC_GPIOG_CLK_ENABLE();
-	   __HAL_RCC_GPIOH_CLK_ENABLE();
-	   __HAL_RCC_GPIOI_CLK_ENABLE();
-
-
-	  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-	  GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  GPIO_InitStruct.Pin = GPIO_PIN_All;
-	  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOI, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-	  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-	  /* Disable GPIOs clock */
-	   __HAL_RCC_GPIOA_CLK_DISABLE();
-	   __HAL_RCC_GPIOB_CLK_DISABLE();
-	   __HAL_RCC_GPIOC_CLK_DISABLE();
-	   __HAL_RCC_GPIOD_CLK_DISABLE();
-	   __HAL_RCC_GPIOE_CLK_DISABLE();
-	   __HAL_RCC_GPIOF_CLK_DISABLE();
-	   __HAL_RCC_GPIOG_CLK_DISABLE();
-	   __HAL_RCC_GPIOH_CLK_DISABLE();
-	   __HAL_RCC_GPIOI_CLK_DISABLE();
-
-	  RTCHandle.Instance = RTC;
-
-	  /* Configure RTC prescaler and RTC data registers as follow:
-	  - Hour Format = Format 24
-	  - Asynch Prediv = Value according to source clock
-	  - Synch Prediv = Value according to source clock
-	  - OutPut = Output Disable
-	  - OutPutPolarity = High Polarity
-	  - OutPutType = Open Drain */
-	  RTCHandle.Init.HourFormat = RTC_HOURFORMAT_24;
-	  RTCHandle.Init.AsynchPrediv = RTC_ASYNCH_PREDIV;
-	  RTCHandle.Init.SynchPrediv = RTC_SYNCH_PREDIV;
-	  RTCHandle.Init.OutPut = RTC_OUTPUT_DISABLE;
-	  RTCHandle.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
-	  RTCHandle.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
-
-	  if(HAL_RTC_Init(&RTCHandle) != HAL_OK)
-	  {
-	    /* Initialization Error */
-	    Error_Handler();
-	  }
-
-	   /*## Configure the Wake up timer ###########################################*/
-	  /*  RTC Wakeup Interrupt Generation:
-	      Wakeup Time Base = (RTC_WAKEUPCLOCK_RTCCLK_DIV /(LSI))
-	      Wakeup Time = Wakeup Time Base * WakeUpCounter
-	                  = (RTC_WAKEUPCLOCK_RTCCLK_DIV /(LSI)) * WakeUpCounter
-	      ==> WakeUpCounter = Wakeup Time / Wakeup Time Base
-
-	      To configure the wake up timer to 20s the WakeUpCounter is set to 0xA017:
-	        RTC_WAKEUPCLOCK_RTCCLK_DIV = RTCCLK_Div16 = 16
-	        Wakeup Time Base = 16 /(~32.768KHz) = ~0,488 ms
-	        Wakeup Time = ~20s = 0,488ms  * WakeUpCounter
-	        ==> WakeUpCounter = ~20s/0,488ms = 40983 = 0xA017 */
-	  /* Disable Wake-up timer */
-	  if(HAL_RTCEx_DeactivateWakeUpTimer(&RTCHandle) != HAL_OK)
-	  {
-	    /* Initialization Error */
-	    Error_Handler();
-	  }
-
-	  /*## Clear all related wakeup flags ########################################*/
-	  /* Clear RTC Wake Up timer Flag */
-	  __HAL_RTC_WAKEUPTIMER_CLEAR_FLAG(&RTCHandle, RTC_FLAG_WUTF);
-
-	  /*## Setting the Wake up time ##############################################*/
-	  HAL_RTCEx_SetWakeUpTimer_IT(&RTCHandle, 0xA017, RTC_WAKEUPCLOCK_RTCCLK_DIV16);
-
-	  /* FLASH Deep Power Down Mode enabled */
-	  HAL_PWREx_EnableFlashPowerDown();
-
-	  /* Enter Stop Mode */
-	  HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
-
-	  /* Configures system clock after wake-up from STOP: enable HSE, PLL and select
-	  PLL as system clock source (HSE and PLL are disabled in STOP mode) */
-	  SYSCLKConfig_STOP();
-
-	  /* Disable Wake-up timer */
-	  if(HAL_RTCEx_DeactivateWakeUpTimer(&RTCHandle) != HAL_OK)
-	  {
-	    /* Initialization Error */
-	    Error_Handler();
-	  }
-
-	  usbDebug("s- \r\n", __func__);
-
-}
-#endif
-
-#if STANDBY_MODE
-static void EnterStandbyMode(void)
-{
-	usbDebug("s+ \r\n", __func__);
-
-	/* Enable Power Clock */
-	__HAL_RCC_PWR_CLK_ENABLE();
-
-	/* Re-enable all used wakeup sources: user button (PC.13) */
-	HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN4);
-
-	/* Clear all related wakeup flags */
-	__HAL_PWR_CLEAR_WAKEUP_FLAG(PWR_WAKEUP_PIN_FLAG4);
-
-	/*## Enter Standby Mode ####################################################*/
-	/* Request to enter STANDBY mode  */
-	HAL_PWR_EnterSTANDBYMode();
-
-	usbDebug("s+ \r\n", __func__);
-
-}
-#endif
-
-static void EnterPowerOffMode(void)
-{
-	usbDebug("s+ \r\n", __func__);
-
-	/* Enable Power Clock */
-	__HAL_RCC_PWR_CLK_ENABLE();
-
-	/* Re-enable all used wakeup sources: user button (PC.13) */
-	HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN4);
-
-	/* Clear all related wakeup flags */
-	__HAL_PWR_CLEAR_WAKEUP_FLAG(PWR_WAKEUP_PIN_FLAG4);
-
-	/*## Enter Standby Mode ####################################################*/
-	/* Request to enter STANDBY mode  */
-	HAL_PWR_EnterSTANDBYMode();
-
-	usbDebug("s+ \r\n", __func__);
-
-}
-
-/* Testing code @2026/05/05 by Ludy
- *
- */
-static void EnterStandbyFromButton(void)
-{
-    usbDebug("BUTTON: ENTER_STOP\r\n");
-    osDelay(20);
-    HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFI);
-    SystemClock_Config();
-    usbDebug("BUTTON: EXIT_STOP\r\n");
-}
-
-#endif
 
 static ButtonState ReadButtonRaw(GPIO_TypeDef *port, uint16_t pin)
 {
@@ -469,11 +228,6 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 		break;
 	case LONG_PRESS:
 		usbDebug("BUTTON: LONG_PRESS\r\n");
-
-		/* Delay 200 ms */
-		osDelay(500);
-
-		//EnterPowerOffMode();
 		break;
 	default:
 		break;
