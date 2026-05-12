@@ -52,6 +52,8 @@ extern uint16_t tofResetCount;
 extern uint32_t nExecs_IsrToF;
 extern uint32_t nUsbfailed;
 extern uint32_t nUsbBusy;
+extern uint8_t Button_Log;
+extern uint8_t Touchpad_OtherGesture_Log;
 
 extern void (* tof_callback)(void);
 /* USER CODE END EC */

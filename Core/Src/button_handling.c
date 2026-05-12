@@ -8,10 +8,18 @@
 extern void SystemClock_Config(void);
 extern USBD_HandleTypeDef hUsbDeviceHS;
 extern uint8_t isPanelOn;
+extern uint8_t Button_Log;
 
 static uint32_t s_last_single_click_tick = 0u;
 static uint32_t s_wake_lock_until_tick = 0u;
 static uint8_t s_button_two_step_is_off = 0u;
+
+#define BUTTON_LOG_PRINT(...) \
+    do { \
+        if (Button_Log != 0u) { \
+            usbDebug(__VA_ARGS__); \
+        } \
+    } while (0)
 
 static void TouchRdyInterruptEnable(uint8_t enable)
 {
@@ -25,7 +33,7 @@ static void TouchRdyInterruptEnable(uint8_t enable)
 
 static void EnterStopmodebyFromButton(void)
 {
-    usbDebug("BUTTON: ENTER_STOP\r\n");
+    BUTTON_LOG_PRINT("BUTTON: ENTER_STOP\r\n");
     osDelay(20);
 
     /* Only button can wake STOP: mask Touch/ALS wake sources. */
@@ -56,12 +64,12 @@ static void EnterStopmodebyFromButton(void)
     /* Guard against key bounce/re-trigger right after wakeup. */
     s_wake_lock_until_tick = osKernelGetTickCount() + 2000u;
 
-    usbDebug("BUTTON: EXIT_STOP\r\n");
+    BUTTON_LOG_PRINT("BUTTON: EXIT_STOP\r\n");
 }
 
 static void ButtonTwoStep_Off(void)
 {
-    usbDebug("BUTTON: STEP1 OFF (FEATURE->USB)\r\n");
+    BUTTON_LOG_PRINT("BUTTON: STEP1 OFF (FEATURE->USB)\r\n");
 
     /* Step 1: function off first. */
     if (isPanelOn) {
@@ -80,7 +88,7 @@ static void ButtonTwoStep_Off(void)
 
 static void ButtonTwoStep_On(void)
 {
-    usbDebug("BUTTON: STEP2 ON (USB->FEATURE)\r\n");
+    BUTTON_LOG_PRINT("BUTTON: STEP2 ON (USB->FEATURE)\r\n");
 
     /* Step 2: USB connect first. */
     MX_USB_DEVICE_Init();
@@ -329,11 +337,11 @@ static void EnterPowerOffMode(void)
  */
 static void EnterStandbyFromButton(void)
 {
-    usbDebug("BUTTON: ENTER_STOP\r\n");
+    BUTTON_LOG_PRINT("BUTTON: ENTER_STOP\r\n");
     osDelay(20);
     HAL_PWR_EnterSTOPMode(PWR_MAINREGULATOR_ON, PWR_STOPENTRY_WFI);
     SystemClock_Config();
-    usbDebug("BUTTON: EXIT_STOP\r\n");
+    BUTTON_LOG_PRINT("BUTTON: EXIT_STOP\r\n");
 }
 
 #endif
@@ -453,7 +461,7 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 		}
 		s_last_single_click_tick = nowTick;
 
-		usbDebug("BUTTON: SINGLE_CLICK\r\n");
+		BUTTON_LOG_PRINT("BUTTON: SINGLE_CLICK\r\n");
 
 		if (!s_button_two_step_is_off) {
 			s_button_two_step_is_off = 1u;
@@ -465,10 +473,10 @@ void ProcessButtonEvent(uint8_t buttonEvent, ButtonClickType *clickType)
 		break;
 	}
 	case DOUBLE_CLICK:
-		usbDebug("BUTTON: DOUBLE_CLICK\r\n");
+		BUTTON_LOG_PRINT("BUTTON: DOUBLE_CLICK\r\n");
 		break;
 	case LONG_PRESS:
-		usbDebug("BUTTON: LONG_PRESS\r\n");
+		BUTTON_LOG_PRINT("BUTTON: LONG_PRESS\r\n");
 
 		/* Delay 200 ms */
 		osDelay(500);

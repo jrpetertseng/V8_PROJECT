@@ -1,0 +1,15 @@
+Touchpad event to #button_2 code mapping
+
+Format:
+#button_2 <code>@
+
+Mapping:
+gesture=SINGLE_TAP   -> #button_2 0@
+gesture=DOUBLE_TAP   -> #button_2 1@
+gesture=PRESS_HOLD   -> #button_2 2@
+gesture=SWIPE_X_POS  -> #button_2 3@
+gesture=SWIPE_X_NEG  -> #button_2 4@
+
+Note:
+- Only the five gestures above are converted to #button_2 format.
+- Other gestures keep the original log format: gesture=<name> (<value>).

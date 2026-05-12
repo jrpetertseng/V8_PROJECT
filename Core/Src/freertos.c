@@ -535,6 +535,33 @@ static const char *iqs_gesture_str(iqs_gesture_e g)
 	}
 }
 
+static bool touchpad_event_to_button2_code(iqs_gesture_e g, uint8_t *code)
+{
+	if (code == NULL) {
+		return false;
+	}
+
+	switch (g) {
+	case IQS_G_SINGLE_TAP:
+		*code = 0u;
+		return true;
+	case IQS_G_DOUBLE_TAP:
+		*code = 1u;
+		return true;
+	case IQS_G_PRESS_HOLD:
+		*code = 2u;
+		return true;
+	case IQS_G_SWIPE_X_POS:
+		*code = 3u;
+		return true;
+	case IQS_G_SWIPE_X_NEG:
+		*code = 4u;
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void usbhid_send_key_mask(uint32_t mask)
 {
 	JQueueMessage_t msg;
@@ -671,7 +698,24 @@ void StartTouchTask(void *argument)
 			iqs_gesture_e g = IQS7211E_GetGesture();
 
 			if (g != IQS_G_NONE) {
-				usbDebug("gesture=%s (%d)\r\n", iqs_gesture_str(g), (int)g);
+				uint8_t button2_code = 0u;
+				if (touchpad_event_to_button2_code(g, &button2_code)) {
+					usbDebug("#button_2 %u@\r\n", (unsigned int)button2_code);
+				} else {
+					/* Controlled by Touchpad_OtherGesture_Log in main.c
+					 * 0: disable original gesture log for non-#button_2 events
+					 * 1: enable original gesture log
+					 *
+					 * Gestures controlled by this switch:
+					 * - IQS_G_TRIPLE_TAP
+					 * - IQS_G_SWIPE_Y_POS
+					 * - IQS_G_SWIPE_Y_NEG
+					 * - Unknown/other gestures not mapped to #button_2
+					 */
+					if (Touchpad_OtherGesture_Log != 0u) {
+						usbDebug("gesture=%s (%d)\r\n", iqs_gesture_str(g), (int)g);
+					}
+				}
 				handle_iqs_gesture(g);
 			} else {
 				s_last_gesture = IQS_G_NONE;

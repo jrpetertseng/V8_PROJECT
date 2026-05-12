@@ -85,6 +85,8 @@ uint32_t nTofGpioInts_1 = 0;
 uint32_t nIMUHIDUsbOuts = 0;
 uint32_t nUsbfailed = 0;
 uint32_t nUsbBusy = 0;
+uint8_t Button_Log = 0u;
+uint8_t Touchpad_OtherGesture_Log = 0u;
 
 // ToF Sensor Management
 uint8_t  interruptTofEnable = 0;
