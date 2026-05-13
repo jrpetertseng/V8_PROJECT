@@ -27,11 +27,6 @@
 //USB_HS
 #define ENABLE_DEVICECTL_CDC            1
 
-#define ENABLE_SUSPEND_RESUME           0
-#define SLEEP_MODE                      0
-#define STOP_MODE                       0
-#define STANDBY_MODE                    0
-
 #define ENABLE_POWER_BUTTON_IRQ         0
 
 #if defined DEBUG
