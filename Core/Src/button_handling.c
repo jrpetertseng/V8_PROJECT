@@ -5,6 +5,8 @@
 #include "usb_device.h"
 #include "usbd_composite.h"
 
+#include "al3010.h"
+
 extern void SystemClock_Config(void);
 extern USBD_HandleTypeDef hUsbDeviceHS;
 extern uint8_t isPanelOn;
@@ -69,7 +71,7 @@ static void EnterStopmodebyFromButton(void)
 
 static void ButtonTwoStep_Off(void)
 {
-    BUTTON_LOG_PRINT("BUTTON: STEP1 OFF (FEATURE->USB)\r\n");
+    BUTTON_LOG_PRINT("BUTTON: STEP1 OFF (FEATURE->USB)\r\n");	
 
     /* Step 1: function off first. */
     if (isPanelOn) {
@@ -82,13 +84,24 @@ static void ButtonTwoStep_Off(void)
     osDelay(20);
     USBD_DeInit(&hUsbDeviceHS);
 
+	/* Disable ALS power */	
+	HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_RESET);
+    osDelay(100);
+
     /* Enter STM32 STOP mode; next button press wakes up. */
     EnterStopmodebyFromButton();
 }
 
 static void ButtonTwoStep_On(void)
 {
-    /* Step 2: USB connect first. */
+	/* Re-enable ALS power */
+	HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
+    osDelay(100);
+
+	AL3010_Init();
+	osDelay(10);
+
+	/* Step 2: USB connect first. */
     MX_USB_DEVICE_Init();
     osDelay(20);
 
@@ -99,6 +112,8 @@ static void ButtonTwoStep_On(void)
     }
 
     osDelay(1000);
+
+
     BUTTON_LOG_PRINT("BUTTON: STEP2 ON (USB->FEATURE)\r\n");	
 }
 
