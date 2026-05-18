@@ -341,9 +341,9 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
 
   hpcd_USB_OTG_HS.Instance = USB_OTG_HS;
 #if ENABLE_DEVICECTL_CDC
-  hpcd_USB_OTG_HS.Init.dev_endpoints = 9;
-#else
   hpcd_USB_OTG_HS.Init.dev_endpoints = 7;
+#else
+  hpcd_USB_OTG_HS.Init.dev_endpoints = 5;
 #endif
   hpcd_USB_OTG_HS.Init.dma_enable = DISABLE;
   hpcd_USB_OTG_HS.Init.phy_itface = USB_OTG_HS_EMBEDDED_PHY;
@@ -394,9 +394,6 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
 #pragma message "CUSTOM_HID_SENSOR_EPIN_ADDR: " XSTR(CUSTOM_HID_SENSOR_EPIN_ADDR)
   HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_SENSOR_EPIN_ADDR & 0x7F), 0x20);
 
-  // CUSTOM HID Keyboard
-#pragma message "CUSTOM_HID_KEYBOARD_EPIN_ADDR: " XSTR(CUSTOM_HID_KEYBOARD_EPIN_ADDR)
-  HAL_PCDEx_SetTxFiFo(&hpcd_USB_OTG_HS, (CUSTOM_HID_KEYBOARD_EPIN_ADDR & 0x7F), 0x10);
   }
   return USBD_OK;
 }

@@ -3,8 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "sh2.h"
+#include <stdint.h>
 
 /*
  * Sensor Connection Type
@@ -54,17 +53,15 @@
 #define SENSOR_EVENT_POLL_RESPONSE  0x04
 #define SENSOR_EVENT_CHANGE_SENSITIVITY 0x05
 
+/* Legacy IMU HID report structs are kept for build compatibility. */
 typedef struct _ACCEL3_FEATURE_REPORT
 {
-    //common properties
     uint8_t   ucReportId;
     uint8_t   ucConnectionType;
     uint8_t   ucReportingState;
     uint8_t   ucPowerState;
     uint8_t   ucSensorState;
     uint32_t  ulReportInterval;
-
-    //properties specific to this sensor
     uint16_t  usAccelChangeSensitivity;
     int32_t   sAccelMaximum;
     int32_t   sAccelMinimum;
@@ -72,62 +69,47 @@ typedef struct _ACCEL3_FEATURE_REPORT
 
 typedef struct _ACCEL3_INPUT_REPORT
 {
-    //common values
     uint8_t   ucReportId;
     uint8_t   ucSensorState;
     uint8_t   ucEventType;
-
-    //values specific to this sensor
-    int32_t   sAccelXValue; //int32_t
+    int32_t   sAccelXValue;
     int32_t   sAccelYValue;
     int32_t   sAccelZValue;
-
 } __packed ACCEL3_INPUT_REPORT;
 
 typedef struct _GRAV3_INPUT_REPORT
 {
-    //common values
     uint8_t   ucReportId;
     uint8_t   ucSensorState;
     uint8_t   ucEventType;
-
-    //values specific to this sensor
-    int32_t   sGRAVXValue; //int32_t
+    int32_t   sGRAVXValue;
     int32_t   sGRAVYValue;
     int32_t   sGRAVZValue;
-
 } __packed GRAV3_INPUT_REPORT;
 
 typedef struct _MAG3_INPUT_REPORT
 {
-    //common values
     uint8_t   ucReportId;
     uint8_t   ucSensorState;
     uint8_t   ucEventType;
-
-    //values specific to this sensor
     int32_t   sMagXValue;
     int32_t   sMagYValue;
     int32_t   sMagZValue;
     uint8_t   sMagAccuracy;
-
 } __packed MAG3_INPUT_REPORT;
 
 typedef struct _QUAT_INPUT_REPORT
 {
-    //common values
     uint8_t   ucReportId;
     uint8_t   ucSensorState;
     uint8_t   ucEventType;
-
-    //values specific to this sensor
-    int32_t     sQuatIValue;
-    int32_t     sQuatJValue;
-    int32_t     sQuatKValue;
-    int32_t     sRawQuatReal; //float
+    int32_t   sQuatIValue;
+    int32_t   sQuatJValue;
+    int32_t   sQuatKValue;
+    int32_t   sRawQuatReal;
     uint8_t   sQuatAccuracy;
-
 } __packed QUAT_INPUT_REPORT;
+
 typedef struct _ALS_FEATURE_REPORT
 {
     //common properties
@@ -143,7 +125,6 @@ typedef struct _ALS_FEATURE_REPORT
     int16_t   sMinimum;
 } __packed ALS_FEATURE_REPORT;
 
-extern ACCEL3_FEATURE_REPORT accel3FeatureReport;
 extern ALS_FEATURE_REPORT alsFeatureReport;
 
 #define REPORT_ID_ACCEL3_FEATURE 1
@@ -155,6 +136,7 @@ extern ALS_FEATURE_REPORT alsFeatureReport;
 #define REPORT_ID_QUAT_FEATURE 7
 #define REPORT_ID_QUAT_INPUT 8
 #define REPORT_ID_ALS_FEATURE 9
+#define REPORT_ID_ALS_INPUT   10
 #define REPORT_ID_GRAV3_FEATURE 13
 #define REPORT_ID_GRAV3_INPUT 14
 

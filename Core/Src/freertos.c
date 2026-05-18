@@ -38,7 +38,6 @@
 #include "usbd_cdc_devctlr.h"
 #include "usbd_customhid.h"
 #include "usbd_customhid_sensor.h"
-#include "usbd_custom_hid_if.h"
 #include "usbd_custom_hid_sensor_if.h"
 
 #include "al3010.h"
@@ -470,23 +469,6 @@ void StartPSensorTask(void *argument)
 #define INIT_TOTAL_TIMEOUT_MS     2000u
 #define POLL_INT_MS               10u
 
-/* Keyboard report (Report ID 0x01) bit masks per original descriptor order */
-#define HID_KBD_REPORT_ID         0x01u
-
-/* Digits 1/2/3 are usage 0x1E/0x1F/0x20, mapped to bit6/bit7/bit8 */
-#define HID_KEY_1_MASK            (1UL << 6)
-#define HID_KEY_2_MASK            (1UL << 7)
-#define HID_KEY_3_MASK            (1UL << 8)
-
-/* Digit 0 is usage 0x27, mapped to bit15 */
-#define HID_KEY_0_MASK            (1UL << 15)
-
-/* Arrow keys are usage 0x4F..0x52, mapped to bit21..bit24 (range starts at 0x4E) */
-#define HID_KEY_RIGHT_MASK        (1UL << 21)
-#define HID_KEY_LEFT_MASK         (1UL << 22)
-#define HID_KEY_DOWN_MASK         (1UL << 23)
-#define HID_KEY_UP_MASK           (1UL << 24)
-
 /* Edge-trigger state: avoid repeated PRESS_HOLD firing */
 static iqs_gesture_e s_last_gesture = IQS_G_NONE;
 
@@ -562,70 +544,8 @@ static bool touchpad_event_to_button2_code(iqs_gesture_e g, uint8_t *code)
 	}
 }
 
-static void usbhid_send_key_mask(uint32_t mask)
-{
-	JQueueMessage_t msg;
-
-	msg.type               = USB_HID_KEY_INPUT_REPORT;
-	msg.data.keyReport.len = sizeof(HID_KeyboardReport);
-
-	HID_keyboard_report.report_id = HID_KBD_REPORT_ID;
-	HID_keyboard_report.keys      = mask;
-	memcpy(msg.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
-	usbSendMessage(&msg);
-
-	vTaskDelay(pdMS_TO_TICKS(20));
-
-	HID_keyboard_report.keys = 0x00000000u;
-	memcpy(msg.data.keyReport.report, (void *)&HID_keyboard_report, sizeof(HID_keyboard_report));
-	usbSendMessage(&msg);
-
-	vTaskDelay(pdMS_TO_TICKS(20));
-}
-
 static void handle_iqs_gesture(iqs_gesture_e g)
 {
-	if (g == IQS_G_PRESS_HOLD) {
-		if (s_last_gesture != IQS_G_PRESS_HOLD) {
-			usbhid_send_key_mask(HID_KEY_0_MASK);
-		}
-		s_last_gesture = g;
-		return;
-	}
-
-	switch (g) {
-	case IQS_G_SINGLE_TAP:
-		usbhid_send_key_mask(HID_KEY_1_MASK);
-		break;
-
-	case IQS_G_DOUBLE_TAP:
-		usbhid_send_key_mask(HID_KEY_2_MASK);
-		break;
-
-	case IQS_G_TRIPLE_TAP:
-		usbhid_send_key_mask(HID_KEY_3_MASK);
-		break;
-
-	case IQS_G_SWIPE_X_POS:
-		usbhid_send_key_mask(HID_KEY_RIGHT_MASK);
-		break;
-
-	case IQS_G_SWIPE_X_NEG:
-		usbhid_send_key_mask(HID_KEY_LEFT_MASK);
-		break;
-
-	case IQS_G_SWIPE_Y_POS:
-		usbhid_send_key_mask(HID_KEY_UP_MASK);
-		break;
-
-	case IQS_G_SWIPE_Y_NEG:
-		usbhid_send_key_mask(HID_KEY_DOWN_MASK);
-		break;
-
-	default:
-		break;
-	}
-
 	s_last_gesture = g;
 }
 
@@ -1169,34 +1089,13 @@ void Tof_Hard_reset(void)
 
 void CountingTask(void *argument)
 {
-    bool bHIDTest = true;
 	TickType_t countingTaskLastWakeUpTime = xTaskGetTickCount();
-    uint8_t bCDC_Delay = 10; //ISSUED: GRAV and MAGN
 
     for (;;)
     {
-        if(bHIDTest)
-        {
-            usbDebug("ACCEL: %d\r\n", accel3_count);
-            osDelay(bCDC_Delay);
-            usbDebug("GYRO: %d\r\n", gyro3_count);
-            osDelay(bCDC_Delay);
-            usbDebug("GRAV: %d\r\n", grav3_count);
-            osDelay(bCDC_Delay);
-            usbDebug("MAGN: %d\r\n", tstMag3_count);
-            osDelay(bCDC_Delay);
-            usbDebug("QUAT: %d\r\n", tstQuat_count);
-            osDelay(bCDC_Delay);
-            usbDebug("TOTAL: %d\r\n", nIMUHIDUsbOuts);
-            osDelay(bCDC_Delay);
-            usbDebug("FAIL: %d\r\n", nUsbfailed);
-            osDelay(bCDC_Delay);
-            usbDebug("BUSY: %d\r\n", nUsbBusy);
-            osDelay(bCDC_Delay);
-            usbDebug("-------------------\r\n");
-            accel3_count = gyro3_count = grav3_count = tstMag3_count
-                    = tstQuat_count = nIMUHIDUsbOuts = nUsbfailed = nUsbBusy = 0;
-        }
+        usbDebug("HID ALS only, IMU HID path disabled\r\n");
+        usbDebug("USB TOTAL: %d FAIL: %d BUSY: %d\r\n", nIMUHIDUsbOuts, nUsbfailed, nUsbBusy);
+        nIMUHIDUsbOuts = nUsbfailed = nUsbBusy = 0;
 		vTaskDelayUntil(&countingTaskLastWakeUpTime, pdMS_TO_TICKS(5000));
     }
 }

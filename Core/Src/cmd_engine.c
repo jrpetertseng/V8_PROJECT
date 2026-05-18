@@ -32,7 +32,6 @@ const uint32_t precenseKey = (1UL << (CE_KEY_SCROLLLOCK - CE_KEY_BASE));
 static uint8_t CeCmdRespTxBuffer[MAX_CMD_RESP_LENGTH];
 
 #if USE_USB_TX_TASK
-static JQueueMessage_t keyReport;
 static JQueueMessage_t cdcData;
 #else
 #error "USE_USB_TX_TASK or you may have race condition!!!"
@@ -65,18 +64,6 @@ static Command string_to_command(char* str, uint32_t len);
 
 #if USE_USB_TX_TASK
 #define ENABLE_USB_SEND_MSG 1
-static void usbhid_sendReport(char* pReport, int nLength) {
-    keyReport.type = USB_HID_KEY_INPUT_REPORT;
-    keyReport.data.keyReport.len = nLength;
-
-    if ((0 < nLength) && (CUSTOM_HID_KEYBOARD_EPIN_SIZE  >= nLength)) {
-        memcpy(keyReport.data.keyReport.report, pReport, nLength);
-#if ENABLE_USB_SEND_MSG
-        usbSendMessage(&keyReport);
-#endif
-        taskYIELD();
-    }
-}
 
 void usbcdc_sendData(uint8_t* p, int nLength) {
     cdcData.type = USB_CDC_TOF_DATA;
@@ -1073,17 +1060,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
             }
         }
 
-        HID_keyboard_report.report_id = (cmd < CE_CR_BASE) ?
-            0x01 : (cmd < CE_GPAD_BASE) ?
-            0x02 : 0x03;
-
-        HID_keyboard_report.keys = (1UL << (cmd - ((cmd < CE_CR_BASE) ?
-            CE_KEY_BASE : (cmd < CE_GPAD_BASE) ?
-            CE_CR_BASE : CE_GPAD_BASE)));
-
-        usbhid_sendReport((char*)&HID_keyboard_report, sizeof(HID_KeyboardReport));
-        HAL_Delay(20);
-        reply += sprintf(reply, "OK");
+        reply += sprintf(reply, "NG %d", CE_ERR_SYS_STATE);
         break;
 
     case CE_KEY_NONE:
@@ -1144,13 +1121,6 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
         }
     }
 
-    // Send sync key if it's an HID event
-    if (cmd >= CE_HID_MIN && cmd <= CE_HID_MAX) {
-        HID_keyboard_report.keys = 0;  // Send a key release event
-
-        // Send key release report
-        usbhid_sendReport((char*)&HID_keyboard_report, sizeof(HID_KeyboardReport));
-    }
 }
 
 void Ecx343_data_init_default(void) {

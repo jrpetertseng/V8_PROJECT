@@ -35,6 +35,7 @@
 #include "stm32f7xx_hal.h"
 #include "debug_defs.h"
 /* USER CODE BEGIN INCLUDE */
+#define USBD_CUSTOM_HID_SENSOR_REPORT_DESC_SIZE 318U
 
 /* USER CODE END INCLUDE */
 
@@ -63,9 +64,9 @@
 
 /*---------- -----------*/
 #if ENABLE_DEVICECTL_CDC
-#define USBD_MAX_NUM_INTERFACES     6U
+#define USBD_MAX_NUM_INTERFACES     5U
 #else
-#define USBD_MAX_NUM_INTERFACES     4U
+#define USBD_MAX_NUM_INTERFACES     3U
 #endif
 /*---------- -----------*/
 #define USBD_MAX_NUM_CONFIGURATION     1U

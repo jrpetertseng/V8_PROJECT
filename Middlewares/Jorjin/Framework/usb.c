@@ -10,7 +10,6 @@
 #if ENABLE_DEVICECTL_CDC
 #include "usbd_cdc_if_devctlr.h"
 #endif
-#include "usbd_custom_hid_if.h"
 #include "usbd_custom_hid_sensor_if.h"
 
 #include "cmsis_os.h"
@@ -128,11 +127,6 @@ static inline void usbTx_inc_hid_report( void)
 static inline void usbTx_inc_imu_report( void)
 {
     gCtx.stat.nTxImu += 1;
-}
-
-static inline void usbTx_inc_key_report( void)
-{
-    gCtx.stat.nTxKey += 1;
 }
 
 static inline void usbTx_inc_tof( void)
@@ -290,17 +284,6 @@ void usbLoop() {
                 /* Success, release the lock. */
                 // usbTxUnblock();
                 break;
-            case USB_HID_KEY_INPUT_REPORT:
-                //    usbAls_TxBlock();
-                //    usbTx_inc_key_report();
-                ret = USBD_CUSTOM_HID_Keyboard_SendReport_HS(msg.data.keyReport.report, msg.data.keyReport.len);
-                if (USBD_OK != ret) {
-                    /* Fail, release the lock. */
-                    // usbTxUnblock();
-                }
-                /* Success, release the lock. */
-                usbTxUnblock();
-                break;
             case USB_CDC_TOF_DATA:
                 // TofGpioInts_1 += 1;
                 // usbToF_TxBlock();
@@ -348,9 +331,6 @@ void usbLoop() {
 static void UsbEscapeISRTask(void * argument)
 {
     JISRQueueMessage_t msg;
-#if SENSOR_DYNAMIC_INTERVAL
-    sh2_SensorId_t id = 0;
-#endif
     int ret = -1;
 
 	usb_waitUntilInited();
@@ -360,17 +340,6 @@ static void UsbEscapeISRTask(void * argument)
 //            usbTxBlock();
             switch (msg.type) {
             case USB_HID_FEATURE_REPORT:
-#if SENSOR_DYNAMIC_INTERVAL
-                switch (msg.data.featureReport.id) {
-                case REPORT_ID_ACCEL3_FEATURE:
-                    id = SH2_ACCELEROMETER;
-                    break;
-                }
-                if (id != 0) {
-                    configSensor(msg.data.featureReport.id,
-                                         msg.data.featureReport.interval);
-                }
-#endif
                 break;
             case USB_CDC_TX_COMPLETE_MSG:
                 usbTx_inc_tof_complete();

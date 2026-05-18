@@ -14,7 +14,6 @@
 #include "flash_rw_process.h"
 #include "usb.h"
 #include "usbd_desc.h"
-#include "usbd_custom_hid_if.h"
 
 // Override USB configurations
 

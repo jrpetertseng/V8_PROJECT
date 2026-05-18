@@ -12,7 +12,6 @@ static USBD_CDC_DEVCTLR_HandleTypeDef *pCDCData_Devctlr;
 
 static USBD_CDC_HandleTypeDef *pCDCData_Tof;
 static USBD_CUSTOM_HID_Sensor_HandleTypeDef *pHIDData_Sensor;
-static USBD_CUSTOM_HID_Keyboard_HandleTypeDef *pHIDData_Keyboard;
 
 static uint8_t  USBD_Composite_Init (USBD_HandleTypeDef *pdev, uint8_t cfgidx);
 static uint8_t  USBD_Composite_DeInit (USBD_HandleTypeDef *pdev, uint8_t cfgidx);
@@ -176,47 +175,7 @@ __ALIGN_BEGIN uint8_t USBD_Composite_CfgHSDesc[USBD_COMPOSITE_DESC_SIZE] __ALIGN
 	CUSTOM_HID_SENSOR_HS_BINTERVAL,                     /* bInterval: Polling Interval */
 	/* 7 */
 
-	/**************************** HID Keyboard *******************************/
-	0x09,                                               /* bLength: Interface Descriptor size */
-	USB_DESC_TYPE_INTERFACE,                            /* bDescriptorType: Interface descriptor type */
-	USBD_HID_INTERFACE_KEYBOARD,                        /* bInterfaceNumber: Number of Interface */
-	0x00,                                               /* bAlternateSetting: Alternate setting */
-	0x02,                                               /* bNumEndpoints */
-	0x03,                                               /* bInterfaceClass: CUSTOM_HID */
-	0x00,                                               /* bInterfaceSubClass: 1=BOOT, 0=no boot */
-	0x00,                                               /* nInterfaceProtocol: 0=none, 1=keyboard, 2=mouse */
-	0x00,                                               /* iInterface: Index of string descriptor */
-	/* 9 */
-
-	0x09,                                               /* bLength: CUSTOM_HID Descriptor size */
-	CUSTOM_HID_KEYBOARD_DESCRIPTOR_TYPE,                /* bDescriptorType: CUSTOM_HID */
-	0x11, 0x01,                                         /* bCUSTOM_HID: CUSTOM_HID Class Spec release number */
-	0x00,                                               /* bCountryCode: Hardware target country */
-	0x01,                                               /* bNumDescriptors: Number of CUSTOM_HID class descriptors to follow */
-	0x22,                                               /* bDescriptorType */
-	LOBYTE(USBD_CUSTOM_HID_KEYBOARD_REPORT_DESC_SIZE),  /* wItemLength: Total length of Report descriptor */
-	HIBYTE(USBD_CUSTOM_HID_KEYBOARD_REPORT_DESC_SIZE),
-	/* 9 */
-
-	0x07,                                               /* bLength: Endpoint Descriptor size */
-	USB_DESC_TYPE_ENDPOINT,                             /* bDescriptorType: Endpoint */
-	CUSTOM_HID_KEYBOARD_EPIN_ADDR,                      /* bEndpointAddress: Endpoint Address (IN) */
-	0x03,                                               /* bmAttributes: Interrupt endpoint */
-	CUSTOM_HID_KEYBOARD_EPIN_SIZE,                      /* wMaxPacketSize: 2 Byte max */
-	0x00,                                               /* wMaxPacketSize: High Byte (if needed) */
-	CUSTOM_HID_KEYBOARD_HS_BINTERVAL,                   /* bInterval: Polling Interval */
-	/* 7 */
-
-	0x07,                                               /* bLength: Endpoint Descriptor size */
-	USB_DESC_TYPE_ENDPOINT,                             /* bDescriptorType: Endpoint */
-	CUSTOM_HID_KEYBOARD_EPOUT_ADDR,                     /* bEndpointAddress: Endpoint Address (OUT) */
-	0x03,                                               /* bmAttributes: Interrupt endpoint */
-	CUSTOM_HID_KEYBOARD_EPOUT_SIZE,                     /* wMaxPacketSize: 2 Byte max */
-	0x00,                                               /* wMaxPacketSize: High Byte (if needed) */
-	CUSTOM_HID_KEYBOARD_HS_BINTERVAL,                   /* bInterval: Polling Interval */
-	/* 7 */
-
-#if ENABLE_DEVICECTL_CDC
+	#if ENABLE_DEVICECTL_CDC
 	/**************************** CDC Device Controller *******************************/
 	USBD_IAD_DESC_SIZE,                         /* bLength: Interface Association Descriptor size */
 	USBD_IAD_DESCRIPTOR_TYPE,                   /* bDescriptorType: Interface Association */
@@ -339,10 +298,6 @@ static uint8_t  USBD_Composite_Init(USBD_HandleTypeDef* pdev, uint8_t cfgidx) {
 	res += USBD_CUSTOM_HID_SENSOR.Init(pdev, cfgidx);
 	pHIDData_Sensor = pdev->pClassData;
 
-	pdev->pUserData = &USBD_CustomHID_Keyboard_fops_HS;
-	res += USBD_CUSTOM_HID_KEYBOARD.Init(pdev, cfgidx);
-	pHIDData_Keyboard = pdev->pClassData;
-
 #if ENABLE_DEVICECTL_CDC
 	pdev->pUserData = &USBD_Interface_fops_DEVCTLR_HS;
 	res += USBD_CDC_DEVCTLR.Init(pdev, cfgidx);
@@ -370,10 +325,6 @@ static uint8_t  USBD_Composite_DeInit(USBD_HandleTypeDef* pdev, uint8_t cfgidx) 
 	pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
 	res += USBD_CUSTOM_HID_SENSOR.DeInit(pdev, cfgidx);
 
-	pdev->pClassData = pHIDData_Keyboard;
-	pdev->pUserData = &USBD_CustomHID_Keyboard_fops_HS;
-	res += USBD_CUSTOM_HID_KEYBOARD.DeInit(pdev, cfgidx);
-
 #if ENABLE_DEVICECTL_CDC
 	pdev->pClassData = pCDCData_Devctlr;
 	pdev->pUserData = &USBD_Interface_fops_DEVCTLR_HS;
@@ -395,11 +346,6 @@ static uint8_t USBD_Composite_EP0_RxReady(USBD_HandleTypeDef* pdev) {
 		pdev->pClassData = pHIDData_Sensor;
 		pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
 		return(USBD_CUSTOM_HID_SENSOR.EP0_RxReady(pdev));
-
-	case USBD_HID_INTERFACE_KEYBOARD:
-		pdev->pClassData = pHIDData_Keyboard;
-		pdev->pUserData = &USBD_CustomHID_Keyboard_fops_HS;
-		return(USBD_CUSTOM_HID_KEYBOARD.EP0_RxReady(pdev));
 
 #if ENABLE_DEVICECTL_CDC
 	case USBD_CDC_DEVCTLR_DATA_INTERFACE:
@@ -436,11 +382,6 @@ static uint8_t  USBD_Composite_Setup(USBD_HandleTypeDef* pdev, USBD_SetupReqType
 			pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
 			return(USBD_CUSTOM_HID_SENSOR.Setup(pdev, req));
 
-		case USBD_HID_INTERFACE_KEYBOARD:
-			pdev->pClassData = pHIDData_Keyboard;
-			pdev->pUserData = &USBD_CustomHID_Keyboard_fops_HS;
-			return(USBD_CUSTOM_HID_KEYBOARD.Setup(pdev, req));
-
 #if ENABLE_DEVICECTL_CDC
 		case USBD_CDC_DEVCTLR_DATA_INTERFACE:
 		case USBD_CDC_DEVCTLR_CMD_INTERFACE:
@@ -467,12 +408,6 @@ static uint8_t  USBD_Composite_Setup(USBD_HandleTypeDef* pdev, USBD_SetupReqType
 			pdev->pClassData = pHIDData_Sensor;
 			pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
 			return(USBD_CUSTOM_HID_SENSOR.Setup(pdev, req));
-
-		case CUSTOM_HID_KEYBOARD_EPIN_ADDR:
-		case CUSTOM_HID_KEYBOARD_EPOUT_ADDR:
-			pdev->pClassData = pHIDData_Keyboard;
-			pdev->pUserData = &USBD_CustomHID_Keyboard_fops_HS;
-			return(USBD_CUSTOM_HID_KEYBOARD.Setup(pdev, req));
 
 #if ENABLE_DEVICECTL_CDC
 		case CDC_DEVCTLR_IN_EP:
@@ -509,11 +444,6 @@ uint8_t  USBD_Composite_DataIn(USBD_HandleTypeDef* pdev, uint8_t epnum) {
 		pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
 		return(USBD_CUSTOM_HID_SENSOR.DataIn(pdev, epnum));
 
-	case HID_KEYBOARD_INDATA_NUM:
-		pdev->pClassData = pHIDData_Keyboard;
-		pdev->pUserData = &USBD_CustomHID_Keyboard_fops_HS;
-		return(USBD_CUSTOM_HID_KEYBOARD.DataIn(pdev, epnum));
-
 #if ENABLE_DEVICECTL_CDC
 	case CDC_DEVCTLR_INDATA_NUM:
 		pdev->pClassData = pCDCData_Devctlr;
@@ -545,11 +475,6 @@ uint8_t  USBD_Composite_DataOut(USBD_HandleTypeDef* pdev, uint8_t epnum) {
 		pdev->pClassData = pHIDData_Sensor;
 		pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
 		return(USBD_CUSTOM_HID_SENSOR.DataOut(pdev, epnum));
-
-	case HID_KEYBOARD_OUTDATA_NUM:
-		pdev->pClassData = pHIDData_Keyboard;
-		pdev->pUserData = &USBD_CustomHID_Keyboard_fops_HS;
-		return(USBD_CUSTOM_HID_KEYBOARD.DataOut(pdev, epnum));
 
 #if ENABLE_DEVICECTL_CDC
 	case CDC_DEVCTLR_OUTDATA_NUM:
@@ -591,9 +516,9 @@ uint8_t* USBD_Composite_GetDeviceQualifierDescriptor(uint16_t* length) {
   */
 void USBD_Composite_Switch_Itf(USBD_HandleTypeDef* pdev, USBD_COMPOSITE_ItfTypeDef interface) {
 #if ENABLE_DEVICECTL_CDC
-	if (!pdev || !pCDCData_Tof || !pCDCData_Devctlr || !pHIDData_Sensor || !pHIDData_Keyboard) return;
+	if (!pdev || !pCDCData_Tof || !pCDCData_Devctlr || !pHIDData_Sensor) return;
 #else
-	if (!pdev || !pCDCData_Tof || !pHIDData_Sensor || !pHIDData_Keyboard) return;
+	if (!pdev || !pCDCData_Tof || !pHIDData_Sensor) return;
 #endif
 	switch (interface) {
 	case USBD_CDC_INTERFACE:
@@ -603,10 +528,6 @@ void USBD_Composite_Switch_Itf(USBD_HandleTypeDef* pdev, USBD_COMPOSITE_ItfTypeD
 	case USBD_CUSTOMHID_SENSOR_INTERFACE:
 		pdev->pClassData = pHIDData_Sensor;
 		pdev->pUserData = &USBD_CustomHID_Sensor_fops_HS;
-		break;
-	case USBD_CUSTOMHID_KEYBOARD_INTERFACE:
-		pdev->pClassData = pHIDData_Keyboard;
-		pdev->pUserData = &USBD_CustomHID_Keyboard_fops_HS;
 		break;
 #if ENABLE_DEVICECTL_CDC
 	case USBD_CDC_DEVCTLR_INTERFACE:
@@ -624,8 +545,6 @@ USBD_COMPOSITE_ItfTypeDef USBD_Composite_Get_Current_Itf(USBD_HandleTypeDef* pde
 		return USBD_CDC_INTERFACE;
 	} else if (pdev->pClassData == pHIDData_Sensor) {
 		return USBD_CUSTOMHID_SENSOR_INTERFACE;
-	} else if (pdev->pClassData == pHIDData_Keyboard) {
-		return USBD_CUSTOMHID_KEYBOARD_INTERFACE;
 	}
 #if ENABLE_DEVICECTL_CDC
 	else if (pdev->pClassData == pCDCData_Devctlr) {

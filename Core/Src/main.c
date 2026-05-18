@@ -39,7 +39,6 @@
 #include "usbd_cdc_devctlr.h"
 #include "usbd_customhid.h"
 #include "usbd_customhid_sensor.h"
-#include "usbd_custom_hid_if.h"
 #include "usbd_custom_hid_sensor_if.h"
 
 #include "flash_rw_process.h"

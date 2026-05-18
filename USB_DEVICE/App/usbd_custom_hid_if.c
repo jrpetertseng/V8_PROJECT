@@ -319,12 +319,9 @@ static int8_t CUSTOM_HID_Keyboard_OutEvent_HS(uint8_t event_idx, uint8_t state)
 
 int8_t USBD_CUSTOM_HID_Keyboard_SendReport_HS(uint8_t *report, uint16_t len)
 {
-  /* NOTE:
-   * We need manually switch the USB interface during the Tx data preparation
-   * because this process is not part of operations in USBD_COMPOSITE.
-   */
-  USBD_Composite_Switch_Itf(&hUsbDeviceHS, USBD_CUSTOMHID_KEYBOARD_INTERFACE);
-  return USBD_CUSTOM_HID_Keyboard_SendReport(&hUsbDeviceHS, report, len);
+  UNUSED(report);
+  UNUSED(len);
+  return USBD_FAIL;
 }
 
 /* USER CODE END 11 */
@@ -343,4 +340,3 @@ int8_t USBD_CUSTOM_HID_Keyboard_SendReport_HS(uint8_t *report, uint16_t len)
 /**
   * @}
   */
-
