@@ -6,6 +6,7 @@
 #include "usbd_composite.h"
 
 #include "al3010.h"
+#include "iqs7211e.h"
 
 extern void SystemClock_Config(void);
 extern USBD_HandleTypeDef hUsbDeviceHS;
@@ -84,9 +85,15 @@ static void ButtonTwoStep_Off(void)
     osDelay(20);
     USBD_DeInit(&hUsbDeviceHS);
 
+#if ENABLE_DEVICE_SUSPEND_MODE	
+	/* IQS7211E enter suspend mode*/
+	IQS7211E_Suspend(1);
+	osDelay(10);
+
 	/* Disable ALS power */	
 	HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_RESET);
     osDelay(100);
+#endif
 
     /* Enter STM32 STOP mode; next button press wakes up. */
     EnterStopmodebyFromButton();
@@ -94,12 +101,18 @@ static void ButtonTwoStep_Off(void)
 
 static void ButtonTwoStep_On(void)
 {
+#if ENABLE_DEVICE_SUSPEND_MODE	
 	/* Re-enable ALS power */
 	HAL_GPIO_WritePin(ALS_RST_GPIO_Port, ALS_RST_Pin, GPIO_PIN_SET);
     osDelay(100);
 
 	AL3010_Init();
 	osDelay(10);
+
+	/* IQS7211E exit suspend mode*/
+	IQS7211E_Suspend(0);
+	osDelay(10);
+#endif
 
 	/* Step 2: USB connect first. */
     MX_USB_DEVICE_Init();

@@ -29,6 +29,8 @@
 
 #define ENABLE_POWER_BUTTON_IRQ         0
 
+#define ENABLE_DEVICE_SUSPEND_MODE      1
+
 #if defined DEBUG
   /* When this is enabled, MUST open the CDC else it will lock!!! */
   //#define ENABLE_CDC_DEVCTLR_LOAD_PRINT   1
