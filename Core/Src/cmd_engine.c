@@ -279,9 +279,6 @@ static Command string_to_command(char* str, uint32_t len) {
             } else if (!strncmp(str + 3, "alsreg", 6)) {
                 cmd.Cmd = CE_GET_ALS_REG;
                 buf_offset = 9;
-            } else if (!strncmp(str + 3, "paradata", 8)) {
-                cmd.Cmd = CE_GET_PARA_DATA;
-                buf_offset = 11;
             }
         } else if (!strncmp(str, "key", 3)) {
             if (!strncmp(str + 3, "ltr", 3)) {
@@ -541,7 +538,7 @@ static Command string_to_command(char* str, uint32_t len) {
                 buf_offset = 6;
             }
         }
-        
+
         if (len > buf_offset) {
             cmd.ArgsLength = len - buf_offset;
             cmd.Args = (uint8_t*)str + buf_offset;
@@ -973,37 +970,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
 	    usbDebug("ambientLight= %d \r\n", ambientLight);
 
         break;        
-    case CE_GET_PARA_DATA:
-        if (!args_len) {
-            uint32_t buffer[sizeof(ECX343_DATA) / 4];
-            ECX343_DATA setting;
 
-            memset(buffer, 0, sizeof(buffer));
-            Flash_Read_Data(0x08010000, buffer, (sizeof(buffer) / 4) - 1);
-            memcpy((void *)&setting, buffer, sizeof(ECX343_DATA));
-
-            usbDebug("uLCD_INVL= %d \r\n",  setting.uLCD_INVL); 
-            osDelay(20); 
-            usbDebug("uLCD_INVR= %d \r\n",  setting.uLCD_INVR);
-            osDelay(20); 
-            usbDebug("uLCD_LUXL= %d \r\n",  setting.uLCD_LUXL);
-            osDelay(20); 
-            usbDebug("uLCD_LUXR= %d \r\n",  setting.uLCD_LUXR);
-            osDelay(20); 
-            usbDebug("uLCD_HORBL= %d \r\n",  setting.uLCD_HORBL);
-            osDelay(20); 
-            usbDebug("uLCD_HORBR= %d \r\n",  setting.uLCD_HORBR);
-            osDelay(20); 
-            usbDebug("uLCD_VORBL= %d \r\n",  setting.uLCD_VORBL);
-            osDelay(20); 
-            usbDebug("uLCD_VORBR= %d \r\n",  setting.uLCD_VORBR);
-            osDelay(20); 
-            usbDebug("uLCD_MODE= %d \r\n",  setting.uLCD_MODE);
-            osDelay(20); 
-        } else {
-            reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
-        }
-        break;
     /* key command set */
     case CE_KEY_A:
     case CE_KEY_D:
