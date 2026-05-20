@@ -173,7 +173,6 @@ PUTCHAR_PROTOTYPE;
 #define V_MAJOR 0
 #define V_MINOR 0
 #define V_PATCH 6
-#define V_OPTAG ""
 
 /* Model Code Rules:
  *  1st character: V, Innovega
