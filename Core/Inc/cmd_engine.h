@@ -65,6 +65,7 @@ typedef enum {
     CE_GET_LCD_VALUE        = 0x153U,
     CE_GET_BRG_FW           = 0x154U,
     CE_GET_ALS_REG          = 0x155U,    
+    CE_GET_PANEL_REG        = 0x156U,        
 
     // Enter ST Bootloader
     CE_ENTER_BOOTLOADER     = 0x170U,
@@ -164,6 +165,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len);
 void CE_Parse_ToF_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len);
 void CE_Parse_Devctlr_Cmd_Data(uint8_t* cmd_buf, uint32_t cmd_buf_len);
 void Ecx343_data_init_default(void);
+void Ecx343_data_update(void);
 uint32_t Cal_Ecx343_data_checksum(ECX343_DATA data);
 int Check_Ecx343_data_checksum(ECX343_DATA data);
 uint8_t LcdHorbit(int value);

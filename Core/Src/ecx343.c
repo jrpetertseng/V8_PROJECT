@@ -184,6 +184,9 @@ void ECX343EN_Init(void)
     previousLeftBrightness = ecx343_current_data.uLCD_LUXL;
     previousRightBrightness = ecx343_current_data.uLCD_LUXR;
 
+    // Apply Setting Data
+    ECX343EN_WriteRegisters(&ecx343_current_data); 
+
 	xMutex = xSemaphoreCreateMutex();
 	if (xMutex == NULL)	{
         while (1) {
@@ -1051,7 +1054,7 @@ void updatePanelTemperature(void) {
     }
 }
 
-void CheckPanelState(void)
+void checkPanelState(void)
 {
 	uint8_t data;
 

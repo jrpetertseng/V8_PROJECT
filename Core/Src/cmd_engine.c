@@ -16,6 +16,7 @@ extern uint8_t micSwitch;
 extern uint8_t alsSwitch;
 
 extern uint32_t ambientLight;
+extern void checkPanelState(void);
 
 uint8_t tofNumOfTargets[MAX_TOF_DATA_COUNT];
 uint8_t tofRangePacket[TOF_8X8_DATA_PACKET_SIZE];
@@ -279,6 +280,9 @@ static Command string_to_command(char* str, uint32_t len) {
             } else if (!strncmp(str + 3, "alsreg", 6)) {
                 cmd.Cmd = CE_GET_ALS_REG;
                 buf_offset = 9;
+            } else if (!strncmp(str + 3, "panelreg", 8)) {
+                cmd.Cmd = CE_GET_PANEL_REG;
+                buf_offset = 11;
             }
         } else if (!strncmp(str, "key", 3)) {
             if (!strncmp(str + 3, "ltr", 3)) {
@@ -969,7 +973,11 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
     case CE_GET_ALS_REG:
 	    usbDebug("ambientLight= %d \r\n", ambientLight);
 
-        break;        
+        break;
+    case CE_GET_PANEL_REG:
+	    checkPanelState();
+
+        break;                
 
     /* key command set */
     case CE_KEY_A:
@@ -1121,6 +1129,8 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
         }
     }
 
+    // Saving the parameter data to flash 
+    Ecx343_data_update();
 }
 
 void Ecx343_data_init_default(void) {
@@ -1141,6 +1151,25 @@ void Ecx343_data_init_default(void) {
     ecx343_data.uLCD_VORBR 	= 0;
     ecx343_data.uLCD_MODE 	= 0;
     ecx343_data.checksum = Cal_Ecx343_data_checksum(ecx343_data);
+}
+
+void Ecx343_data_update(void) {
+    ECX343_DATA ecx343_previous_data;
+
+    /* Read the previous data */
+    memset(ecx343RW_buf, 0, sizeof(ecx343RW_buf));
+    memset((void *)&ecx343_previous_data, 0, sizeof(ECX343_DATA));
+    Flash_Read_Data(0x08010000 , ecx343RW_buf, (sizeof(ecx343RW_buf)/4)-1);
+    memcpy((void *)&ecx343_previous_data, ecx343RW_buf, sizeof(ECX343_DATA));
+
+    /* Check if need to update */
+    if(memcmp((void *)&ecx343_previous_data, (void *)&ecx343_current_data, sizeof(ECX343_DATA))) {
+        ecx343_current_data.checksum = Cal_Ecx343_data_checksum(ecx343_current_data);
+        memset(ecx343RW_buf, 0, sizeof(ecx343RW_buf));
+        memcpy(ecx343RW_buf, (void*)&ecx343_current_data, sizeof(ECX343_DATA));
+        if (Flash_Write_Data(0x08010000, ecx343RW_buf, sizeof(ecx343RW_buf) / 4))
+            usbDebug("%s: Error! \r\n", __func__);
+    }
 }
 
 uint32_t Cal_Ecx343_data_checksum(ECX343_DATA data) {
