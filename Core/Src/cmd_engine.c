@@ -935,7 +935,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
         break;
     case CE_GET_FW_VER:
         if (!args_len)
-            reply += sprintf(reply, "%d.%d.%d.%s", V_MAJOR, V_MINOR, V_PATCH, MODEL_SUFFIX);
+            reply += sprintf(reply, "%d.%d.%d.%s %s", V_MAJOR, V_MINOR, V_PATCH, V_OPTAG, MODEL_SUFFIX);
         else
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         break;
