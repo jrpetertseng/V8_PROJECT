@@ -1,5 +1,7 @@
 #include "cmd_engine.h"
 
+#include "al3010.h"
+
 #define MAX_TOF_DATA_COUNT (8 * 8 * 1)
 #define TOF_4X4_DATA_PACKET_SIZE (4 + 1 + 1 + 4 + (1 + 4 + 2 + 1 + 1) * (MAX_TOF_DATA_COUNT / 4) + 4 + 4)
 #define TOF_8X8_DATA_PACKET_SIZE (4 + 1 + 1 + 4 + (1 + 4 + 2 + 1 + 1) * MAX_TOF_DATA_COUNT + 4 + 4)
@@ -972,7 +974,9 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
         }
         break;
     case CE_GET_ALS_REG:
-	    usbDebug("ambientLight(0x%02X)= %d \r\n", (als_i2c_addr << 1), ambientLight);
+        uint8_t ret = AL3010_Device_Check();
+        if (ret != HAL_ERROR)        
+	        usbDebug("ambientLight(0x%02X)= %d \r\n", (als_i2c_addr << 1), ambientLight);
 
         break;
     case CE_GET_PANEL_REG:

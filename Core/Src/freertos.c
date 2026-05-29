@@ -890,7 +890,9 @@ void StartMainTask(void *argument)
 		}
 		if (alsSwitch)
 		{
-	    	usbDebug("ambientLight(0x%02X)= %d \r\n", (als_i2c_addr << 1), ambientLight);
+        	uint8_t ret = AL3010_Device_Check();
+        	if (ret != HAL_ERROR)         
+	        	usbDebug("ambientLight(0x%02X)= %d \r\n", (als_i2c_addr << 1), ambientLight);
 		}
 
 #if ENABLE_TOF_FORCE_RESET

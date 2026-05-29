@@ -44,12 +44,13 @@ HAL_StatusTypeDef AL3010_Device_Check(void)
         status = AL3010_WriteRegister(addr, AL3010_SYS_CONF, &data);
         if(status != HAL_OK)
         {
-	        usbDebug("%s: AL3010 Sensor is damaged?! \r\n", __func__);                  
+	        usbDebug("AL3010 Damaged: Data cannot be read! \r\n");  
+            return HAL_ERROR;                
         }
     }
 
-    als_i2c_addr = addr;    
-	// usbDebug("%s: AL3010 Slave address is 0x%02X \r\n", __func__, als_i2c_addr);        
+    als_i2c_addr = addr;      
+    return HAL_OK;     
 }
 
 HAL_StatusTypeDef AL3010_Init(void)
