@@ -812,6 +812,7 @@ void StartMainTask(void *argument)
 #endif
 
 #if ENABLE_ALS
+	AL3010_Device_Check();
 	AL3010_Init();
 	osDelay(10);
 
@@ -889,7 +890,7 @@ void StartMainTask(void *argument)
 		}
 		if (alsSwitch)
 		{
-	    	usbDebug("ambientLight= %d \r\n", ambientLight);
+	    	usbDebug("ambientLight(0x%02X)= %d \r\n", (als_i2c_addr << 1), ambientLight);
 		}
 
 #if ENABLE_TOF_FORCE_RESET

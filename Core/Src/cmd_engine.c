@@ -16,6 +16,7 @@ extern uint8_t micSwitch;
 extern uint8_t alsSwitch;
 
 extern uint32_t ambientLight;
+extern uint32_t als_i2c_addr;
 extern void checkPanelState(void);
 
 uint8_t tofNumOfTargets[MAX_TOF_DATA_COUNT];
@@ -971,7 +972,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
         }
         break;
     case CE_GET_ALS_REG:
-	    usbDebug("ambientLight= %d \r\n", ambientLight);
+	    usbDebug("ambientLight(0x%02X)= %d \r\n", (als_i2c_addr << 1), ambientLight);
 
         break;
     case CE_GET_PANEL_REG:

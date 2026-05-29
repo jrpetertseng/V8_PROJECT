@@ -11,7 +11,9 @@
 #include "usbd_custom_hid_sensor_if.h"
 #include "usb.h"
 
+
 uint32_t ambientLight = 0;
+uint32_t als_i2c_addr = AL3010_SENSOR_ADDRESS_GND; // V8 defaut setting 
 static JQueueMessage_t imuReport;
 
 #define ALS_REPORT_LENGTH       7
@@ -19,64 +21,95 @@ static JQueueMessage_t imuReport;
 static char seiko_als_STREAM_1[ALS_REPORT_LENGTH] =
     { 0x0A, 0x02, 0x04, 0x00, 0x00, 0x00, 0x00 };
 
-static HAL_StatusTypeDef AL3010_ReadRegisters(uint16_t reg, uint8_t *data, uint16_t length);
-static HAL_StatusTypeDef AL3010_WriteRegister(uint16_t reg, uint8_t *data);
+//static HAL_StatusTypeDef AL3010_ReadRegisters(addr, uint16_t reg, uint8_t *data, uint16_t length);
+//static HAL_StatusTypeDef AL3010_WriteRegister(addr, uint16_t reg, uint8_t *data);
+static HAL_StatusTypeDef AL3010_ReadRegisters(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t length);
+static HAL_StatusTypeDef AL3010_WriteRegister(uint16_t addr, uint16_t reg, uint8_t *data);
+
+
+HAL_StatusTypeDef AL3010_Device_Check(void)
+{
+    uint8_t addr;
+    uint8_t data;
+    HAL_StatusTypeDef status;
+
+    addr = AL3010_SENSOR_ADDRESS_GND;    
+
+    data = AL3010_SYS_CONF_DEFAULT_VALUE;
+    status = AL3010_WriteRegister(addr, AL3010_SYS_CONF, &data);
+    if(status != HAL_OK)
+    {
+        // Change i2c slave address and retry 
+        addr = AL3010_SENSOR_ADDRESS_FLOAT;
+        status = AL3010_WriteRegister(addr, AL3010_SYS_CONF, &data);
+        if(status != HAL_OK)
+        {
+	        usbDebug("%s: AL3010 Sensor is damaged?! \r\n", __func__);                  
+        }
+    }
+
+    als_i2c_addr = addr;    
+	// usbDebug("%s: AL3010 Slave address is 0x%02X \r\n", __func__, als_i2c_addr);        
+}
 
 HAL_StatusTypeDef AL3010_Init(void)
 {
+    uint8_t addr;
     uint8_t data;
     uint8_t errNum = 0;
     HAL_StatusTypeDef status;
 
+    addr = als_i2c_addr;
+
     data = AL3010_SYS_CONF_DEFAULT_VALUE;
-    status = AL3010_WriteRegister(AL3010_SYS_CONF, &data);
+    status = AL3010_WriteRegister(addr, AL3010_SYS_CONF, &data);
     if(status != HAL_OK)
     {
         errNum++;
     }
 
     data = AL3010_ALS_CONF_DEFAULT_VALUE;
-    status = AL3010_WriteRegister(AL3010_ALS_CONF, &data);
+    status = AL3010_WriteRegister(addr, AL3010_ALS_CONF, &data);
     if(status != HAL_OK)
     {
         errNum++;
     }
 
     data = AL3010_THLL_DEFAULT_VALUE;
-    status = AL3010_WriteRegister(AL3010_THLL, &data);
+    status = AL3010_WriteRegister(addr, AL3010_THLL, &data);
     if(status != HAL_OK)
     {
         errNum++;
     }
 
     data = AL3010_THLH_DEFAULT_VALUE;
-    status = AL3010_WriteRegister(AL3010_THLH, &data);
+    status = AL3010_WriteRegister(addr, AL3010_THLH, &data);
     if(status != HAL_OK)
     {
         errNum++;
     }
 
     data = AL3010_THHL_DEFAULT_VALUE;
-    status = AL3010_WriteRegister(AL3010_THHL, &data);
+    status = AL3010_WriteRegister(addr, AL3010_THHL, &data);
     if(status != HAL_OK)
     {
         errNum++;
     }
 
     data = AL3010_THHH_DEFAULT_VALUE;
-    status = AL3010_WriteRegister(AL3010_THHH, &data);
+    status = AL3010_WriteRegister(addr, AL3010_THHH, &data);
     if(status != HAL_OK)
     {
         errNum++;
     }
 
     data = 0x00;
-    status = AL3010_ReadRegisters(AL3010_SYS_CONF, &data, 1);
+    status = AL3010_ReadRegisters(addr, AL3010_SYS_CONF, &data, 1);
     if(data != AL3010_SYS_CONF_DEFAULT_VALUE)
     {
         errNum++;
     }
-    status = AL3010_ReadRegisters(AL3010_ALS_CONF, &data, 1);
+    status = AL3010_ReadRegisters(addr, AL3010_ALS_CONF, &data, 1);
     if(data != AL3010_ALS_CONF_DEFAULT_VALUE)
     {
         errNum++;
@@ -91,12 +124,14 @@ HAL_StatusTypeDef AL3010_Init(void)
 
 HAL_StatusTypeDef AL3010_ReadData(void)
 {
+    uint8_t addr;
     uint8_t regData[2];
     uint16_t tmp;
     SCALES_TYPE scals;
     HAL_StatusTypeDef status;
 
-    status = AL3010_ReadRegisters(AL3010_OUT_ALS_REG, regData, AL3010_OUT_ALS_LEN);
+    addr = als_i2c_addr;
+    status = AL3010_ReadRegisters(addr, AL3010_OUT_ALS_REG, regData, AL3010_OUT_ALS_LEN);
     tmp = (((uint16_t)regData[1] << 8) & 0xFF00)
                | ((uint16_t)regData[0] & 0x00FF);
 
@@ -110,18 +145,21 @@ HAL_StatusTypeDef AL3010_ReadData(void)
 
 HAL_StatusTypeDef AL3010_ReadData_ISR(void)
 {
+    uint8_t addr;
     uint8_t regData[2];
     uint16_t tmp;
     SCALES_TYPE scals;
     HAL_StatusTypeDef status;
 
-    status = AL3010_ReadRegisters(AL3010_INT_STATUS, regData, 1);
+    addr = als_i2c_addr;
+
+    status = AL3010_ReadRegisters(addr, AL3010_INT_STATUS, regData, 1);
     if (status != HAL_OK)
     {
         return HAL_ERROR;
     }
 
-    status = AL3010_ReadRegisters(AL3010_OUT_ALS_REG, regData, AL3010_OUT_ALS_LEN);
+    status = AL3010_ReadRegisters(addr, AL3010_OUT_ALS_REG, regData, AL3010_OUT_ALS_LEN);
     tmp = (((uint16_t)regData[1] << 8) & 0xFF00)
                | ((uint16_t)regData[0] & 0x00FF);
 
@@ -145,20 +183,22 @@ void ALS_SendReport_HS(void)
 }
 
 
-static HAL_StatusTypeDef AL3010_WriteRegister(uint16_t reg, uint8_t *data)
+//static HAL_StatusTypeDef AL3010_WriteRegister(addr, uint16_t reg, uint8_t *data)
+static HAL_StatusTypeDef AL3010_WriteRegister(uint16_t addr, uint16_t reg, uint8_t *data)
 {
     uint8_t ret;
 
-    ret = HAL_I2C_Mem_Write(ALS_SENSOR_BUS, (uint16_t) (AL3010_SENSOR_ADDRESS_GND << 1),
+    ret = HAL_I2C_Mem_Write(ALS_SENSOR_BUS, (uint16_t) (addr << 1),
         reg, I2C_MEMADD_SIZE_8BIT, data, 1, AL3010_MAX_DELAY);
     return ret;
 }
 
-static HAL_StatusTypeDef AL3010_ReadRegisters(uint16_t reg, uint8_t *data, uint16_t length)
+//static HAL_StatusTypeDef AL3010_ReadRegisters(addr, uint16_t reg, uint8_t *data, uint16_t length)
+static HAL_StatusTypeDef AL3010_ReadRegisters(uint16_t addr, uint16_t reg, uint8_t *data, uint16_t length)
 {
     uint8_t ret;
 
-    ret = HAL_I2C_Mem_Read(ALS_SENSOR_BUS, (uint16_t) (AL3010_SENSOR_ADDRESS_GND << 1),
+    ret = HAL_I2C_Mem_Read(ALS_SENSOR_BUS, (uint16_t) (addr << 1),
         reg, I2C_MEMADD_SIZE_8BIT, data, length, AL3010_MAX_DELAY);
     return ret;
 }
