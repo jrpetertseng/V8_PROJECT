@@ -15,8 +15,6 @@ extern uint8_t encSwitch;
 extern uint8_t micSwitch;
 extern uint8_t alsSwitch;
 
-extern uint8_t i2cScan;
-
 extern uint32_t ambientLight;
 extern void checkPanelState(void);
 
@@ -33,6 +31,9 @@ uint32_t ecx343RW_buf[sizeof(ECX343_DATA) / 4];
 const uint32_t precenseKey = (1UL << (CE_KEY_SCROLLLOCK - CE_KEY_BASE));
 
 static uint8_t CeCmdRespTxBuffer[MAX_CMD_RESP_LENGTH];
+
+#define RX_BUFFER_SIZE  128
+static uint8_t rx_buffer[RX_BUFFER_SIZE];
 
 #if USE_USB_TX_TASK
 static JQueueMessage_t cdcData;
@@ -64,6 +65,8 @@ typedef enum {
 
 static Meta_Data get_data(uint8_t* cmd_buf, uint32_t cmd_len);
 static Command string_to_command(char* str, uint32_t len);
+
+static void handle_i2c_cmd(int argc, char *argv[]);
 
 #if USE_USB_TX_TASK
 #define ENABLE_USB_SEND_MSG 1
@@ -543,15 +546,24 @@ static Command string_to_command(char* str, uint32_t len) {
                 cmd.Cmd = CE_FLASH_READ;
                 buf_offset = 6;
             }
-        } else if (!strncmp(str, "i2cscan", 7)) {
-            if (!strncmp(str + 7, "1", 1)) { // CE_ENTER_RFLASH
-                cmd.Cmd = CE_I2C_SCAN_START;
-                buf_offset = 8;
-            } else if (!strncmp(str + 7, "0", 1)) { // CE_ENTER_RFLASH
-                cmd.Cmd = CE_I2C_SCAN_STOP;
-                buf_offset = 8;
-            } 
-        }
+        } else if (!strncmp(str, "i2c", 3)) {
+            cmd.Cmd = CE_I2C_TOOLS;
+            buf_offset = 3;
+
+            strcpy((char *)rx_buffer, str); 
+            rx_buffer[len] = '\0';
+
+            /* Tokenize the command */
+            char *argv[10];
+            int argc = 0;
+            char *token = strtok((char *)rx_buffer, " \t");
+            while (token != NULL && argc < 10) {
+                argv[argc++] = token;
+                token = strtok(NULL, " \t");
+            }
+
+            handle_i2c_cmd(argc, argv);
+        } 
 
         if (len > buf_offset) {
             cmd.ArgsLength = len - buf_offset;
@@ -1114,15 +1126,9 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
             reply += sprintf(reply, "Error");
         break;
 
-    case CE_I2C_SCAN_START:
-	    usbDebug("i2c scan start... \r\n");
-        i2cScan = 1;
-        break;
-
-    case CE_I2C_SCAN_STOP:
-	    usbDebug("i2c scan stop! \r\n");
-        i2cScan = 0;
-        break;
+    case CE_I2C_TOOLS:
+        // T.B.D.
+       break;
 
     default:
         reply += sprintf(reply, "NG %d", CE_ERR_COMMAND);
@@ -1301,3 +1307,177 @@ void tof_ranging_callback(VL53L8CX_ResultsData* range_data, uint32_t time_stamp)
     return;
 }
 #endif
+
+/* Handle I2C commands */
+#define I2C_MAX_DELAY                        100
+
+extern I2C_HandleTypeDef hi2c1;
+extern I2C_HandleTypeDef hi2c2;
+extern I2C_HandleTypeDef hi2c3;
+
+void i2c_scan(I2C_HandleTypeDef *device)
+{
+    /* USER CODE BEGIN StartI2CScanTask */
+    uint8_t dev = 0;
+    uint8_t result;    
+    uint8_t deviceAddr;
+
+    if (device == NULL) {
+        usbDebug("Invalid I2C driver instance\n");
+        return;
+    }
+
+    if (device == &hi2c1) dev = 1;
+    else if (device == &hi2c2) dev = 2;
+    else if (device == &hi2c3) dev = 3;   
+
+    for (uint16_t i = 1; i < 128; i++)
+    {
+        result = HAL_I2C_IsDeviceReady(device, (i << 1), 3, 5);
+        if (result == HAL_OK)
+        {
+            deviceAddr = (i << 1);
+            usbDebug("I2C%d: Ready deviceAddr: 0x[%02X]\r\n", dev, deviceAddr);
+            osDelay(20);
+        }
+    }
+}
+
+static void handle_i2c_cmd(int argc, char *argv[])
+{
+    I2C_HandleTypeDef *device = NULL;
+
+    if (argc < 2) {
+        usbDebug("Error: Insufficient arguments for i2c command\r\n");
+        return;
+    }
+
+    if (argc >= 3) {
+        if (strcmp(argv[2], "i2c1") == 0) {
+        	device = &hi2c1;
+        } else if (strcmp(argv[2], "i2c2") == 0) {
+        	device = &hi2c2;
+        } else if (strcmp(argv[2], "i2c3") == 0) {
+        	device = &hi2c3;
+        } else {
+            usbDebug("Error: Unknown I2C driver '%s'\r\n", argv[2]);
+            return;
+        }
+    }
+    if (strcmp(argv[1], "r") == 0) {
+        /*
+         * Usage: i2c r <i2c1/i2c2/i2c3> <device_addr> <reg_addr> <reg_addr_len> <num>
+         * Example: i2c r i2c1 0x68 0x6B 1 2
+         */
+        if (argc != 7) {
+            usbDebug("Usage: i2c r <i2c1/i2c2/i2c3> <device_addr> <reg_addr> <reg_addr_len> <num>\r\n");
+            return;
+        }
+
+        uint8_t  device_addr  = (uint8_t)strtoul(argv[3], NULL, 0);
+        uint32_t reg_addr     = (uint32_t)strtoul(argv[4], NULL, 0);
+        uint8_t  reg_addr_len = (uint8_t)strtoul(argv[5], NULL, 0);
+        uint32_t num          = (uint32_t)strtoul(argv[6], NULL, 0);
+
+        /* Debug print */
+        usbDebug("I2C READ COMMAND:\r\n");
+        usbDebug("  device_addr= 0x%X\r\n", device_addr);
+        usbDebug("  reg_addr   = 0x%X\r\n", reg_addr);
+        usbDebug("  reg_addr_len = %u\r\n", reg_addr_len);
+        usbDebug("  num        = %lu\r\n", num);
+
+        if (num > 16) {
+            usbDebug("Error: Read length exceeds buffer size\r\n");
+            return;
+        }
+        osDelay(5);
+        uint8_t data[16];
+        memset(data, 0, sizeof(data));
+
+        HAL_StatusTypeDef ret = HAL_I2C_Mem_Read(device, device_addr, reg_addr, reg_addr_len, data, num, I2C_MAX_DELAY);
+
+        if (ret != HAL_OK) {
+            usbDebug("Error: I2C read failed\r\n");
+            return;
+        }
+
+        /* Display the read data */
+        usbDebug("I2C Read Data:");
+        for (uint32_t i = 0; i < num; i++) {
+            usbDebug(" 0x%02X", data[i]);
+        }
+        usbDebug("\r\n");
+
+    } else if (strcmp(argv[1], "w") == 0) {
+        /*
+         * Usage: i2c w <i2c1/i2c2/i2c3> <device_addr> <reg_addr> <reg_addr_len> <data1> [data2 ... dataN]
+         * Example: i2c w i2c1 0x68 0x6B 1 0x12 0xAB 0xCD
+         */
+        if (argc < 7) {
+            usbDebug("Usage: i2c w <i2c1/i2c2/i2c3> <device_addr> <reg_addr> <reg_addr_len> <data1> [data2 ... dataN]\r\n");
+            return;
+        }
+
+        uint8_t  device_addr  = (uint8_t)strtoul(argv[3], NULL, 0);
+        uint32_t reg_addr     = (uint32_t)strtoul(argv[4], NULL, 0);
+        uint8_t  reg_addr_len = (uint8_t)strtoul(argv[5], NULL, 0);
+        /* Parse multiple data bytes from argv[6..end] */
+        uint32_t num_data = (uint32_t)(argc - 6);  // data count
+        if (num_data > 4) {
+            usbDebug("Error: Write length exceeds buffer size\r\n");
+            return;
+        }
+
+        uint8_t dataBuf[16];
+        for (uint32_t i = 0; i < num_data; i++) {
+            dataBuf[i] = (uint8_t)strtoul(argv[6 + i], NULL, 0);
+        }
+
+        /* Debug print */
+        usbDebug("I2C WRITE COMMAND:\r\n");
+        usbDebug("  device_addr  = 0x%X\r\n", device_addr);
+        usbDebug("  reg_addr     = 0x%X\r\n", reg_addr);
+        usbDebug("  reg_addr_len = %u\r\n", reg_addr_len);
+        usbDebug("  data (hex)   =");
+        for (uint32_t i = 0; i < num_data; i++) {
+            usbDebug(" 0x%02X", dataBuf[i]);
+        }
+        usbDebug("\r\n");
+
+        // osDelay(5);
+
+       HAL_StatusTypeDef ret = HAL_I2C_Mem_Write(device, device_addr, reg_addr, reg_addr_len, dataBuf, num_data, I2C_MAX_DELAY);
+
+        if (ret != HAL_OK) {
+            usbDebug("Error: I2C write failed\r\n");
+            return;
+        }
+
+        usbDebug("I2C write successful, wrote %lu byte(s)\r\n", num_data);
+    } else if (strcmp(argv[1], "scan") == 0) {  
+        /* i2c scan <i2c1/i2c2/i2c3> */
+        if (argc != 3) {
+            usbDebug("Usage: i2c scan <i2c1/i2c2/i2c3>\r\n");
+            //return;
+        }
+
+        usbDebug("Scanning I2C bus...\r\n");
+        if (device == &hi2c1) usbDebug("I2C1 Scanning... \r\n");
+        else if (device == &hi2c2) usbDebug("I2C2 Scanning... \r\n");
+        else if (device == &hi2c3) usbDebug("I2C3 Scanning... \r\n");
+        else  
+            usbDebug("I2C all bus Scanning... \r\n");
+
+        if (argc != 3) {
+            // scan all
+            i2c_scan(&hi2c1);
+            i2c_scan(&hi2c2);
+            i2c_scan(&hi2c3);
+        }
+        else 
+            i2c_scan(device);
+
+    } else {
+        usbDebug("Error: Unknown i2c command '%s'\r\n", argv[1]);
+    }
+}

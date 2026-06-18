@@ -74,8 +74,7 @@ typedef enum {
     CE_FLASH_READ           = 0x172U,   //CE_ENTER_RFLASH
 
     //i2c
-    CE_I2C_SCAN_START       = 0x180U,
-    CE_I2C_SCAN_STOP        = 0x181U,
+    CE_I2C_TOOLS            = 0x180U,
 
     /* Trigger HID Keyboard Event */
     CE_HID_MIN              = 0x200U,

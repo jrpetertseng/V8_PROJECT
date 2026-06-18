@@ -17,7 +17,7 @@
 #define ENABLE_ALS                      1
 #define ENABLE_PS                       0
 #define ENABLE_ADC                      1
-#define ENABLE_SCAN_I2C                 1
+#define ENABLE_SCAN_I2C                 0
 
 #define ENABLE_PANEL                    1
 
