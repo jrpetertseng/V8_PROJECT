@@ -15,6 +15,8 @@ extern uint8_t encSwitch;
 extern uint8_t micSwitch;
 extern uint8_t alsSwitch;
 
+extern uint8_t i2cScan;
+
 extern uint32_t ambientLight;
 extern void checkPanelState(void);
 
@@ -541,6 +543,14 @@ static Command string_to_command(char* str, uint32_t len) {
                 cmd.Cmd = CE_FLASH_READ;
                 buf_offset = 6;
             }
+        } else if (!strncmp(str, "i2cscan", 7)) {
+            if (!strncmp(str + 7, "1", 1)) { // CE_ENTER_RFLASH
+                cmd.Cmd = CE_I2C_SCAN_START;
+                buf_offset = 8;
+            } else if (!strncmp(str + 7, "0", 1)) { // CE_ENTER_RFLASH
+                cmd.Cmd = CE_I2C_SCAN_STOP;
+                buf_offset = 8;
+            } 
         }
 
         if (len > buf_offset) {
@@ -935,7 +945,7 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
         break;
     case CE_GET_FW_VER:
         if (!args_len)
-            reply += sprintf(reply, "%d.%d.%d.%s %s", V_MAJOR, V_MINOR, V_PATCH, V_OPTAG, MODEL_SUFFIX);
+            reply += sprintf(reply, "%d.%d.%d%s%s", V_MAJOR, V_MINOR, V_PATCH, V_OPTAG, MODEL_SUFFIX);
         else
             reply += sprintf(reply, "NG %d", CE_ERR_PARAMETER);
         break;
@@ -1102,6 +1112,16 @@ void CE_Execute_Command(CE_CmdTypeDef cmd, uint8_t* args, uint32_t args_len) {
             reply += sprintf(reply, "OK");
         else
             reply += sprintf(reply, "Error");
+        break;
+
+    case CE_I2C_SCAN_START:
+	    usbDebug("i2c scan start... \r\n");
+        i2cScan = 1;
+        break;
+
+    case CE_I2C_SCAN_STOP:
+	    usbDebug("i2c scan stop! \r\n");
+        i2cScan = 0;
         break;
 
     default:

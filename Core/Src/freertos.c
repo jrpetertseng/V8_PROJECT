@@ -89,6 +89,8 @@ uint8_t alsSwitch = 0;
 
 uint8_t isPanelOn = 0;
 
+uint8_t i2cScan = 0;
+
 static SemaphoreHandle_t I2C1_Lock;
 static SemaphoreHandle_t I2C3_Lock;
 static SemaphoreHandle_t isrToFLock;
@@ -756,6 +758,11 @@ void StartI2CScanTask(void *argument)
     /* Infinite loop */
     for (;;)
     {
+		if (!i2cScan) {
+        	osDelay(100);
+			continue;			
+		}
+
         for (uint16_t i = 1; i < 128; i++)
         {
             result = HAL_I2C_IsDeviceReady(&hi2c1, (i << 1), 3, 5);
